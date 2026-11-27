@@ -380,24 +380,29 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     loadPrefs() {
+      const sec = YD.Security;
+      const storage = sec ? sec.getSafeStorage() : null;
+      if (!storage) return;
       try {
-        const raw = localStorage.getItem(AUDIO_STORAGE_KEY);
+        const raw = storage.getItem(AUDIO_STORAGE_KEY);
         if (!raw) return;
-        const d = JSON.parse(raw);
+        const d = sec.sanitizeAudioPrefs(raw, TRACK_ORDER);
+        if (!d) return;
         if (typeof d.muted === 'boolean') this.muted = d.muted;
         if (typeof d.musicOn === 'boolean') this.musicOn = d.musicOn;
-        if (typeof d.musicVol === 'number') this.musicVol = Math.max(0, Math.min(1, d.musicVol));
-        if (typeof d.ambienceVol === 'number') this.ambienceVol = Math.max(0, Math.min(1, d.ambienceVol));
-        if (typeof d.sfxVol === 'number') this.sfxVol = Math.max(0, Math.min(1, d.sfxVol));
-        if (typeof d.station === 'string' && (d.station === 'auto' || TRACKS[d.station])) {
-          this.station = d.station;
-        }
+        if (typeof d.musicVol === 'number') this.musicVol = d.musicVol;
+        if (typeof d.ambienceVol === 'number') this.ambienceVol = d.ambienceVol;
+        if (typeof d.sfxVol === 'number') this.sfxVol = d.sfxVol;
+        if (typeof d.station === 'string') this.station = d.station;
       } catch (_) {}
     }
 
     savePrefs() {
+      const sec = YD.Security;
+      const storage = sec ? sec.getSafeStorage() : null;
+      if (!storage) return;
       try {
-        localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify({
+        storage.setItem(AUDIO_STORAGE_KEY, JSON.stringify({
           muted: this.muted,
           musicOn: this.musicOn,
           musicVol: this.musicVol,

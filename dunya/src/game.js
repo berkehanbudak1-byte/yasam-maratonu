@@ -16,6 +16,27 @@ window.YasamDunya = window.YasamDunya || {};
   'use strict';
 
   const SAVE_KEY = 'yasam_maratonu_dunya_save_v4';
+  const SEC = YD.Security;
+
+  function makeEl(tag, opts, ...children) {
+    const el = document.createElement(tag);
+    if (opts) {
+      if (opts.className) el.className = opts.className;
+      if (opts.id) el.id = opts.id;
+      if (opts.title) el.title = opts.title;
+      if (opts.disabled) el.disabled = true;
+      if (opts.style) Object.assign(el.style, opts.style);
+      if (opts.dataset) {
+        for (const [k, v] of Object.entries(opts.dataset)) el.dataset[k] = v;
+      }
+      if (opts.onClick) el.addEventListener('click', opts.onClick);
+    }
+    for (const ch of children) {
+      if (ch == null || ch === false) continue;
+      el.appendChild(typeof ch === 'string' || typeof ch === 'number' ? document.createTextNode(String(ch)) : ch);
+    }
+    return el;
+  }
 
   class YasamDunyaGame {
     constructor() {
@@ -27,7 +48,7 @@ window.YasamDunya = window.YasamDunya || {};
 
       this.started = false;
       this.scene = 'world'; // 'world' | 'home'
-      this.keys = {};
+      this.keys = Object.create(null);
       this.shopOpen = false;
       this.homeOpen = false;
       this.questOpen = false;
@@ -159,21 +180,30 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     peekSave() {
-      try { return !!localStorage.getItem(SAVE_KEY); } catch (_) { return false; }
+      const storage = SEC.getSafeStorage();
+      if (!storage) return false;
+      try { return !!storage.getItem(SAVE_KEY); } catch (_) { return false; }
     }
 
     renderTitleScreen() {
       const row = document.getElementById('colorPickerRow');
       if (row) {
-        row.innerHTML = YD.JACKET_COLORS.map((c) =>
-          `<button class="color-dot ${c.hex === this.player.color ? 'active' : ''}" data-hex="${c.hex}" title="${c.name}" style="background:${c.hex};"></button>`
-        ).join('');
-        row.querySelectorAll('.color-dot').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            this.player.color = btn.dataset.hex;
-            this.renderTitleScreen();
-          });
+        const allowedHexes = YD.JACKET_COLORS.map((c) => c.hex);
+        const frag = document.createDocumentFragment();
+        YD.JACKET_COLORS.forEach((c) => {
+          const safeHex = SEC.sanitizeHexColor(c.hex, allowedHexes, allowedHexes[0]);
+          frag.appendChild(makeEl('button', {
+            className: `color-dot ${safeHex === this.player.color ? 'active' : ''}`,
+            title: c.name,
+            dataset: { hex: safeHex },
+            style: { background: safeHex },
+            onClick: () => {
+              this.player.color = safeHex;
+              this.renderTitleScreen();
+            }
+          }));
         });
+        row.replaceChildren(frag);
       }
       const contBtn = document.getElementById('btnContinueGame');
       if (contBtn) {
@@ -192,7 +222,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.loadSave();
       } else {
         const input = document.getElementById('inputPlayerName');
-        this.playerName = (input && input.value.trim()) || 'Gezgin';
+        this.playerName = SEC.sanitizePlayerName(input && input.value, 'Gezgin', 16);
         this.saveGame();
       }
       this.syncPetFromInventory();
@@ -251,7 +281,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnContinueGame').addEventListener('click', () => this.beginPlay(true));
       document.getElementById('btnStartNewGame').addEventListener('click', () => {
         if (this.hasSave && !confirm('Mevcut kayıt silinip yeni hayata başlansın mı?')) return;
-        localStorage.removeItem(SAVE_KEY);
+        SEC.removeStorageKeySafe(SEC.getSafeStorage(), SAVE_KEY);
         this.beginPlay(false);
       });
 
@@ -384,7 +414,10 @@ window.YasamDunya = window.YasamDunya || {};
       });
       document.getElementById('btnFishCatch').addEventListener('click', () => { this.audio.unlock(); this.resolveFishingAttempt(); });
       document.getElementById('btnResetSave').addEventListener('click', () => {
-        if (confirm('Kayıt sıfırlansın mı?')) { localStorage.removeItem(SAVE_KEY); location.reload(); }
+        if (confirm('Kayıt sıfırlansın mı?')) {
+          SEC.removeStorageKeySafe(SEC.getSafeStorage(), SAVE_KEY);
+          location.reload();
+        }
       });
 
       document.querySelectorAll('.touch-btn').forEach((btn) => {
@@ -468,8 +501,10 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     saveGame() {
+      const storage = SEC.getSafeStorage();
+      if (!storage) return;
       const data = {
-        playerName: this.playerName, color: this.player.color,
+        playerName: SEC.sanitizePlayerName(this.playerName, 'Gezgin', 16), color: this.player.color,
         day: this.day, age: this.age, seasonIdx: this.seasonIdx, weatherIdx: this.weatherIdx,
         dailyEventIdx: this.dailyEventIdx, timeMinutes: this.timeMinutes,
         money: this.money, bankBalance: this.bankBalance, carBattery: this.carBattery,
@@ -484,48 +519,49 @@ window.YasamDunya = window.YasamDunya || {};
         questProgress: this.questProgress, questDone: [...this.questDone],
         px: this.player.x, py: this.player.y
       };
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) {}
+      try { storage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) {}
     }
 
     loadSave() {
+      const storage = SEC.getSafeStorage();
+      if (!storage) return;
       try {
-        const raw = localStorage.getItem(SAVE_KEY);
+        const raw = storage.getItem(SAVE_KEY);
         if (!raw) return;
-        const d = JSON.parse(raw);
-        this.playerName = d.playerName || 'Gezgin';
-        if (d.color) this.player.color = d.color;
-        this.day = d.day || 1; this.age = d.age || 20;
-        this.seasonIdx = d.seasonIdx || 0; this.weatherIdx = d.weatherIdx || 0;
-        this.dailyEventIdx = d.dailyEventIdx || 0;
-        this.timeMinutes = d.timeMinutes || 480;
-        this.money = d.money ?? 160;
-        this.bankBalance = d.bankBalance || 0;
-        this.carBattery = d.carBattery ?? 100;
-        this.health = d.health ?? 100;
-        this.energy = d.energy ?? 100; this.hunger = d.hunger ?? 95;
-        this.happiness = d.happiness ?? 90; this.xp = d.xp || 0; this.level = d.level || 1;
-        this.ownsCafe = !!d.ownsCafe;
-        this.cafeTotalEarned = d.cafeTotalEarned || 0;
-        if (Array.isArray(d.gardenPlots)) {
-          d.gardenPlots.forEach((gp, idx) => {
-            if (this.world.gardenPlots[idx]) {
-              this.world.gardenPlots[idx].crop = gp.crop || null;
-              this.world.gardenPlots[idx].growth = gp.growth || 0;
-              this.world.gardenPlots[idx].watered = !!gp.watered;
-            }
-          });
-        }
-        this.inventory = new Set(d.inventory || []);
-        this.homeDecor = new Set(d.homeDecor || []);
-        this.uniCerts = new Set(d.uniCerts || []);
-        this.photosTaken = new Set(d.photosTaken || []);
-        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, soup: 0, pie: 0, feast: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, petfood: 2, ...(d.bag || {}) };
-        this.achievements = new Set(d.achievements || []);
-        this.animalFriends = new Set(d.animalFriends || []);
-        this.npcHearts = d.npcHearts || {};
-        this.questProgress = d.questProgress || {};
-        this.questDone = new Set(d.questDone || []);
-        if (d.px && d.py) {
+        const d = SEC.sanitizeSaveData(raw, YD);
+        if (!d) return;
+        this.playerName = d.playerName;
+        this.player.color = d.color;
+        this.day = d.day; this.age = d.age;
+        this.seasonIdx = d.seasonIdx; this.weatherIdx = d.weatherIdx;
+        this.dailyEventIdx = d.dailyEventIdx;
+        this.timeMinutes = d.timeMinutes;
+        this.money = d.money;
+        this.bankBalance = d.bankBalance;
+        this.carBattery = d.carBattery;
+        this.health = d.health;
+        this.energy = d.energy; this.hunger = d.hunger;
+        this.happiness = d.happiness; this.xp = d.xp; this.level = d.level;
+        this.ownsCafe = d.ownsCafe;
+        this.cafeTotalEarned = d.cafeTotalEarned;
+        d.gardenPlots.forEach((gp, idx) => {
+          if (this.world.gardenPlots[idx]) {
+            this.world.gardenPlots[idx].crop = gp.crop;
+            this.world.gardenPlots[idx].growth = gp.growth;
+            this.world.gardenPlots[idx].watered = gp.watered;
+          }
+        });
+        this.inventory = d.inventory;
+        this.homeDecor = d.homeDecor;
+        this.uniCerts = d.uniCerts;
+        this.photosTaken = d.photosTaken;
+        this.bag = { ...d.bag };
+        this.achievements = d.achievements;
+        this.animalFriends = d.animalFriends;
+        this.npcHearts = { ...d.npcHearts };
+        this.questProgress = { ...d.questProgress };
+        this.questDone = d.questDone;
+        if (d.px !== null && d.py !== null) {
           this.player.x = d.px; this.player.y = d.py;
           this.world.resolveCollisions(this.player, false);
         }
@@ -578,7 +614,10 @@ window.YasamDunya = window.YasamDunya || {};
       const btn = document.getElementById('btnMusic');
       if (!btn) return;
       const active = this.audio.musicOn && !this.audio.muted;
-      btn.innerHTML = active ? '🎵<span>N</span>' : '🔇<span>N</span>';
+      btn.replaceChildren(
+        document.createTextNode(active ? '🎵' : '🔇'),
+        makeEl('span', null, 'N')
+      );
     }
 
     toggleMusic() {
@@ -778,39 +817,44 @@ window.YasamDunya = window.YasamDunya || {};
       if (!grid) return;
       const tracks = a.getTracks();
       const order = a.getTrackOrder();
-      let html = `
-        <button class="station-btn full-span ${a.station === 'auto' ? 'active' : ''}" data-station="auto">
-          <span class="station-ico">🧭</span>
-          <div style="min-width:0;">
-            <div class="station-name">Otomatik Dinamik Müzik (Önerilen)</div>
-            <div class="station-desc">Şehir, Orman, Sahil, Dağ, Ev İçi, Gece ve Barista/Kurye'ye göre otomatik geçiş yapar</div>
-          </div>
-        </button>`;
+      const onSelectStation = (stationId) => {
+        this.audio.unlock();
+        if (!this.audio.musicOn) this.audio.setMusicOn(true);
+        if (this.audio.muted) this.audio.setMuted(false);
+        this.audio.setStation(stationId);
+        this.audio.uiClick();
+        this.syncMusicButton();
+        this.renderMusicModal();
+      };
+      const frag = document.createDocumentFragment();
+      frag.appendChild(makeEl('button', {
+        className: `station-btn full-span ${a.station === 'auto' ? 'active' : ''}`,
+        dataset: { station: 'auto' },
+        onClick: () => onSelectStation('auto')
+      },
+        makeEl('span', { className: 'station-ico' }, '🧭'),
+        makeEl('div', { style: { minWidth: '0' } },
+          makeEl('div', { className: 'station-name' }, 'Otomatik Dinamik Müzik (Önerilen)'),
+          makeEl('div', { className: 'station-desc' }, 'Şehir, Orman, Sahil, Dağ, Ev İçi, Gece ve Barista/Kurye\'ye göre otomatik geçiş yapar')
+        )
+      ));
       for (const id of order) {
         const t = tracks[id];
         if (!t) continue;
         const isActive = a.station === id;
-        html += `
-          <button class="station-btn ${isActive ? 'active' : ''}" data-station="${t.id}">
-            <span class="station-ico">${t.icon}</span>
-            <div style="min-width:0;">
-              <div class="station-name">${t.name}</div>
-              <div class="station-desc">${t.bpm} BPM · ${t.desc}</div>
-            </div>
-          </button>`;
+        frag.appendChild(makeEl('button', {
+          className: `station-btn ${isActive ? 'active' : ''}`,
+          dataset: { station: t.id },
+          onClick: () => onSelectStation(t.id)
+        },
+          makeEl('span', { className: 'station-ico' }, t.icon),
+          makeEl('div', { style: { minWidth: '0' } },
+            makeEl('div', { className: 'station-name' }, t.name),
+            makeEl('div', { className: 'station-desc' }, `${t.bpm} BPM · ${t.desc}`)
+          )
+        ));
       }
-      grid.innerHTML = html;
-      grid.querySelectorAll('.station-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          this.audio.unlock();
-          if (!this.audio.musicOn) this.audio.setMusicOn(true);
-          if (this.audio.muted) this.audio.setMuted(false);
-          this.audio.setStation(btn.dataset.station);
-          this.audio.uiClick();
-          this.syncMusicButton();
-          this.renderMusicModal();
-        });
-      });
+      grid.replaceChildren(frag);
     }
 
     renderOfficeModal() {
@@ -819,37 +863,49 @@ window.YasamDunya = window.YasamDunya || {};
       const evMult = this.dailyEventIdx === 2 ? 1.5 : 1.0;
       const shiftPay = Math.round((80 + this.level * 18) * career.bonus * bonusMult * evMult);
       const cb = document.getElementById('officeCareerBanner');
-      if (cb) cb.innerHTML = `💼 Unvan: <b>${career.title}</b> (Maaş x${career.bonus})${this.uniCerts.has('cert_fin') ? ' · 📈 Finans Diploması (+%25)' : ''}${this.dailyEventIdx === 2 ? ' · 🔥 +%50 Bonus Günü!' : ''}`;
+      if (cb) {
+        const extra = `${this.uniCerts.has('cert_fin') ? ' · 📈 Finans Diploması (+%25)' : ''}${this.dailyEventIdx === 2 ? ' · 🔥 +%50 Bonus Günü!' : ''}`;
+        cb.replaceChildren(
+          document.createTextNode('💼 Unvan: '),
+          makeEl('b', null, career.title),
+          document.createTextNode(` (Maaş x${career.bonus})${extra}`)
+        );
+      }
       const grid = document.getElementById('officeActionsGrid');
       if (!grid) return;
-      grid.innerHTML = `
-        <div class="shop-item">
-          <div style="font-size:24px;">💼</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-weight:800; color:#f8fafc;">Ofis Vardiyası Çalış</div>
-            <div style="font-size:11px; color:#94a3b8;">+₺${shiftPay} · +30 XP · -22 Enerji</div>
-          </div>
-          <button id="btnOfficeShift" class="shop-buy-btn">ÇALIŞ</button>
-        </div>
-        <div class="shop-item">
-          <div style="font-size:24px;">📦</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-weight:800; color:#fde047;">Ekspres Kurye Teslimatı (45sn Yarış!)</div>
-            <div style="font-size:11px; color:#94a3b8;">Bisiklet veya Arabanla hedefe yetiş — +₺140–₺320 + Hız Bonusu!</div>
-          </div>
-          <button id="btnStartDelivery" class="shop-buy-btn" ${this.delivery.active ? 'disabled' : ''}>${this.delivery.active ? 'AKTİF' : 'BAŞLAT ▶'}</button>
-        </div>`;
-      document.getElementById('btnOfficeShift').addEventListener('click', () => {
-        this.toggleOffice(false);
-        this.doOfficeShift();
-      });
-      const delBtn = document.getElementById('btnStartDelivery');
-      if (delBtn && !this.delivery.active) {
-        delBtn.addEventListener('click', () => {
-          this.toggleOffice(false);
-          this.startDelivery();
-        });
-      }
+      const frag = document.createDocumentFragment();
+      frag.appendChild(makeEl('div', { className: 'shop-item' },
+        makeEl('div', { style: { fontSize: '24px' } }, '💼'),
+        makeEl('div', { style: { flex: '1', minWidth: '0' } },
+          makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, 'Ofis Vardiyası Çalış'),
+          makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, `+₺${shiftPay} · +30 XP · -22 Enerji`)
+        ),
+        makeEl('button', {
+          id: 'btnOfficeShift',
+          className: 'shop-buy-btn',
+          onClick: () => {
+            this.toggleOffice(false);
+            this.doOfficeShift();
+          }
+        }, 'ÇALIŞ')
+      ));
+      frag.appendChild(makeEl('div', { className: 'shop-item' },
+        makeEl('div', { style: { fontSize: '24px' } }, '📦'),
+        makeEl('div', { style: { flex: '1', minWidth: '0' } },
+          makeEl('div', { style: { fontWeight: '800', color: '#fde047' } }, 'Ekspres Kurye Teslimatı (45sn Yarış!)'),
+          makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, 'Bisiklet veya Arabanla hedefe yetiş — +₺140–₺320 + Hız Bonusu!')
+        ),
+        makeEl('button', {
+          id: 'btnStartDelivery',
+          className: 'shop-buy-btn',
+          disabled: this.delivery.active,
+          onClick: this.delivery.active ? null : () => {
+            this.toggleOffice(false);
+            this.startDelivery();
+          }
+        }, this.delivery.active ? 'AKTİF' : 'BAŞLAT ▶')
+      ));
+      grid.replaceChildren(frag);
     }
 
     doOfficeShift() {
@@ -911,29 +967,42 @@ window.YasamDunya = window.YasamDunya || {};
       const titleEl = document.getElementById('busModalTitle');
       const subEl = document.getElementById('busModalSub');
       if (titleEl) titleEl.textContent = isTaxi ? '🚕 ŞEHİR TAKSİSİ' : '🚏 HIZLI OTOBÜS SEYAHATİ';
-      if (subEl) subEl.innerHTML = isTaxi
-        ? 'Taksi ücreti <b>₺35</b>! Seçtiğin bölgeye kapıdan kapıya hızlıca bırakır.'
-        : 'Bilet sadece <b>₺15</b>! Haritanın dört bir yanına anında git.';
+      if (subEl) {
+        if (isTaxi) {
+          subEl.replaceChildren(
+            document.createTextNode('Taksi ücreti '),
+            makeEl('b', null, '₺35'),
+            document.createTextNode('! Seçtiğin bölgeye kapıdan kapıya hızlıca bırakır.')
+          );
+        } else {
+          subEl.replaceChildren(
+            document.createTextNode('Bilet sadece '),
+            makeEl('b', null, '₺15'),
+            document.createTextNode('! Haritanın dört bir yanına anında git.')
+          );
+        }
+      }
 
       const grid = document.getElementById('busStopGrid');
       if (!grid) return;
-      grid.innerHTML = YD.BUS_STOPS.map((bs) => {
+      const frag = document.createDocumentFragment();
+      YD.BUS_STOPS.forEach((bs) => {
         const here = Math.hypot(this.player.x - bs.x, this.player.y - bs.y) < 120;
-        return `
-          <div class="shop-item">
-            <div style="font-size:22px;">${isTaxi ? '🚕' : '🚏'}</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">${bs.name}</div>
-              <div style="font-size:11px; color:#94a3b8;">${here ? 'Şu an bu bölgedesin' : (isTaxi ? 'Konforlu taksi yolculuğu' : 'Anında hızlı seyahat')}</div>
-            </div>
-            <button class="shop-buy-btn ${here ? 'owned' : ''}" data-bus="${bs.id}" ${here ? 'disabled' : ''}>
-              ${here ? 'BURADA' : `GİT ₺${fare}`}
-            </button>
-          </div>`;
-      }).join('');
-      grid.querySelectorAll('[data-bus]:not(.owned)').forEach((btn) => {
-        btn.addEventListener('click', () => this.travelToBusStop(btn.dataset.bus));
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '22px' } }, isTaxi ? '🚕' : '🚏'),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, bs.name),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, here ? 'Şu an bu bölgedesin' : (isTaxi ? 'Konforlu taksi yolculuğu' : 'Anında hızlı seyahat'))
+          ),
+          makeEl('button', {
+            className: `shop-buy-btn ${here ? 'owned' : ''}`,
+            dataset: { bus: bs.id },
+            disabled: here,
+            onClick: here ? null : () => this.travelToBusStop(bs.id)
+          }, here ? 'BURADA' : `GİT ₺${fare}`)
+        ));
       });
+      grid.replaceChildren(frag);
     }
 
     travelToBusStop(stopId) {
@@ -963,7 +1032,14 @@ window.YasamDunya = window.YasamDunya || {};
       const banner = document.getElementById('bankBalanceBanner');
       if (banner) {
         const estInterest = Math.floor(this.bankBalance * rate);
-        banner.innerHTML = `💵 Cüzdan: <b>₺${Math.floor(this.money).toLocaleString()}</b> · 🏦 Banka: <b style="color:#4ade80;">₺${Math.floor(this.bankBalance).toLocaleString()}</b> <span style="color:#fde047;">(+₺${estInterest}/gün ${pctTxt} faiz)</span>`;
+        banner.replaceChildren(
+          document.createTextNode('💵 Cüzdan: '),
+          makeEl('b', null, `₺${Math.floor(this.money).toLocaleString()}`),
+          document.createTextNode(' · 🏦 Banka: '),
+          makeEl('b', { style: { color: '#4ade80' } }, `₺${Math.floor(this.bankBalance).toLocaleString()}`),
+          document.createTextNode(' '),
+          makeEl('span', { style: { color: '#fde047' } }, `(+₺${estInterest}/gün ${pctTxt} faiz)`)
+        );
       }
       const grid = document.getElementById('bankActionsGrid');
       if (!grid) return;
@@ -974,137 +1050,176 @@ window.YasamDunya = window.YasamDunya || {};
         { id: 'wdr_50',  ico: '📤', title: '₺50 Çek',          sub: 'Cüzdanına anında nakit al',             dis: this.bankBalance < 50 },
         { id: 'wdr_all', ico: '💵', title: 'Hepsini Çek',      sub: `₺${Math.floor(this.bankBalance)} cüzdana aktar`, dis: this.bankBalance < 1 }
       ];
-      grid.innerHTML = acts.map((a) => `
-        <div class="shop-item">
-          <div style="font-size:22px;">${a.ico}</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-weight:800; color:#f8fafc;">${a.title}</div>
-            <div style="font-size:11px; color:#94a3b8;">${a.sub}</div>
-          </div>
-          <button class="shop-buy-btn" data-bank="${a.id}" ${a.dis ? 'disabled style="opacity:0.38; cursor:not-allowed; filter:grayscale(0.7);"' : ''}>UYGULA</button>
-        </div>`).join('');
-      grid.querySelectorAll('[data-bank]:not([disabled])').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const act = btn.dataset.bank;
-          if (act === 'dep_50' && this.money >= 50) { this.money -= 50; this.bankBalance += 50; }
-          else if (act === 'dep_200' && this.money >= 200) { this.money -= 200; this.bankBalance += 200; }
-          else if (act === 'dep_all' && this.money >= 10) { const amt = Math.floor(this.money); this.money -= amt; this.bankBalance += amt; }
-          else if (act === 'wdr_50' && this.bankBalance >= 50) { this.bankBalance -= 50; this.money += 50; }
-          else if (act === 'wdr_all' && this.bankBalance >= 1) { const amt = Math.floor(this.bankBalance); this.bankBalance -= amt; this.money += amt; }
-          this.audio.cashRegister();
-          this.checkAchievements();
-          this.renderBankModal();
-          this.saveGame();
-        });
+      const frag = document.createDocumentFragment();
+      acts.forEach((a) => {
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '22px' } }, a.ico),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, a.title),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, a.sub)
+          ),
+          makeEl('button', {
+            className: 'shop-buy-btn',
+            dataset: { bank: a.id },
+            disabled: a.dis,
+            style: a.dis ? { opacity: '0.38', cursor: 'not-allowed', filter: 'grayscale(0.7)' } : null,
+            onClick: a.dis ? null : () => {
+              const act = a.id;
+              if (act === 'dep_50' && this.money >= 50) { this.money -= 50; this.bankBalance += 50; }
+              else if (act === 'dep_200' && this.money >= 200) { this.money -= 200; this.bankBalance += 200; }
+              else if (act === 'dep_all' && this.money >= 10) { const amt = Math.floor(this.money); this.money -= amt; this.bankBalance += amt; }
+              else if (act === 'wdr_50' && this.bankBalance >= 50) { this.bankBalance -= 50; this.money += 50; }
+              else if (act === 'wdr_all' && this.bankBalance >= 1) { const amt = Math.floor(this.bankBalance); this.bankBalance -= amt; this.money += amt; }
+              this.audio.cashRegister();
+              this.checkAchievements();
+              this.renderBankModal();
+              this.saveGame();
+            }
+          }, 'UYGULA')
+        ));
       });
+      grid.replaceChildren(frag);
     }
 
     renderCookModal() {
       const banner = document.getElementById('cookStatusBanner');
       const culBonus = this.uniCerts.has('cert_culinary');
       if (banner) {
-        banner.innerHTML = `🧺 Malzemelerin: 🐟 <b>${this.bag.fish || 0}</b> · 🍅 <b>${this.bag.tomato || 0}</b> · 🍄 <b>${this.bag.mushroom || 0}</b> · 🍓Böğürtlen <b>${this.bag.berry || 0}</b> · 🍓Çilek <b>${this.bag.strawberry || 0}</b>${culBonus ? ' · 👨‍🍳 +35% Şef Bonusu' : ''}`;
+        banner.replaceChildren(
+          document.createTextNode('🧺 Malzemelerin: 🐟 '),
+          makeEl('b', null, this.bag.fish || 0),
+          document.createTextNode(' · 🍅 '),
+          makeEl('b', null, this.bag.tomato || 0),
+          document.createTextNode(' · 🍄 '),
+          makeEl('b', null, this.bag.mushroom || 0),
+          document.createTextNode(' · 🍓Böğürtlen '),
+          makeEl('b', null, this.bag.berry || 0),
+          document.createTextNode(' · 🍓Çilek '),
+          makeEl('b', null, this.bag.strawberry || 0),
+          document.createTextNode(culBonus ? ' · 👨‍🍳 +35% Şef Bonusu' : '')
+        );
       }
       const grid = document.getElementById('cookRecipesGrid');
       if (!grid) return;
-      grid.innerHTML = YD.RECIPES.map((r) => {
+      const frag = document.createDocumentFragment();
+      YD.RECIPES.forEach((r) => {
         const canCook = Object.entries(r.ingredients).every(([k, need]) => (this.bag[k] || 0) >= need);
         const haveQty = this.bag[r.id] || 0;
         const sellVal = Math.round(r.sell * (culBonus ? 1.35 : 1.0));
-        return `
-          <div class="shop-item">
-            <div style="font-size:24px;">${r.icon}</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">${r.name} ${haveQty > 0 ? `<span style="color:#fde047;">(Çantada: x${haveQty})</span>` : ''}</div>
-              <div style="font-size:11px; color:#cbd5e1;">Gereken: <b>${r.ingText}</b></div>
-              <div style="font-size:11px; color:#94a3b8;">+${r.hunger} Tokluk · +${r.energy} Enerji · +${r.health} Sağlık · Satış: ₺${sellVal}</div>
-            </div>
-            <div class="btn-row">
-              ${haveQty > 0 ? `<button class="hud-btn" data-cook-eat="${r.id}">YE 🍽️</button>` : ''}
-              <button class="shop-buy-btn" data-cook="${r.id}" ${!canCook ? 'disabled style="opacity:0.38; cursor:not-allowed; filter:grayscale(0.7);"' : ''}>PİŞİR 🍳</button>
-            </div>
-          </div>`;
-      }).join('');
-
-      grid.querySelectorAll('[data-cook]:not([disabled])').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const r = YD.RECIPES.find((x) => x.id === btn.dataset.cook);
-          if (!r) return;
-          for (const [k, need] of Object.entries(r.ingredients)) {
-            if ((this.bag[k] || 0) < need) return;
-          }
-          for (const [k, need] of Object.entries(r.ingredients)) {
-            this.bag[k] -= need;
-          }
-          this.bag[r.id] = (this.bag[r.id] || 0) + 1;
-          this.happiness = Math.min(100, this.happiness + 12);
-          this.addXp(r.xp);
-          this.audio.cookSizzle();
-          this.showToast(`🍳 ${r.icon} ${r.name} pişti! (+${r.xp} XP — Çantana eklendi)`);
-          this.unlockAchievement('ach_chef');
-          this.advanceQuest('q_cook', 1);
-          this.checkAchievements();
-          this.renderCookModal();
-          this.saveGame();
-        });
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, r.icon),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } },
+              `${r.name} `,
+              haveQty > 0 ? makeEl('span', { style: { color: '#fde047' } }, `(Çantada: x${haveQty})`) : null
+            ),
+            makeEl('div', { style: { fontSize: '11px', color: '#cbd5e1' } },
+              'Gereken: ',
+              makeEl('b', null, r.ingText)
+            ),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } },
+              `+${r.hunger} Tokluk · +${r.energy} Enerji · +${r.health} Sağlık · Satış: ₺${sellVal}`
+            )
+          ),
+          makeEl('div', { className: 'btn-row' },
+            haveQty > 0 ? makeEl('button', {
+              className: 'hud-btn',
+              dataset: { cookEat: r.id },
+              onClick: () => {
+                const info = YD.BAG_ITEMS[r.id];
+                if (!info || !this.bag[r.id]) return;
+                this.bag[r.id]--;
+                this.hunger = Math.min(100, this.hunger + info.hunger);
+                this.energy = Math.min(100, this.energy + info.energy);
+                this.health = Math.min(100, this.health + info.health);
+                this.happiness = Math.min(100, this.happiness + 18);
+                this.audio.pickup();
+                this.showToast(`🍽️ ${info.icon} ${info.name} afiyetle yendi! (+${info.hunger} Tokluk, +${info.energy} Enerji)`);
+                this.renderCookModal();
+                this.saveGame();
+              }
+            }, 'YE 🍽️') : null,
+            makeEl('button', {
+              className: 'shop-buy-btn',
+              dataset: { cook: r.id },
+              disabled: !canCook,
+              style: !canCook ? { opacity: '0.38', cursor: 'not-allowed', filter: 'grayscale(0.7)' } : null,
+              onClick: !canCook ? null : () => {
+                for (const [k, need] of Object.entries(r.ingredients)) {
+                  if ((this.bag[k] || 0) < need) return;
+                }
+                for (const [k, need] of Object.entries(r.ingredients)) {
+                  this.bag[k] -= need;
+                }
+                this.bag[r.id] = (this.bag[r.id] || 0) + 1;
+                this.happiness = Math.min(100, this.happiness + 12);
+                this.addXp(r.xp);
+                this.audio.cookSizzle();
+                this.showToast(`🍳 ${r.icon} ${r.name} pişti! (+${r.xp} XP — Çantana eklendi)`);
+                this.unlockAchievement('ach_chef');
+                this.advanceQuest('q_cook', 1);
+                this.checkAchievements();
+                this.renderCookModal();
+                this.saveGame();
+              }
+            }, 'PİŞİR 🍳')
+          )
+        ));
       });
-
-      grid.querySelectorAll('[data-cook-eat]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const k = btn.dataset.cookEat;
-          const info = YD.BAG_ITEMS[k];
-          if (!info || !this.bag[k]) return;
-          this.bag[k]--;
-          this.hunger = Math.min(100, this.hunger + info.hunger);
-          this.energy = Math.min(100, this.energy + info.energy);
-          this.health = Math.min(100, this.health + info.health);
-          this.happiness = Math.min(100, this.happiness + 18);
-          this.audio.pickup();
-          this.showToast(`🍽️ ${info.icon} ${info.name} afiyetle yendi! (+${info.hunger} Tokluk, +${info.energy} Enerji)`);
-          this.renderCookModal();
-          this.saveGame();
-        });
-      });
+      grid.replaceChildren(frag);
     }
 
     renderUniModal() {
       const banner = document.getElementById('uniStatusBanner');
       if (banner) {
-        banner.innerHTML = `🎓 Akademik Diplomalar: <b>${this.uniCerts.size}/${YD.UNI_CERTS.length}</b> · 🧠 Günlük Burs Sınavı: <b>${this.quizDoneToday ? 'Tamamlandı ✓' : 'Hazır (+₺150 Burs!)'}</b>`;
+        banner.replaceChildren(
+          document.createTextNode('🎓 Akademik Diplomalar: '),
+          makeEl('b', null, `${this.uniCerts.size}/${YD.UNI_CERTS.length}`),
+          document.createTextNode(' · 🧠 Günlük Burs Sınavı: '),
+          makeEl('b', null, this.quizDoneToday ? 'Tamamlandı ✓' : 'Hazır (+₺150 Burs!)')
+        );
       }
       const qBox = document.getElementById('uniQuizBox');
       if (qBox) {
         if (this.activeQuizIdx !== null && YD.UNI_QUIZ[this.activeQuizIdx]) {
           const q = YD.UNI_QUIZ[this.activeQuizIdx];
           qBox.classList.remove('hidden');
-          qBox.innerHTML = `
-            <div style="font-size:12px; color:#fde047; margin-bottom:8px;">🧠 <b>BURS SINAVI SORUSU:</b> ${q.q}</div>
-            <div class="shop-grid">
-              ${q.opts.map((opt, idx) => `<button class="hud-btn" style="text-align:left;" data-quiz-ans="${idx}"><b>${['A', 'B', 'C'][idx]})</b> ${opt}</button>`).join('')}
-            </div>`;
-          qBox.querySelectorAll('[data-quiz-ans]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-              const picked = Number(btn.dataset.quizAns);
-              if (picked === q.ans) {
-                this.quizDoneToday = true;
-                this.activeQuizIdx = null;
-                this.money += 150;
-                this.addXp(55);
-                this.happiness = Math.min(100, this.happiness + 18);
-                this.audio.levelUp();
-                this.showToast('🎓 TEBRİKLER! Doğru cevap — +₺150 Akademik Burs & +55 XP kazandın!');
-                this.advanceQuest('q_uni', 1);
-                this.checkAchievements();
-                this.renderUniModal();
-                this.saveGame();
-              } else {
-                this.audio.miss();
-                this.activeQuizIdx = (this.activeQuizIdx + 1) % YD.UNI_QUIZ.length;
-                this.showToast('❌ Yanlış cevap! Yeni soruyu dikkatlice oku.');
-                this.renderUniModal();
+          const optsGrid = makeEl('div', { className: 'shop-grid' });
+          q.opts.forEach((opt, idx) => {
+            optsGrid.appendChild(makeEl('button', {
+              className: 'hud-btn',
+              style: { textAlign: 'left' },
+              dataset: { quizAns: String(idx) },
+              onClick: () => {
+                if (idx === q.ans) {
+                  this.quizDoneToday = true;
+                  this.activeQuizIdx = null;
+                  this.money += 150;
+                  this.addXp(55);
+                  this.happiness = Math.min(100, this.happiness + 18);
+                  this.audio.levelUp();
+                  this.showToast('🎓 TEBRİKLER! Doğru cevap — +₺150 Akademik Burs & +55 XP kazandın!');
+                  this.advanceQuest('q_uni', 1);
+                  this.checkAchievements();
+                  this.renderUniModal();
+                  this.saveGame();
+                } else {
+                  this.audio.miss();
+                  this.activeQuizIdx = (this.activeQuizIdx + 1) % YD.UNI_QUIZ.length;
+                  this.showToast('❌ Yanlış cevap! Yeni soruyu dikkatlice oku.');
+                  this.renderUniModal();
+                }
               }
-            });
+            }, makeEl('b', null, `${['A', 'B', 'C'][idx]})`), ` ${opt}`));
           });
+          qBox.replaceChildren(
+            makeEl('div', { style: { fontSize: '12px', color: '#fde047', marginBottom: '8px' } },
+              '🧠 ',
+              makeEl('b', null, 'BURS SINAVI SORUSU:'),
+              ` ${q.q}`
+            ),
+            optsGrid
+          );
         } else {
           qBox.classList.add('hidden');
         }
@@ -1114,77 +1229,75 @@ window.YasamDunya = window.YasamDunya || {};
       if (!grid) return;
       const bonusMult = this.inventory.has('sisyphus') ? 1.4 : 1.0;
       const studyXp = Math.round(50 * bonusMult);
-      let html = `
-        <div class="shop-item">
-          <div style="font-size:24px;">📚</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-weight:800; color:#f8fafc;">Akademik Ders &amp; Araştırma</div>
-            <div style="font-size:11px; color:#94a3b8;">+${studyXp} XP · +12 Mutluluk · -18 Enerji</div>
-          </div>
-          <button id="btnUniStudy" class="shop-buy-btn">ÇALIŞ</button>
-        </div>
-        <div class="shop-item">
-          <div style="font-size:24px;">🧠</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-weight:800; color:#fde047;">Günlük Akademik Burs Sınavı</div>
-            <div style="font-size:11px; color:#94a3b8;">Soruyu doğru bil, anında +₺150 Burs ve +55 XP kazan!</div>
-          </div>
-          <button id="btnUniQuiz" class="shop-buy-btn ${this.quizDoneToday ? 'owned' : ''}" ${this.quizDoneToday ? 'disabled' : ''}>${this.quizDoneToday ? 'GEÇİLDİ ✓' : 'SINAVA GİR ▶'}</button>
-        </div>`;
+      const frag = document.createDocumentFragment();
+      frag.appendChild(makeEl('div', { className: 'shop-item' },
+        makeEl('div', { style: { fontSize: '24px' } }, '📚'),
+        makeEl('div', { style: { flex: '1', minWidth: '0' } },
+          makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, 'Akademik Ders & Araştırma'),
+          makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, `+${studyXp} XP · +12 Mutluluk · -18 Enerji`)
+        ),
+        makeEl('button', {
+          id: 'btnUniStudy',
+          className: 'shop-buy-btn',
+          onClick: () => {
+            if (this.energy < 18) { this.popup(this.player.x, this.player.y - 34, 'Çok yorgunsun, dinlen!', '#ef4444'); return; }
+            this.energy -= 18;
+            this.timeMinutes += 90;
+            this.happiness = Math.min(100, this.happiness + 12);
+            this.addXp(studyXp);
+            this.audio.pickup();
+            this.popup(this.player.x, this.player.y - 34, `🎓 +${studyXp} BİLGİ XP!`, '#38bdf8');
+            this.toggleUni(false);
+            this.saveGame();
+          }
+        }, 'ÇALIŞ')
+      ));
+      frag.appendChild(makeEl('div', { className: 'shop-item' },
+        makeEl('div', { style: { fontSize: '24px' } }, '🧠'),
+        makeEl('div', { style: { flex: '1', minWidth: '0' } },
+          makeEl('div', { style: { fontWeight: '800', color: '#fde047' } }, 'Günlük Akademik Burs Sınavı'),
+          makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, 'Soruyu doğru bil, anında +₺150 Burs ve +55 XP kazan!')
+        ),
+        makeEl('button', {
+          id: 'btnUniQuiz',
+          className: `shop-buy-btn ${this.quizDoneToday ? 'owned' : ''}`,
+          disabled: this.quizDoneToday,
+          onClick: this.quizDoneToday ? null : () => {
+            this.activeQuizIdx = Math.floor(Math.random() * YD.UNI_QUIZ.length);
+            this.audio.uiClick();
+            this.renderUniModal();
+          }
+        }, this.quizDoneToday ? 'GEÇİLDİ ✓' : 'SINAVA GİR ▶')
+      ));
 
       for (const c of YD.UNI_CERTS) {
         const owned = this.uniCerts.has(c.id);
-        html += `
-          <div class="shop-item">
-            <div style="font-size:24px;">${c.icon}</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">${c.name}</div>
-              <div style="font-size:11px; color:#94a3b8;">${c.desc}</div>
-            </div>
-            <button class="shop-buy-btn ${owned ? 'owned' : ''}" data-cert="${c.id}" ${owned ? 'disabled' : ''}>
-              ${owned ? 'ALINDI ✓' : `₺${c.price}`}
-            </button>
-          </div>`;
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, c.icon),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, c.name),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, c.desc)
+          ),
+          makeEl('button', {
+            className: `shop-buy-btn ${owned ? 'owned' : ''}`,
+            dataset: { cert: c.id },
+            disabled: owned,
+            onClick: owned ? null : () => {
+              if (this.money < c.price) { this.popup(this.player.x, this.player.y - 34, `₺${c.price} gerekiyor!`, '#ef4444'); return; }
+              this.money -= c.price;
+              this.uniCerts.add(c.id);
+              this.addXp(45);
+              this.audio.levelUp();
+              this.showToast(`🎓 DİPLOMA ALINDI: ${c.icon} ${c.name}!`);
+              this.advanceQuest('q_uni', 1);
+              this.checkAchievements();
+              this.renderUniModal();
+              this.saveGame();
+            }
+          }, owned ? 'ALINDI ✓' : `₺${c.price}`)
+        ));
       }
-      grid.innerHTML = html;
-
-      document.getElementById('btnUniStudy').addEventListener('click', () => {
-        if (this.energy < 18) { this.popup(this.player.x, this.player.y - 34, 'Çok yorgunsun, dinlen!', '#ef4444'); return; }
-        this.energy -= 18;
-        this.timeMinutes += 90;
-        this.happiness = Math.min(100, this.happiness + 12);
-        this.addXp(studyXp);
-        this.audio.pickup();
-        this.popup(this.player.x, this.player.y - 34, `🎓 +${studyXp} BİLGİ XP!`, '#38bdf8');
-        this.toggleUni(false);
-        this.saveGame();
-      });
-
-      const qBtn = document.getElementById('btnUniQuiz');
-      if (qBtn && !this.quizDoneToday) {
-        qBtn.addEventListener('click', () => {
-          this.activeQuizIdx = Math.floor(Math.random() * YD.UNI_QUIZ.length);
-          this.audio.uiClick();
-          this.renderUniModal();
-        });
-      }
-
-      grid.querySelectorAll('[data-cert]:not(.owned)').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const cert = YD.UNI_CERTS.find((x) => x.id === btn.dataset.cert);
-          if (!cert) return;
-          if (this.money < cert.price) { this.popup(this.player.x, this.player.y - 34, `₺${cert.price} gerekiyor!`, '#ef4444'); return; }
-          this.money -= cert.price;
-          this.uniCerts.add(cert.id);
-          this.addXp(45);
-          this.audio.levelUp();
-          this.showToast(`🎓 DİPLOMA ALINDI: ${cert.icon} ${cert.name}!`);
-          this.advanceQuest('q_uni', 1);
-          this.checkAchievements();
-          this.renderUniModal();
-          this.saveGame();
-        });
-      });
+      grid.replaceChildren(frag);
     }
 
     snapPhoto() {
@@ -1299,20 +1412,23 @@ window.YasamDunya = window.YasamDunya || {};
     renderGardenModal() {
       const grid = document.getElementById('gardenSeedGrid');
       if (!grid) return;
-      grid.innerHTML = Object.values(YD.CROPS).map((c) => `
-        <div class="shop-item">
-          <div style="font-size:24px;">${c.icon}</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-weight:800; color:#f8fafc;">${c.name} Tohumu</div>
-            <div style="font-size:11px; color:#94a3b8;">Büyüme: ~${c.growSec}sn · Satış: ₺${c.sell}${c.xp ? ` · +${c.xp} XP` : ''}</div>
-          </div>
-          <button class="shop-buy-btn" data-seed="${c.id}">EK ₺${c.seedPrice}</button>
-        </div>
-      `).join('');
-
-      grid.querySelectorAll('[data-seed]').forEach((btn) => {
-        btn.addEventListener('click', () => this.plantSeed(btn.dataset.seed));
+      const frag = document.createDocumentFragment();
+      Object.values(YD.CROPS).forEach((c) => {
+        const subText = `Büyüme: ~${c.growSec}sn · Satış: ₺${c.sell}${c.xp ? ` · +${c.xp} XP` : ''}`;
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, c.icon),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, `${c.name} Tohumu`),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, subText)
+          ),
+          makeEl('button', {
+            className: 'shop-buy-btn',
+            dataset: { seed: c.id },
+            onClick: () => this.plantSeed(c.id)
+          }, `EK ₺${c.seedPrice}`)
+        ));
       });
+      grid.replaceChildren(frag);
     }
 
     plantSeed(cropId) {
@@ -1340,81 +1456,107 @@ window.YasamDunya = window.YasamDunya || {};
       const grid = document.getElementById('cafeActionsGrid');
       if (!grid) return;
 
+      const onDrink = () => {
+        const cost = this.ownsCafe ? 0 : 25;
+        if (this.money < cost) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
+        this.money -= cost;
+        this.energy = Math.min(100, this.energy + 35);
+        this.hunger = Math.min(100, this.hunger + 35);
+        this.happiness = Math.min(100, this.happiness + 18);
+        this.audio.pickup();
+        this.popup(this.player.x, this.player.y - 34, this.ownsCafe ? '☕ Patron İkramı! +Enerji' : '☕ Latte & Simit! +Enerji', '#fb923c');
+        this.toggleCafe(false);
+        this.saveGame();
+      };
+
+      const frag = document.createDocumentFragment();
       if (this.ownsCafe) {
         if (title) title.textContent = `⭐ ${this.playerName.toUpperCase()} KAFE`;
-        if (banner) banner.innerHTML = `☕ <b>Kafe Sahibi Sensin!</b> · Her sabah pasif gelir: <b>+₺95–145</b> · Toplam Kazanç: <b>₺${this.cafeTotalEarned}</b>`;
-        grid.innerHTML = `
-          <div class="shop-item">
-            <div style="font-size:24px;">🔥</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#fde047;">Barista Vardiyası (25sn Mini-Oyun)</div>
-              <div style="font-size:11px; color:#94a3b8;">[1-4] tuşlarıyla siparişleri yetiştir, kombo yap, dev bahşiş topla!</div>
-            </div>
-            <button id="btnStartBarista" class="shop-buy-btn">BAŞLAT ▶</button>
-          </div>
-          <div class="shop-item">
-            <div style="font-size:24px;">☕</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">Patronun Özel Lattesi</div>
-              <div style="font-size:11px; color:#94a3b8;">Kendi kafenden ücretsiz taze kahve &amp; kruvasan! (+35 Enerji, +35 Tokluk)</div>
-            </div>
-            <button id="btnCafeDrink" class="shop-buy-btn">ÜCRETSİZ</button>
-          </div>`;
-        document.getElementById('btnStartBarista').addEventListener('click', () => {
-          this.toggleCafe(false);
-          this.startBaristaShift();
-        });
+        if (banner) {
+          banner.replaceChildren(
+            document.createTextNode('☕ '),
+            makeEl('b', null, 'Kafe Sahibi Sensin!'),
+            document.createTextNode(' · Her sabah pasif gelir: '),
+            makeEl('b', null, '+₺95–145'),
+            document.createTextNode(' · Toplam Kazanç: '),
+            makeEl('b', null, `₺${this.cafeTotalEarned}`)
+          );
+        }
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, '🔥'),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#fde047' } }, 'Barista Vardiyası (25sn Mini-Oyun)'),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, '[1-4] tuşlarıyla siparişleri yetiştir, kombo yap, dev bahşiş topla!')
+          ),
+          makeEl('button', {
+            id: 'btnStartBarista',
+            className: 'shop-buy-btn',
+            onClick: () => {
+              this.toggleCafe(false);
+              this.startBaristaShift();
+            }
+          }, 'BAŞLAT ▶')
+        ));
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, '☕'),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, 'Patronun Özel Lattesi'),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, 'Kendi kafenden ücretsiz taze kahve & kruvasan! (+35 Enerji, +35 Tokluk)')
+          ),
+          makeEl('button', {
+            id: 'btnCafeDrink',
+            className: 'shop-buy-btn',
+            onClick: onDrink
+          }, 'ÜCRETSİZ')
+        ));
       } else {
         if (title) title.textContent = '☕ KAFE & FIRIN';
-        if (banner) banner.innerHTML = `☕ Sıcak kahve iç veya <b>₺${YD.CAFE_PRICE}</b> biriktirip bu kafeyi satın al!`;
-        grid.innerHTML = `
-          <div class="shop-item">
-            <div style="font-size:24px;">☕</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">Latte &amp; Sıcak Simit</div>
-              <div style="font-size:11px; color:#94a3b8;">+35 Enerji · +35 Tokluk · +18 Mutluluk</div>
-            </div>
-            <button id="btnCafeDrink" class="shop-buy-btn">₺25</button>
-          </div>
-          <div class="shop-item">
-            <div style="font-size:24px;">⭐</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#fde047;">Kafeyi Satın Al &amp; Patron Ol!</div>
-              <div style="font-size:11px; color:#94a3b8;">Adın tabelaya yazılır, her gün pasif gelir + Barista Mini-Oyunu açılır!</div>
-            </div>
-            <button id="btnBuyCafe" class="shop-buy-btn">₺${YD.CAFE_PRICE}</button>
-          </div>`;
-        document.getElementById('btnBuyCafe').addEventListener('click', () => {
-          if (this.money < YD.CAFE_PRICE) {
-            this.popup(this.player.x, this.player.y - 34, `₺${YD.CAFE_PRICE} gerekiyor!`, '#ef4444');
-            return;
-          }
-          this.money -= YD.CAFE_PRICE;
-          this.ownsCafe = true;
-          this.audio.levelUp();
-          this.burst(this.player.x, this.player.y, '#fde047', 26);
-          this.showToast(`⭐ TEBRİKLER! ${this.playerName} KAFE artık senin!`);
-          this.checkAchievements();
-          this.renderCafeModal();
-          this.saveGame();
-        });
+        if (banner) {
+          banner.replaceChildren(
+            document.createTextNode('☕ Sıcak kahve iç veya '),
+            makeEl('b', null, `₺${YD.CAFE_PRICE}`),
+            document.createTextNode(' biriktirip bu kafeyi satın al!')
+          );
+        }
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, '☕'),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, 'Latte & Sıcak Simit'),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, '+35 Enerji · +35 Tokluk · +18 Mutluluk')
+          ),
+          makeEl('button', {
+            id: 'btnCafeDrink',
+            className: 'shop-buy-btn',
+            onClick: onDrink
+          }, '₺25')
+        ));
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, '⭐'),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#fde047' } }, 'Kafeyi Satın Al & Patron Ol!'),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, 'Adın tabelaya yazılır, her gün pasif gelir + Barista Mini-Oyunu açılır!')
+          ),
+          makeEl('button', {
+            id: 'btnBuyCafe',
+            className: 'shop-buy-btn',
+            onClick: () => {
+              if (this.money < YD.CAFE_PRICE) {
+                this.popup(this.player.x, this.player.y - 34, `₺${YD.CAFE_PRICE} gerekiyor!`, '#ef4444');
+                return;
+              }
+              this.money -= YD.CAFE_PRICE;
+              this.ownsCafe = true;
+              this.audio.levelUp();
+              this.burst(this.player.x, this.player.y, '#fde047', 26);
+              this.showToast(`⭐ TEBRİKLER! ${this.playerName} KAFE artık senin!`);
+              this.checkAchievements();
+              this.renderCafeModal();
+              this.saveGame();
+            }
+          }, `₺${YD.CAFE_PRICE}`)
+        ));
       }
-
-      const drinkBtn = document.getElementById('btnCafeDrink');
-      if (drinkBtn) {
-        drinkBtn.addEventListener('click', () => {
-          const cost = this.ownsCafe ? 0 : 25;
-          if (this.money < cost) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
-          this.money -= cost;
-          this.energy = Math.min(100, this.energy + 35);
-          this.hunger = Math.min(100, this.hunger + 35);
-          this.happiness = Math.min(100, this.happiness + 18);
-          this.audio.pickup();
-          this.popup(this.player.x, this.player.y - 34, this.ownsCafe ? '☕ Patron İkramı! +Enerji' : '☕ Latte & Simit! +Enerji', '#fb923c');
-          this.toggleCafe(false);
-          this.saveGame();
-        });
-      }
+      grid.replaceChildren(frag);
     }
 
     startBaristaShift() {
@@ -1427,12 +1569,15 @@ window.YasamDunya = window.YasamDunya || {};
       this.barista = { active: true, timeLeft: 25, score: 0, combo: 1, served: 0, order: null, patience: 4.5, maxPatience: 4.5 };
       const btns = document.getElementById('baristaBtns');
       if (btns) {
-        btns.innerHTML = YD.CAFE_ORDERS.map((o) =>
-          `<button class="barista-serve-btn" data-serve="${o.id}"><kbd>${o.key}</kbd> ${o.icon} ${o.name}</button>`
-        ).join('');
-        btns.querySelectorAll('[data-serve]').forEach((b) => {
-          b.addEventListener('click', () => this.serveBarista(b.dataset.serve));
+        const frag = document.createDocumentFragment();
+        YD.CAFE_ORDERS.forEach((o) => {
+          frag.appendChild(makeEl('button', {
+            className: 'barista-serve-btn',
+            dataset: { serve: o.id },
+            onClick: () => this.serveBarista(o.id)
+          }, makeEl('kbd', null, o.key), ` ${o.icon} ${o.name}`));
         });
+        btns.replaceChildren(frag);
       }
       this.nextBaristaOrder();
       document.getElementById('baristaWrap').classList.remove('hidden');
@@ -1700,163 +1845,191 @@ window.YasamDunya = window.YasamDunya || {};
       const nearFire = Math.hypot(this.player.x - this.world.campfire.x, this.player.y - this.world.campfire.y) < 110;
       const keys = Object.keys(YD.BAG_ITEMS).filter((k) => (this.bag[k] || 0) > 0);
       if (keys.length === 0) {
-        grid.innerHTML = `<div class="shop-item" style="justify-content:center; color:#94a3b8;">Çantan boş! Ormandan böğürtlen, dağdan kristal, bahçenden ürün veya iskeleden balık topla!</div>`;
+        grid.replaceChildren(makeEl(
+          'div',
+          { className: 'shop-item', style: { justifyContent: 'center', color: '#94a3b8' } },
+          'Çantan boş! Ormandan böğürtlen, dağdan kristal, bahçenden ürün veya iskeleden balık topla!'
+        ));
         return;
       }
-      grid.innerHTML = keys.map((k) => {
+      const frag = document.createDocumentFragment();
+      keys.forEach((k) => {
         const info = YD.BAG_ITEMS[k];
         const qty = this.bag[k];
         const sellVal = this.getBagSellValue(k);
-        return `
-          <div class="shop-item">
-            <div style="font-size:24px;">${info.icon}</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800;">${info.name} <span style="color:#fde047;">x${qty}</span></div>
-              <div style="font-size:11px; color:#94a3b8;">${info.hunger > 0 ? `+${info.hunger} Tokluk ` : ''}${info.energy > 0 ? `+${info.energy} Enerji` : ''}</div>
-            </div>
-            <div class="btn-row">
-              ${info.hunger > 0 ? `<button class="hud-btn" data-eat="${k}">YE</button>` : ''}
-              ${k === 'fish' && nearFire ? `<button class="hud-btn gold" data-grill="fish">🔥 PİŞİR</button>` : ''}
-              <button class="shop-buy-btn" data-sell="${k}">SAT ₺${sellVal}</button>
-            </div>
-          </div>`;
-      }).join('');
-
-      grid.querySelectorAll('[data-eat]').forEach((b) => b.addEventListener('click', () => {
-        const k = b.dataset.eat, info = YD.BAG_ITEMS[k];
-        if (!this.bag[k]) return;
-        this.bag[k]--;
-        this.hunger = Math.min(100, this.hunger + info.hunger);
-        this.health = Math.min(100, this.health + info.health);
-        this.energy = Math.min(100, this.energy + info.energy);
-        this.audio.pickup();
-        this.renderBag(); this.saveGame();
-      }));
-      grid.querySelectorAll('[data-grill]').forEach((b) => b.addEventListener('click', () => {
-        if (!this.bag.fish) return;
-        this.bag.fish--; this.bag.grilled = (this.bag.grilled || 0) + 1;
-        this.audio.cookSizzle(); this.showToast('🔥 Izgara Balık pişti! (+65 Tokluk)');
-        this.unlockAchievement('ach_chef');
-        this.advanceQuest('q_cook', 1);
-        this.renderBag(); this.saveGame();
-      }));
-      grid.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', () => {
-        const k = b.dataset.sell;
-        if (!this.bag[k]) return;
-        const sellVal = this.getBagSellValue(k);
-        this.bag[k]--; this.money += sellVal;
-        this.audio.coin(); this.checkAchievements();
-        this.renderBag(); this.saveGame();
-      }));
+        const statText = `${info.hunger > 0 ? `+${info.hunger} Tokluk ` : ''}${info.energy > 0 ? `+${info.energy} Enerji` : ''}`;
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, info.icon),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800' } },
+              `${info.name} `,
+              makeEl('span', { style: { color: '#fde047' } }, `x${qty}`)
+            ),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, statText)
+          ),
+          makeEl('div', { className: 'btn-row' },
+            info.hunger > 0 ? makeEl('button', {
+              className: 'hud-btn',
+              dataset: { eat: k },
+              onClick: () => {
+                if (!this.bag[k]) return;
+                this.bag[k]--;
+                this.hunger = Math.min(100, this.hunger + info.hunger);
+                this.health = Math.min(100, this.health + info.health);
+                this.energy = Math.min(100, this.energy + info.energy);
+                this.audio.pickup();
+                this.renderBag(); this.saveGame();
+              }
+            }, 'YE') : null,
+            (k === 'fish' && nearFire) ? makeEl('button', {
+              className: 'hud-btn gold',
+              dataset: { grill: 'fish' },
+              onClick: () => {
+                if (!this.bag.fish) return;
+                this.bag.fish--; this.bag.grilled = (this.bag.grilled || 0) + 1;
+                this.audio.cookSizzle(); this.showToast('🔥 Izgara Balık pişti! (+65 Tokluk)');
+                this.unlockAchievement('ach_chef');
+                this.advanceQuest('q_cook', 1);
+                this.renderBag(); this.saveGame();
+              }
+            }, '🔥 PİŞİR') : null,
+            makeEl('button', {
+              className: 'shop-buy-btn',
+              dataset: { sell: k },
+              onClick: () => {
+                if (!this.bag[k]) return;
+                const val = this.getBagSellValue(k);
+                this.bag[k]--; this.money += val;
+                this.audio.coin(); this.checkAchievements();
+                this.renderBag(); this.saveGame();
+              }
+            }, `SAT ₺${sellVal}`)
+          )
+        ));
+      });
+      grid.replaceChildren(frag);
     }
 
     renderShop() {
       const grid = document.getElementById('shopGrid');
       if (!grid) return;
-      grid.innerHTML = YD.SHOP_ITEMS.map((item) => {
+      const frag = document.createDocumentFragment();
+      YD.SHOP_ITEMS.forEach((item) => {
         const owned = !item.consumable && this.inventory.has(item.id);
         const countBadge = item.consumable ? ` (Çantada: ${this.bag[item.id] || 0})` : '';
-        return `
-          <div class="shop-item">
-            <div style="font-size:24px;">${item.icon}</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">${item.name}${countBadge}</div>
-              <div style="font-size:11px; color:#94a3b8;">${item.desc}</div>
-            </div>
-            <button class="shop-buy-btn ${owned ? 'owned' : ''}" data-item="${item.id}" ${owned ? 'disabled' : ''}>
-              ${owned ? 'ALINDI ✓' : `₺${item.price}`}
-            </button>
-          </div>`;
-      }).join('');
-
-      grid.querySelectorAll('.shop-buy-btn:not(.owned)').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const item = YD.SHOP_ITEMS.find((i) => i.id === btn.dataset.item);
-          if (!item) return;
-          if (this.money < item.price) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
-          this.money -= item.price;
-          if (item.consumable) {
-            this.bag[item.id] = (this.bag[item.id] || 0) + 5;
-            this.popup(this.player.x, this.player.y - 34, `${item.icon} +5 ${item.name} Çantada!`, '#4ade80');
-          } else {
-            this.inventory.add(item.id);
-            this.syncPetFromInventory();
-            this.popup(this.player.x, this.player.y - 34, `${item.icon} ${item.name} ALINDI!`, '#4ade80');
-          }
-          this.audio.coin();
-          this.checkAchievements();
-          this.renderShop(); this.saveGame();
-        });
+        frag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '24px' } }, item.icon),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, `${item.name}${countBadge}`),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, item.desc)
+          ),
+          makeEl('button', {
+            className: `shop-buy-btn ${owned ? 'owned' : ''}`,
+            dataset: { item: item.id },
+            disabled: owned,
+            onClick: owned ? null : () => {
+              if (this.money < item.price) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
+              this.money -= item.price;
+              if (item.consumable) {
+                this.bag[item.id] = (this.bag[item.id] || 0) + 5;
+                this.popup(this.player.x, this.player.y - 34, `${item.icon} +5 ${item.name} Çantada!`, '#4ade80');
+              } else {
+                this.inventory.add(item.id);
+                this.syncPetFromInventory();
+                this.popup(this.player.x, this.player.y - 34, `${item.icon} ${item.name} ALINDI!`, '#4ade80');
+              }
+              this.audio.coin();
+              this.checkAchievements();
+              this.renderShop(); this.saveGame();
+            }
+          }, owned ? 'ALINDI ✓' : `₺${item.price}`)
+        ));
       });
+      grid.replaceChildren(frag);
     }
 
     renderHomeModal() {
       const preview = document.getElementById('homeRoomPreview');
       if (preview) {
-        preview.innerHTML = [
-          `<div class="room-slot">🛏️ Yatak</div>`,
-          ...YD.HOME_DECOR.map((d) => `<div class="room-slot ${this.homeDecor.has(d.id) ? 'unlocked' : 'locked'}">${d.icon} ${d.name}</div>`)
-        ].join('');
+        const pFrag = document.createDocumentFragment();
+        pFrag.appendChild(makeEl('div', { className: 'room-slot' }, '🛏️ Yatak'));
+        YD.HOME_DECOR.forEach((d) => {
+          pFrag.appendChild(makeEl(
+            'div',
+            { className: `room-slot ${this.homeDecor.has(d.id) ? 'unlocked' : 'locked'}` },
+            `${d.icon} ${d.name}`
+          ));
+        });
+        preview.replaceChildren(pFrag);
       }
       const acts = document.getElementById('homeActionsRow');
       if (acts) {
-        let html = '';
-        if (this.homeDecor.has('pc_desk')) html += `<button class="hud-btn gold" id="actRemoteWork">🖥️ Evden Çalış (+₺95)</button>`;
-        if (this.homeDecor.has('sofa_tv')) html += `<button class="hud-btn" id="actWatchTv">🛋️ Film Molası (+35 Mutluluk)</button>`;
-        if (this.homeDecor.has('guitar'))  html += `<button class="hud-btn" id="actPlayGuitar">🎸 Gitar Çal (+25 Mutluluk)</button>`;
-        acts.innerHTML = html;
-
-        const rw = document.getElementById('actRemoteWork');
-        if (rw) rw.addEventListener('click', () => {
-          if (this.energy < 18) { this.popup(this.player.x, this.player.y - 30, 'Çok yorgunsun, uyu!', '#ef4444'); return; }
-          this.energy -= 18; this.money += 95; this.addXp(22); this.timeMinutes += 75;
-          this.audio.coin(); this.popup(this.player.x, this.player.y - 34, '🖥️ Remote İş! +₺95', '#4ade80');
-          this.advanceQuest('q_work', 1); this.checkAchievements(); this.saveGame();
-        });
-        const tv = document.getElementById('actWatchTv');
-        if (tv) tv.addEventListener('click', () => {
-          this.happiness = Math.min(100, this.happiness + 35); this.energy = Math.min(100, this.energy + 15);
-          this.timeMinutes += 45; this.audio.pickup();
-          this.popup(this.player.x, this.player.y - 34, '🛋️ Süper Film! +35 Mutluluk', '#38bdf8');
-          this.saveGame();
-        });
-        const gt = document.getElementById('actPlayGuitar');
-        if (gt) gt.addEventListener('click', () => {
-          this.happiness = Math.min(100, this.happiness + 25); this.addXp(10);
-          this.audio.guitar();
-          this.popup(this.player.x, this.player.y - 34, '🎸 Akustik Ritim! +25 Mutluluk', '#facc15');
-          this.saveGame();
-        });
+        const aFrag = document.createDocumentFragment();
+        if (this.homeDecor.has('pc_desk')) {
+          aFrag.appendChild(makeEl('button', {
+            className: 'hud-btn gold',
+            id: 'actRemoteWork',
+            onClick: () => {
+              if (this.energy < 18) { this.popup(this.player.x, this.player.y - 30, 'Çok yorgunsun, uyu!', '#ef4444'); return; }
+              this.energy -= 18; this.money += 95; this.addXp(22); this.timeMinutes += 75;
+              this.audio.coin(); this.popup(this.player.x, this.player.y - 34, '🖥️ Remote İş! +₺95', '#4ade80');
+              this.advanceQuest('q_work', 1); this.checkAchievements(); this.saveGame();
+            }
+          }, '🖥️ Evden Çalış (+₺95)'));
+        }
+        if (this.homeDecor.has('sofa_tv')) {
+          aFrag.appendChild(makeEl('button', {
+            className: 'hud-btn',
+            id: 'actWatchTv',
+            onClick: () => {
+              this.happiness = Math.min(100, this.happiness + 35); this.energy = Math.min(100, this.energy + 15);
+              this.timeMinutes += 45; this.audio.pickup();
+              this.popup(this.player.x, this.player.y - 34, '🛋️ Süper Film! +35 Mutluluk', '#38bdf8');
+              this.saveGame();
+            }
+          }, '🛋️ Film Molası (+35 Mutluluk)'));
+        }
+        if (this.homeDecor.has('guitar')) {
+          aFrag.appendChild(makeEl('button', {
+            className: 'hud-btn',
+            id: 'actPlayGuitar',
+            onClick: () => {
+              this.happiness = Math.min(100, this.happiness + 25); this.addXp(10);
+              this.audio.guitar();
+              this.popup(this.player.x, this.player.y - 34, '🎸 Akustik Ritim! +25 Mutluluk', '#facc15');
+              this.saveGame();
+            }
+          }, '🎸 Gitar Çal (+25 Mutluluk)'));
+        }
+        acts.replaceChildren(aFrag);
       }
 
       const grid = document.getElementById('homeDecorGrid');
       if (!grid) return;
-      grid.innerHTML = YD.HOME_DECOR.map((d) => {
+      const dFrag = document.createDocumentFragment();
+      YD.HOME_DECOR.forEach((d) => {
         const owned = this.homeDecor.has(d.id);
-        return `
-          <div class="shop-item">
-            <div style="font-size:22px;">${d.icon}</div>
-            <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">${d.name}</div>
-              <div style="font-size:11px; color:#94a3b8;">${d.desc}</div>
-            </div>
-            <button class="shop-buy-btn ${owned ? 'owned' : ''}" data-decor="${d.id}" ${owned ? 'disabled' : ''}>
-              ${owned ? 'ODADA ✓' : `₺${d.price}`}
-            </button>
-          </div>`;
-      }).join('');
-
-      grid.querySelectorAll('.shop-buy-btn:not(.owned)').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const d = YD.HOME_DECOR.find((x) => x.id === btn.dataset.decor);
-          if (!d) return;
-          if (this.money < d.price) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
-          this.money -= d.price; this.homeDecor.add(d.id);
-          this.happiness = Math.min(100, this.happiness + 15);
-          this.audio.coin(); this.checkAchievements();
-          this.renderHomeModal(); this.saveGame();
-        });
+        dFrag.appendChild(makeEl('div', { className: 'shop-item' },
+          makeEl('div', { style: { fontSize: '22px' } }, d.icon),
+          makeEl('div', { style: { flex: '1', minWidth: '0' } },
+            makeEl('div', { style: { fontWeight: '800', color: '#f8fafc' } }, d.name),
+            makeEl('div', { style: { fontSize: '11px', color: '#94a3b8' } }, d.desc)
+          ),
+          makeEl('button', {
+            className: `shop-buy-btn ${owned ? 'owned' : ''}`,
+            dataset: { decor: d.id },
+            disabled: owned,
+            onClick: owned ? null : () => {
+              if (this.money < d.price) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
+              this.money -= d.price; this.homeDecor.add(d.id);
+              this.happiness = Math.min(100, this.happiness + 15);
+              this.audio.coin(); this.checkAchievements();
+              this.renderHomeModal(); this.saveGame();
+            }
+          }, owned ? 'ODADA ✓' : `₺${d.price}`)
+        ));
       });
+      grid.replaceChildren(dFrag);
     }
 
     renderQuests() {
@@ -1864,22 +2037,40 @@ window.YasamDunya = window.YasamDunya || {};
       const ev = YD.DAILY_EVENTS[this.dailyEventIdx];
       const cb = document.getElementById('careerBanner');
       if (cb) {
-        cb.innerHTML = `👤 <b>${this.playerName}</b> · 💼 <b>${career.title}</b> (Maaş x${career.bonus}) · ${ev.icon} <b>${ev.name}</b>`;
+        cb.replaceChildren(
+          document.createTextNode('👤 '),
+          makeEl('b', null, this.playerName),
+          document.createTextNode(' · 💼 '),
+          makeEl('b', null, career.title),
+          document.createTextNode(` (Maaş x${career.bonus}) · ${ev.icon} `),
+          makeEl('b', null, ev.name)
+        );
       }
       const box = document.getElementById('questList');
       if (box) {
-        box.innerHTML = YD.QUESTS.map((q) => {
+        const qFrag = document.createDocumentFragment();
+        YD.QUESTS.forEach((q) => {
           const done = this.questDone.has(q.id);
           const cur = Math.min(q.target, this.questProgress[q.id] || 0);
-          return `<div class="quest-row ${done ? 'done' : ''}"><span>${done ? '✅' : '⬜'} ${q.title}</span><b>${cur}/${q.target}</b></div>`;
-        }).join('');
+          qFrag.appendChild(makeEl('div', { className: `quest-row ${done ? 'done' : ''}` },
+            makeEl('span', null, `${done ? '✅' : '⬜'} ${q.title}`),
+            makeEl('b', null, `${cur}/${q.target}`)
+          ));
+        });
+        box.replaceChildren(qFrag);
       }
       const ach = document.getElementById('achGrid');
       if (ach) {
-        ach.innerHTML = YD.ACHIEVEMENTS.map((a) => {
+        const aFrag = document.createDocumentFragment();
+        YD.ACHIEVEMENTS.forEach((a) => {
           const ok = this.achievements.has(a.id);
-          return `<div class="ach-card ${ok ? 'unlocked' : ''}"><b>${a.icon} ${a.name}</b><br/>${a.desc} ${ok ? '✓' : ''}</div>`;
-        }).join('');
+          aFrag.appendChild(makeEl('div', { className: `ach-card ${ok ? 'unlocked' : ''}` },
+            makeEl('b', null, `${a.icon} ${a.name}`),
+            makeEl('br'),
+            `${a.desc}${ok ? ' ✓' : ''}`
+          ));
+        });
+        ach.replaceChildren(aFrag);
       }
     }
 
