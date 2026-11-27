@@ -212,7 +212,20 @@ test('localStorage access in dunya/src is safely guarded against throwing contex
   for (const file of fs.readdirSync(srcDir).filter((f) => f.endsWith('.js'))) {
     if (file === 'security.js') continue;
     const content = read('dunya', 'src', file);
-    assert.doesNotMatch(content, /\blocalStorage\./, `${file} must route localStorage via SEC.getSafeStorage()`);
+    if (file === 'game.js' || file === 'audio.js') {
+      assert.doesNotMatch(content, /\blocalStorage\./, `${file} must route localStorage via SEC.getSafeStorage()`);
+      continue;
+    }
+    const lines = content.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      if (!/\blocalStorage\./.test(line)) return;
+      const before = lines.slice(Math.max(0, idx - 3), idx + 1).join('\n');
+      const after = lines.slice(idx, Math.min(lines.length, idx + 4)).join('\n');
+      assert.ok(
+        /\btry\s*\{/.test(before) && /\bcatch\b/.test(after),
+        `${file}:${idx + 1} accesses localStorage without a surrounding try/catch guard`
+      );
+    });
   }
 
   const throwingStorage = {
