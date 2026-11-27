@@ -44,9 +44,14 @@ window.YasamDunya = window.YasamDunya || {};
         this.grassTufts.push({ x: gx, y: gy, size: 5 + rnd() * 5 });
       }
       for (let i = 0; i < 55; i++) {
+        const rx = 80 + rnd() * (YD.WORLD_W - 160);
+        const ry = 80 + rnd() * (YD.MOUNTAIN_Y - 120);
+        if (Math.hypot(rx - 2560, ry - 390) < 160) continue; // Hot Spring
+        if (Math.hypot(rx - 2040, ry - 240) < 88) continue;  // Summit Rock
+        if (Math.abs(rx - 2330) < 105) continue;             // Mountain Highway & Roundabout
+        if (rx > 1480 && rx < 1770 && ry > 250 && ry < 460) continue; // Mountain Lodge
         this.rocks.push({
-          x: 80 + rnd() * (YD.WORLD_W - 160),
-          y: 80 + rnd() * (YD.MOUNTAIN_Y - 120),
+          x: rx, y: ry,
           rx: 12 + rnd() * 18, ry: 8 + rnd() * 12
         });
       }
@@ -390,6 +395,18 @@ window.YasamDunya = window.YasamDunya || {};
       for (let s = R.mid - 42; s < R.mid + 42; s += 16) {
         ctx.fillRect(2262, s, 14, 9);
         ctx.fillRect(2384, s, 14, 9);
+      }
+
+      // Seamless Stone Apron linking Beachfront Roundabout (y=2465) cleanly to Boardwalk (y=2532)!
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(2288, 2516, 84, 20);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(2294, 2518, 72, 16);
+
+      // Stepping Stones connecting Organic Garden south entrance down to Mid Blvd sidewalk!
+      ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5;
+      for (let sy = 1554; sy <= 1646; sy += 23) {
+        ctx.beginPath(); ctx.ellipse(2496, sy, 16, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       }
 
       // Seamless Wooden Beach Walkway connecting Boardwalk straight down to the Fishing Pier!
@@ -822,10 +839,12 @@ window.YasamDunya = window.YasamDunya || {};
           ctx.fillStyle = '#fde047'; ctx.font = '900 18px Impact, sans-serif'; ctx.textAlign = 'center';
           ctx.fillText('H', rx + b.w - 46, ry + 48);
         } else if (b.id === 'hospital') {
-          // Iconic Red Cross on Hospital Roof!
+          // Crisp Medical Cross Badge cleanly above signboard!
+          ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 2;
+          ctx.fillRect(rx + b.w - 38, ry + 10, 26, 26); ctx.strokeRect(rx + b.w - 38, ry + 10, 26, 26);
           ctx.fillStyle = '#ef4444';
-          ctx.fillRect(rx + b.w - 46, ry + 18, 12, 32);
-          ctx.fillRect(rx + b.w - 56, ry + 28, 32, 12);
+          ctx.fillRect(rx + b.w - 28, ry + 14, 6, 18);
+          ctx.fillRect(rx + b.w - 34, ry + 20, 18, 6);
         } else if (b.id === 'cafe' || b.id === 'shop') {
           // Striped Shop Awning overhang!
           for (let ax = rx + 6; ax < rx + b.w - 12; ax += 22) {
@@ -1242,6 +1261,7 @@ window.YasamDunya = window.YasamDunya || {};
         }
 
         // Custom illustrated furniture graphics!
+        const shortNames = { bed: 'YATAK', espresso: 'ESPRESSO', plants: 'BİTKİLER', pc: 'İŞ PC', sofa: 'TV & KOLTUK', guitar: 'GİTAR', catalog: 'KATALOG' };
         if (sp.kind === 'bed') {
           ctx.fillStyle = '#78350f'; ctx.fillRect(sx, sy, sp.w, sp.h);
           ctx.fillStyle = '#f8fafc'; ctx.fillRect(sx + 6, sy + 6, sp.w - 12, 24);
@@ -1265,16 +1285,24 @@ window.YasamDunya = window.YasamDunya || {};
           ctx.font = 'bold 11px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#fef3c7';
           ctx.fillText('🚪 DIŞARI ÇIK', sp.x, sp.y + 4);
         } else {
-          ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2;
+          // Warm cozy oak wood counter / stand!
+          ctx.fillStyle = '#78350f'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.2;
           ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(sx, sy, sp.w, sp.h, 10);
+          if (ctx.roundRect) ctx.roundRect(sx, sy, sp.w, sp.h, 8);
           else ctx.rect(sx, sy, sp.w, sp.h);
           ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#b45309';
+          ctx.fillRect(sx + 5, sy + 5, sp.w - 10, sp.h - 10);
         }
 
         if (sp.kind !== 'exit') {
-          ctx.font = '22px sans-serif'; ctx.textAlign = 'center';
-          ctx.fillText(sp.icon, sp.x, sp.y + 7);
+          ctx.font = '21px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(sp.icon, sp.x, sp.y + 6);
+          ctx.font = 'bold 9px "Courier New", monospace';
+          ctx.fillStyle = 'rgba(15,23,42,0.78)';
+          ctx.fillRect(sp.x - 32, sy + sp.h + 2, 64, 12);
+          ctx.fillStyle = '#fef08a';
+          ctx.fillText(shortNames[sp.kind] || '', sp.x, sy + sp.h + 11);
         }
         ctx.restore();
       }
@@ -1287,14 +1315,20 @@ window.YasamDunya = window.YasamDunya || {};
       // Draw Player walking inside the room!
       this.drawCharacter(ctx, hp, true, false, false, now);
 
-      // Room border frame + title badge
+      // Room border frame + cozy plaque neatly on the north wall (never clipped by top toast!)
       ctx.strokeStyle = '#451a03'; ctx.lineWidth = 10;
       ctx.strokeRect(0, 0, room.w, room.h);
 
       ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      ctx.fillRect(room.w / 2 - 125, -34, 250, 26);
-      ctx.font = '900 13px Impact, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fde047';
-      ctx.fillText(`🏠 ${(game.playerName || 'SENİN').toUpperCase()} EVİ — [ESC] ÇIK`, room.w / 2, -16);
+      ctx.fillRect(16, 16, 176, 26);
+      ctx.font = '900 12px Impact, sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#fde047';
+      ctx.fillText(`🏠 ${(game.playerName || 'SENİN').toUpperCase()} EVİ`, 26, 34);
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(room.w - 178, 16, 162, 26);
+      ctx.textAlign = 'right'; ctx.fillStyle = '#cbd5e1';
+      ctx.fillText('[I] DEKOR · [ESC] ÇIK', room.w - 26, 34);
+      ctx.textAlign = 'left';
 
       // Indoor popups & particles
       this.drawParticles(ctx, game.particles);

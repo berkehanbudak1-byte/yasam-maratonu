@@ -143,9 +143,9 @@ window.YasamDunya = window.YasamDunya || {};
 
   YD.NPC_TEMPLATES = [
     { name: 'Barista Ela',     zone: 'city',     x: 2205, y: 2035, color: '#f472b6', lines: ['Taze espresso kokusu şehri uyandırır! Bir gün kafeyi devralmak ister misin?', 'Evini dekore edip içine girerek yaşayabilirsin!', 'Seninle sohbet etmek harika, al benden ufak bir hediye!'] },
-    { name: 'Balıkçı Hasan',   zone: 'beach',    x: 2290, y: 2860, color: '#0284c7', lines: ['İskelede oltayı at, ibre ALTIN bölgeye gelince [E] bas!', 'Tuttuğun balıkları [C] çantandan kamp ateşinde pişirebilirsin!', 'Sen artık usta bir denizcisin dostum!'] },
+    { name: 'Balıkçı Hasan',   zone: 'beach',    x: 2330, y: 2860, color: '#0284c7', lines: ['İskelede oltayı at, ibre ALTIN bölgeye gelince [E] bas!', 'Tuttuğun balıkları [C] çantandan kamp ateşinde pişirebilirsin!', 'Sen artık usta bir denizcisin dostum!'] },
     { name: 'Ormancı Kerim',   zone: 'forest',   x: 1020, y: 1280, color: '#15803d', lines: ['Kuzeyde Karlı Zirve ve Sıcak Kaplıca seni bekliyor!', 'Evinin yanındaki bahçeye tohum ekip sulamayı denedin mi?', 'Ormanın gerçek dostu sensin!'] },
-    { name: 'Dağcı Alp',       zone: 'mountain', x: 2260, y: 420,  color: '#06b6d4', lines: ['Karlı Zirveye hoş geldin! Kaplıca tüm yorgunluğunu alır!', 'Zirve kristallerini [C] çantandan satarak zengin olabilirsin!', 'Zirvenin efsanesi oldun!'] },
+    { name: 'Dağcı Alp',       zone: 'mountain', x: 2155, y: 420,  color: '#06b6d4', lines: ['Karlı Zirveye hoş geldin! Kaplıca tüm yorgunluğunu alır!', 'Zirve kristallerini [C] çantandan satarak zengin olabilirsin!', 'Zirvenin efsanesi oldun!'] },
     { name: 'Koşucu Deniz',    zone: 'park',     x: 3780, y: 1460, color: '#f97316', lines: ['Trafiğe dikkat et! Şehir Hastanesi kuzeybatı köşede.', 'Park göletinde ördekleri izlemek mutluluğu uçuruyor!', 'Harika bir kondisyonun var!'] },
     { name: 'Antikacı Bilge',  zone: 'city',     x: 2740, y: 1050, color: '#9333ea', lines: ['4D Kum Saati mevsimleri, [Y] tuşu havayı değiştirir...', 'Dünkü rotanda yürüyen altın yankına dokunmayı unutma!', 'Zamanın sırrını çözdün gezgin!'] }
   ];

@@ -29,7 +29,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.hotSpring = { x: 2560, y: 390, rx: 115, ry: 72 };
       this.summitRock = { x: 2040, y: 240, r: 40 };
       this.pond = { x: 3880, y: 1420, rx: 195, ry: 135 };
-      this.pier = { x: 2240, y: 2860, w: 124, h: 360 };
+      this.pier = { x: 2268, y: 2860, w: 124, h: 360 };
       this.campfire = { x: 890, y: 1240, r: 22 };
       this.altar = { x: 520, y: 920, r: 34 };
       this.lighthouse = { x: 4220, y: 2830, r: 38, beamAngle: 0 };
@@ -131,13 +131,19 @@ window.YasamDunya = window.YasamDunya || {};
         this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: 'snow_pine' });
       }
 
-      // Forest Trees (keep West Ring Road x=1800 clear!)
+      // Forest Trees (keep West Ring Road & Forest Dirt Trail completely clear!)
+      const trailSegs = [[520, 920, 890, 1240], [890, 1240, 1190, 1270], [1190, 1270, 1750, 1720]];
+      const onForestTrail = (px, py, pad = 62) => trailSegs.some(([x1, y1, x2, y2]) => {
+        const dx = x2 - x1, dy = y2 - y1;
+        const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+        return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy)) < pad;
+      });
       for (let i = 0; i < 120; i++) {
         const tx = 90 + rand() * 1580;
         const ty = 780 + rand() * 1640;
         if (Math.hypot(tx - this.campfire.x, ty - this.campfire.y) < 135) continue;
         if (Math.hypot(tx - this.altar.x, ty - this.altar.y) < 125) continue;
-        if (Math.abs(ty - 1720) < 95) continue;
+        if (onForestTrail(tx, ty, 64)) continue;
         if (this.isInsideBuilding(tx, ty, 52)) continue;
         this.trees.push({ x: tx, y: ty, r: 24 + rand() * 14, kind: rand() < 0.65 ? 'pine' : 'oak' });
       }
@@ -283,7 +289,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.forageables = [];
       const spots = [
         [340, 1020, 'berry'], [520, 1380, 'mushroom'], [720, 960, 'berry'],
-        [980, 1580, 'mushroom'], [1320, 960, 'berry'], [1460, 1480, 'mushroom'],
+        [980, 1580, 'mushroom'], [1320, 960, 'berry'], [1410, 1610, 'mushroom'],
         [660, 1980, 'berry'], [1220, 2080, 'mushroom'], [420, 1590, 'berry'],
         [1500, 1920, 'berry'], [3520, 1020, 'berry'], [4040, 2020, 'berry'],
         [1240, 380, 'crystal'], [2880, 320, 'crystal'], [3440, 420, 'crystal'], [1840, 210, 'crystal']
