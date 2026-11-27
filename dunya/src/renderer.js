@@ -1232,6 +1232,17 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.strokeRect(winX, winY, winW, winH);
       ctx.beginPath(); ctx.moveTo(winX + winW / 2, winY); ctx.lineTo(winX + winW / 2, winY + winH); ctx.stroke();
 
+      // Framed Cozy Wall Art on North Wall (flanking the window)
+      const drawFrame = (fx, fy, fw, fh, skyCol, hillCol) => {
+        ctx.fillStyle = '#78350f'; ctx.fillRect(fx - 3, fy - 3, fw + 6, fh + 6);
+        ctx.fillStyle = skyCol; ctx.fillRect(fx, fy, fw, fh);
+        ctx.fillStyle = hillCol;
+        ctx.beginPath(); ctx.moveTo(fx, fy + fh); ctx.lineTo(fx + fw * 0.4, fy + fh * 0.45); ctx.lineTo(fx + fw, fy + fh); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(fx + fw * 0.72, fy + fh * 0.3, 3.5, 0, Math.PI * 2); ctx.fill();
+      };
+      drawFrame(218, 15, 40, 28, '#bae6fd', '#16a34a');
+      drawFrame(422, 15, 40, 28, '#fecdd3', '#0284c7');
+
       // Cozy Woven Living-Room Rug in center
       ctx.fillStyle = '#9f1239';
       ctx.strokeStyle = '#fde047';
@@ -1243,7 +1254,14 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.strokeStyle = 'rgba(254, 240, 138, 0.45)'; ctx.lineWidth = 2;
       ctx.strokeRect(room.w / 2 - 110, room.h / 2 - 48, 220, 108);
 
-      // Draw every furniture spot (Owned = vivid 2D prop; Locked = subtle dashed blueprint!)
+      // Helper for rounded rects inside room
+      const rrect = (x, y, w, h, r) => {
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+        else ctx.rect(x, y, w, h);
+      };
+
+      // Draw every furniture spot (Clean illustrated 2D props — ZERO silly text labels!)
       const hp = game.homePlayer;
       for (const sp of room.spots) {
         const unlocked = !sp.decor || game.homeDecor.has(sp.decor);
@@ -1252,70 +1270,217 @@ window.YasamDunya = window.YasamDunya || {};
 
         ctx.save();
         if (!unlocked) {
-          ctx.setLineDash([6, 5]);
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.25)';
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-          ctx.lineWidth = 2;
-          ctx.fillRect(sx, sy, sp.w, sp.h);
-          ctx.strokeRect(sx, sy, sp.w, sp.h);
+          // Subtle empty blueprint outline on hardwood floor
+          ctx.setLineDash([5, 5]);
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.14)';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+          ctx.lineWidth = 1.6;
+          rrect(sx + 4, sy + 4, sp.w - 8, sp.h - 8, 8);
+          ctx.fill(); ctx.stroke();
           ctx.setLineDash([]);
-          ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
-          ctx.fillStyle = 'rgba(255,255,255,0.55)';
-          ctx.fillText(`🔒 ${sp.icon}`, sp.x, sp.y + 4);
+          ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillStyle = 'rgba(255,255,255,0.42)';
+          ctx.fillText('+', sp.x, sp.y + 5);
           ctx.restore();
           continue;
         }
 
-        // Glow highlight when player stands nearby!
+        // Subtle golden selection aura ONLY when standing close
         if (near) {
-          ctx.strokeStyle = `rgba(253, 224, 71, ${0.65 + Math.sin(now * 6) * 0.3})`;
-          ctx.lineWidth = 3.5;
-          ctx.strokeRect(sx - 5, sy - 5, sp.w + 10, sp.h + 10);
+          ctx.strokeStyle = `rgba(253, 224, 71, ${0.55 + Math.sin(now * 5.5) * 0.25})`;
+          ctx.lineWidth = 3;
+          rrect(sx - 5, sy - 5, sp.w + 10, sp.h + 10, 11);
+          ctx.stroke();
         }
 
-        // Custom illustrated furniture graphics!
-        const shortNames = { bed: 'YATAK', espresso: 'ESPRESSO', plants: 'BİTKİLER', pc: 'İŞ PC', sofa: 'TV & KOLTUK', guitar: 'GİTAR', catalog: 'KATALOG' };
+        // Ground shadow under furniture
+        if (sp.kind !== 'exit' && sp.kind !== 'guitar') {
+          ctx.fillStyle = 'rgba(15, 10, 5, 0.26)';
+          rrect(sx + 4, sy + 6, sp.w, sp.h, 8);
+          ctx.fill();
+        }
+
         if (sp.kind === 'bed') {
-          ctx.fillStyle = '#78350f'; ctx.fillRect(sx, sy, sp.w, sp.h);
-          ctx.fillStyle = '#f8fafc'; ctx.fillRect(sx + 6, sy + 6, sp.w - 12, 24);
-          ctx.fillStyle = '#38bdf8'; ctx.fillRect(sx + 6, sy + 28, sp.w - 12, sp.h - 34);
-          ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.strokeRect(sx, sy, sp.w, sp.h);
-        } else if (sp.kind === 'pc') {
-          ctx.fillStyle = '#475569'; ctx.fillRect(sx, sy, sp.w, sp.h);
-          ctx.fillStyle = '#0f172a'; ctx.fillRect(sx + 18, sy + 8, sp.w - 36, 26);
-          ctx.fillStyle = '#22d3ee'; ctx.fillRect(sx + 22, sy + 12, sp.w - 44, 18);
-          ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.strokeRect(sx, sy, sp.w, sp.h);
-        } else if (sp.kind === 'sofa') {
-          ctx.fillStyle = '#7c2d12'; ctx.fillRect(sx, sy + 26, sp.w, sp.h - 26);
-          ctx.fillStyle = '#b45309'; ctx.fillRect(sx + 10, sy + 32, sp.w - 20, sp.h - 36);
-          // Flat-screen TV opposite the couch
-          ctx.fillStyle = '#0f172a'; ctx.fillRect(sx + 26, sy, sp.w - 52, 18);
-          ctx.fillStyle = `hsl(${(now * 45) % 360}, 70%, 60%)`; ctx.fillRect(sx + 30, sy + 3, sp.w - 60, 12);
-          ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(sx, sy + 26, sp.w, sp.h - 26);
-        } else if (sp.kind === 'exit') {
-          ctx.fillStyle = '#d97706'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
-          ctx.fillRect(sx, sy, sp.w, sp.h); ctx.strokeRect(sx, sy, sp.w, sp.h);
-          ctx.font = 'bold 11px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#fef3c7';
-          ctx.fillText('🚪 DIŞARI ÇIK', sp.x, sp.y + 4);
-        } else {
-          // Warm cozy oak wood counter / stand!
-          ctx.fillStyle = '#78350f'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.2;
+          // Solid walnut bed frame + headboard
+          ctx.fillStyle = '#5c2d16'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 2;
+          rrect(sx, sy, sp.w, sp.h, 8); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#78350f';
+          rrect(sx + 2, sy + 2, sp.w - 4, 12, 5); ctx.fill();
+          // Crisp mattress & two plump pillows
+          ctx.fillStyle = '#f8fafc';
+          rrect(sx + 6, sy + 12, sp.w - 12, sp.h - 18, 5); ctx.fill();
+          ctx.fillStyle = '#e2e8f0';
+          rrect(sx + 10, sy + 15, (sp.w - 28) / 2, 18, 6); ctx.fill();
+          rrect(sx + sp.w / 2 + 4, sy + 15, (sp.w - 28) / 2, 18, 6); ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          rrect(sx + 12, sy + 16, (sp.w - 32) / 2, 14, 5); ctx.fill();
+          rrect(sx + sp.w / 2 + 6, sy + 16, (sp.w - 32) / 2, 14, 5); ctx.fill();
+          // Cozy quilted duvet + folded white sheet trim
+          ctx.fillStyle = '#0284c7';
+          rrect(sx + 6, sy + 35, sp.w - 12, sp.h - 41, 4); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          rrect(sx + 6, sy + 35, sp.w - 12, 10, 3); ctx.fill();
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(sx + 6, sy + 33, sp.w - 12, 4);
+          // Subtle quilt seam lines
+          ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1.2;
           ctx.beginPath();
-          if (ctx.roundRect) ctx.roundRect(sx, sy, sp.w, sp.h, 8);
-          else ctx.rect(sx, sy, sp.w, sp.h);
-          ctx.fill(); ctx.stroke();
-          ctx.fillStyle = '#b45309';
-          ctx.fillRect(sx + 5, sy + 5, sp.w - 10, sp.h - 10);
-        }
-
-        if (sp.kind !== 'exit') {
-          ctx.font = '21px sans-serif'; ctx.textAlign = 'center';
-          ctx.fillText(sp.icon, sp.x, sp.y + 6);
-          ctx.font = 'bold 9px "Courier New", monospace';
-          ctx.fillStyle = 'rgba(15,23,42,0.78)';
-          ctx.fillRect(sp.x - 32, sy + sp.h + 2, 64, 12);
+          ctx.moveTo(sx + 10, sy + 52); ctx.lineTo(sx + sp.w - 10, sy + 52);
+          ctx.moveTo(sx + 10, sy + 64); ctx.lineTo(sx + sp.w - 10, sy + 64);
+          ctx.stroke();
+          // Bedpost finials
+          ctx.fillStyle = '#92400e';
+          for (const [px, py] of [[sx + 4, sy + 4], [sx + sp.w - 4, sy + 4], [sx + 4, sy + sp.h - 4], [sx + sp.w - 4, sy + sp.h - 4]]) {
+            ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+          }
+        } else if (sp.kind === 'espresso') {
+          // Warm walnut coffee bar counter
+          ctx.fillStyle = '#6b3a1c'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 2;
+          rrect(sx, sy, sp.w, sp.h, 6); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#d6b48c';
+          rrect(sx + 4, sy + 4, sp.w - 8, sp.h - 8, 4); ctx.fill();
+          // Brushed steel espresso machine
+          ctx.fillStyle = '#334155';
+          rrect(sx + 10, sy + 7, 34, 28, 4); ctx.fill();
+          ctx.fillStyle = '#cbd5e1';
+          ctx.fillRect(sx + 13, sy + 10, 28, 12);
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath(); ctx.arc(sx + 37, sy + 14, 2, 0, Math.PI * 2); ctx.fill();
+          // Coffee cup + gentle rising steam
+          ctx.fillStyle = '#f8fafc';
+          ctx.beginPath(); ctx.arc(sx + 60, sy + 24, 7.5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#78350f';
+          ctx.beginPath(); ctx.arc(sx + 60, sy + 24, 5, 0, Math.PI * 2); ctx.fill();
+          const stY = (now * 14) % 10;
+          ctx.strokeStyle = `rgba(255,255,255,${0.55 - stY * 0.045})`; ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(sx + 58, sy + 16 - stY); ctx.quadraticCurveTo(sx + 61, sy + 12 - stY, sx + 59, sy + 8 - stY);
+          ctx.stroke();
+        } else if (sp.kind === 'plants') {
+          // Wooden botanical shelf + two terracotta pots with lush swaying leaves
+          ctx.fillStyle = '#78350f'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 1.8;
+          rrect(sx + 2, sy + 12, sp.w - 4, sp.h - 16, 6); ctx.fill(); ctx.stroke();
+          const sway = Math.sin(now * 2.1) * 2;
+          for (const [px, py, sc] of [[sx + 23, sy + 28, 1.0], [sx + 54, sy + 26, 0.85]]) {
+            ctx.fillStyle = '#c2410c';
+            ctx.beginPath(); ctx.arc(px, py, 12 * sc, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#7c2d12';
+            ctx.beginPath(); ctx.arc(px, py, 9 * sc, 0, Math.PI * 2); ctx.fill();
+            for (let a = 0; a < 6; a++) {
+              const ang = a * (Math.PI / 3) + sway * 0.04;
+              ctx.fillStyle = a % 2 === 0 ? '#16a34a' : '#22c55e';
+              ctx.beginPath();
+              ctx.ellipse(px + Math.cos(ang) * 9 * sc, py + Math.sin(ang) * 8 * sc, 7 * sc, 4 * sc, ang, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        } else if (sp.kind === 'pc') {
+          // Oak home-office desk + monitor + keyboard + mouse + mug + chair
+          ctx.fillStyle = '#7c4a26'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 2;
+          rrect(sx, sy, sp.w, sp.h - 12, 6); ctx.fill(); ctx.stroke();
+          // Curved dark monitor with glowing screen
+          ctx.fillStyle = '#0f172a';
+          rrect(sx + 18, sy + 5, sp.w - 36, 20, 3); ctx.fill();
+          ctx.fillStyle = '#0ea5e9';
+          ctx.fillRect(sx + 21, sy + 8, sp.w - 42, 13);
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(sx + 24, sy + 11, 22, 2);
+          ctx.fillRect(sx + 24, sy + 15, 34, 2);
+          // Keyboard & mouse
+          ctx.fillStyle = '#1e293b';
+          rrect(sx + 24, sy + 30, 44, 11, 2); ctx.fill();
+          ctx.fillStyle = '#64748b';
+          ctx.fillRect(sx + 27, sy + 33, 38, 5);
+          ctx.fillStyle = '#334155';
+          rrect(sx + 74, sy + 31, 9, 12, 4); ctx.fill();
+          // Tiny desk mug
           ctx.fillStyle = '#fef08a';
-          ctx.fillText(shortNames[sp.kind] || '', sp.x, sy + sp.h + 11);
+          ctx.beginPath(); ctx.arc(sx + 12, sy + 36, 5, 0, Math.PI * 2); ctx.fill();
+          // Swivel chair tucked at bottom of desk
+          ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1.6;
+          rrect(sx + sp.w / 2 - 16, sy + sp.h - 14, 32, 15, 6); ctx.fill(); ctx.stroke();
+        } else if (sp.kind === 'sofa') {
+          // Sleek TV stand + animated flat-screen TV at top
+          ctx.fillStyle = '#451a03'; ctx.strokeStyle = '#1c0a00'; ctx.lineWidth = 1.8;
+          rrect(sx + 18, sy, sp.w - 36, 18, 4); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#0f172a';
+          rrect(sx + 26, sy + 2, sp.w - 52, 12, 2); ctx.fill();
+          ctx.fillStyle = `hsl(${(now * 38) % 360}, 72%, 58%)`;
+          ctx.fillRect(sx + 30, sy + 4, sp.w - 60, 7);
+          // Small wooden coffee table between TV & couch
+          ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#451a03'; ctx.lineWidth = 1.5;
+          rrect(sx + 42, sy + 23, sp.w - 84, 13, 4); ctx.fill(); ctx.stroke();
+          // Cozy 3-cushion tufted sofa with armrests & throw pillows
+          ctx.fillStyle = '#7c2d12'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 2;
+          rrect(sx, sy + 40, sp.w, sp.h - 40, 9); ctx.fill(); ctx.stroke();
+          // Seat cushions
+          ctx.fillStyle = '#c2410c';
+          const cw = (sp.w - 28) / 3;
+          for (let i = 0; i < 3; i++) {
+            rrect(sx + 11 + i * (cw + 3), sy + 44, cw, sp.h - 52, 5); ctx.fill();
+          }
+          // Backrest & cozy throw pillow
+          ctx.fillStyle = '#9a3412';
+          rrect(sx + 8, sy + sp.h - 12, sp.w - 16, 10, 4); ctx.fill();
+          ctx.fillStyle = '#fde047';
+          rrect(sx + 14, sy + 47, 16, 14, 4); ctx.fill();
+        } else if (sp.kind === 'guitar') {
+          // Small woven corner mat + illustrated acoustic guitar on wooden stand
+          ctx.fillStyle = 'rgba(254, 243, 199, 0.35)';
+          ctx.beginPath(); ctx.ellipse(sp.x, sp.y + 4, 34, 24, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.save();
+          ctx.translate(sp.x, sp.y + 2);
+          ctx.rotate(-0.42);
+          // Guitar neck & headstock
+          ctx.fillStyle = '#451a03';
+          ctx.fillRect(-3, -27, 6, 26);
+          ctx.fillStyle = '#78350f';
+          rrect(-5, -33, 10, 8, 2); ctx.fill();
+          // Acoustic spruce body (figure-8)
+          ctx.fillStyle = '#d97706'; ctx.strokeStyle = '#451a03'; ctx.lineWidth = 1.8;
+          ctx.beginPath(); ctx.arc(0, 12, 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(0, 1, 9.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#d97706'; ctx.fillRect(-9, 0, 18, 13);
+          // Soundhole + bridge + strings
+          ctx.fillStyle = '#291002';
+          ctx.beginPath(); ctx.arc(0, 4, 4.2, 0, Math.PI * 2); ctx.fill();
+          ctx.fillRect(-5, 13, 10, 2.5);
+          ctx.strokeStyle = 'rgba(254,243,199,0.75)'; ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.moveTo(-1.5, -26); ctx.lineTo(-1.5, 13); ctx.moveTo(1.5, -26); ctx.lineTo(1.5, 13); ctx.stroke();
+          ctx.restore();
+        } else if (sp.kind === 'catalog') {
+          // Cozy side bookcase / architect table with colorful books & rolled floorplan
+          ctx.fillStyle = '#78350f'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 2;
+          rrect(sx, sy, sp.w, sp.h, 6); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#a16207';
+          rrect(sx + 5, sy + 5, sp.w - 10, sp.h - 10, 4); ctx.fill();
+          // Open floorplan sketchbook
+          ctx.fillStyle = '#fefce8';
+          rrect(sx + 9, sy + 10, sp.w - 18, 22, 2); ctx.fill();
+          ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 1.2;
+          ctx.strokeRect(sx + 13, sy + 14, sp.w - 26, 14);
+          // Colorful book spines below
+          const bookCols = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b'];
+          bookCols.forEach((c, idx) => {
+            ctx.fillStyle = c;
+            ctx.fillRect(sx + 9 + idx * 9, sy + 38, 7, 17);
+          });
+        } else if (sp.kind === 'exit') {
+          // Cozy striped woven doormat + warm wooden doorway threshold (no text!)
+          ctx.fillStyle = '#5c2d16';
+          ctx.fillRect(sx - 6, sy + sp.h - 6, sp.w + 12, 10);
+          ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#451a03'; ctx.lineWidth = 2;
+          rrect(sx, sy, sp.w, sp.h - 4, 5); ctx.fill(); ctx.stroke();
+          ctx.strokeStyle = 'rgba(254, 243, 199, 0.45)'; ctx.lineWidth = 2;
+          ctx.strokeRect(sx + 6, sy + 5, sp.w - 12, sp.h - 14);
+          // Subtle warm down-chevron indicating door exit
+          const bob = Math.sin(now * 4) * 2;
+          ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(sp.x - 8, sp.y - 2 + bob);
+          ctx.lineTo(sp.x, sp.y + 6 + bob);
+          ctx.lineTo(sp.x + 8, sp.y - 2 + bob);
+          ctx.stroke();
         }
         ctx.restore();
       }
