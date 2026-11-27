@@ -1,5 +1,7 @@
 # 🌍 Life Marathon: Open World / Yaşam Maratonu (EN & TR)
 
+![Life Marathon: Open World Cover](dunya/og-cover.jpg)
+
 [![Play Now](https://img.shields.io/badge/Play%20Free%20in%20Browser-Open%20World%20v10.1-22c55e?style=for-the-badge)](https://berkehanbudak1-byte.github.io/yasam-maratonu/dunya.html)
 [![Zero Dependencies](https://img.shields.io/badge/Vanilla%20JS%20%2B%20HTML5%20Canvas-60%20FPS-38bdf8?style=for-the-badge)](https://berkehanbudak1-byte.github.io/yasam-maratonu/dunya.html)
 [![Languages](https://img.shields.io/badge/Languages-English%20%7C%20T%C3%BCrk%C3%A7e-fde047?style=for-the-badge)](https://berkehanbudak1-byte.github.io/yasam-maratonu/dunya.html)
