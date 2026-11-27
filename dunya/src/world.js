@@ -1,10 +1,11 @@
 /**
- * Yaşam Maratonu: Büyük Dünya — Multi-Biome Open World Generator (4200 x 3200)
+ * Yaşam Maratonu: Büyük Dünya v2 — 5-Biome Open World Generator (4600 x 3600)
  * Biomes:
- *  - Kuzey Ormanı (Forest, Cabins, Campfire, Berries, Mushrooms, Deer, Ancient Relic Altar)
- *  - Şehir Merkezi (Home, Office, Cafe, University, Antique Shop, Roads, Cars)
- *  - Yeşil Park (Park Pond, Ducks, Jogging Track, Gym Zone, Benches, Cherry Trees)
- *  - Güney Sahili & Deniz (Golden Beach, Palms, Umbrellas, Swimmable Sea, Fishing Pier, Lighthouse, Sailboats)
+ *  - Karlı Zirve & Dağ Yaylası (North: Hot Spring, Summit Crystals, Ski Lodge, Sisyphus Summit Rock)
+ *  - Kuzey Ormanı (West: Pine/Oak Forest, Campfire, Deer/Rabbits, Berries/Mushrooms, Ancient 4D Altar)
+ *  - Şehir Merkezi (Center: Home + Garage, Office, Cafe, University, Market/Antique Shop, Roads & Traffic)
+ *  - Yeşil Park & Gölet (East: Park Pond, Ducks, Jogging Track, Gym Zone, Benches, Blossom Trees)
+ *  - Altın Sahil & Turkuaz Deniz (South: Beach, Palms, Umbrellas, Swimmable Sea, Fishing Pier, Lighthouse, Sailboats)
  */
 window.YasamDunya = window.YasamDunya || {};
 
@@ -25,18 +26,19 @@ window.YasamDunya = window.YasamDunya || {};
       this.umbrellas = [];
       this.streetlamps = [];
 
-      // Key natural landmarks
-      this.pond = { x: 3640, y: 1020, rx: 185, ry: 130 };
-      this.pier = { x: 2140, y: 2460, w: 120, h: 340 }; // Extends out into the Sea!
-      this.campfire = { x: 840, y: 860, r: 22 };
-      this.altar = { x: 520, y: 420, r: 34 }; // Ancient 4D Relic Altar in deep forest
-      this.lighthouse = { x: 3880, y: 2440, r: 36, beamAngle: 0 };
+      // Iconic Natural Landmarks across all 5 Biomes!
+      this.hotSpring = { x: 2560, y: 390, rx: 115, ry: 72 }; // Steaming Mountain Hot Spring!
+      this.summitRock = { x: 2040, y: 240, r: 40 };          // Sisyphus Summit Boulder!
+      this.pond = { x: 3860, y: 1420, rx: 195, ry: 135 };
+      this.pier = { x: 2240, y: 2860, w: 124, h: 360 };
+      this.campfire = { x: 890, y: 1240, r: 22 };
+      this.altar = { x: 520, y: 920, r: 34 };
+      this.lighthouse = { x: 4220, y: 2830, r: 38, beamAngle: 0 };
 
       this.buildWorld();
     }
 
     buildWorld() {
-      // --- CITY BUILDINGS (Central District x: 1660..3060, y: 650..2050) ---
       const addBldg = (id, x, y, w, h, color, roof, label, actionKind, doorX, doorY) => {
         this.buildings.push({ id, x, y, w, h, color, roof, label });
         if (actionKind) {
@@ -44,140 +46,136 @@ window.YasamDunya = window.YasamDunya || {};
             id, kind: actionKind, label,
             x: doorX ?? (x + w / 2),
             y: doorY ?? (y + h + 26),
-            r: 52
+            r: 54
           });
         }
       };
 
-      // Player's Cozy Home
-      addBldg('home', 1840, 1040, 220, 150, '#b45309', '#f59e0b', '🏠 EVİN', 'sleep', 1950, 1215);
-      // Tech Office / Career Building
-      addBldg('office', 2480, 960, 290, 180, '#1d4ed8', '#38bdf8', '🏢 İŞ MERKEZİ', 'work', 2625, 1165);
-      // City Cafe & Bakery
-      addBldg('cafe', 1840, 1460, 230, 150, '#be123c', '#fb7185', '☕ KAFE & FIRIN', 'cafe', 1955, 1635);
-      // University & Library
-      addBldg('uni', 2480, 1460, 290, 165, '#0f766e', '#2dd4bf', '🎓 ÜNİVERSİTE', 'study', 2625, 1650);
-      // Market & 4D Antique Shop
-      addBldg('shop', 2160, 680, 260, 145, '#6b21a8', '#c084fc', '🛍️ MARKET & ANTİKACI', 'shop', 2290, 850);
-      // Forest Ranger Cabin
-      addBldg('cabin', 1040, 740, 180, 125, '#78350f', '#b45309', '🪵 ORMAN KULÜBESİ', 'campfire', 1130, 890);
+      // --- MOUNTAIN LODGE (North Snowy Peak) ---
+      addBldg('lodge', 1520, 290, 210, 130, '#78350f', '#e2e8f0', '🏔️ DAĞ KULÜBESİ (Şömine)', 'lodge', 1625, 445);
 
-      // Extra Interactive Spots across Forest, Park & Sea!
+      // --- CITY BUILDINGS (Center x: 1760..3260, y: 1050..2420) ---
+      addBldg('home',   1940, 1420, 230, 150, '#b45309', '#f59e0b', '🏠 EVİN (Uyu / Dekore Et)', 'home',  2055, 1595);
+      addBldg('office', 2600, 1340, 290, 180, '#1d4ed8', '#38bdf8', '🏢 İŞ MERKEZİ',             'work',  2745, 1545);
+      addBldg('cafe',   1940, 1840, 230, 150, '#be123c', '#fb7185', '☕ KAFE & FIRIN',            'cafe',  2055, 2015);
+      addBldg('uni',    2600, 1840, 290, 165, '#0f766e', '#2dd4bf', '🎓 ÜNİVERSİTE',              'study', 2745, 2030);
+      addBldg('shop',   2280, 1060, 260, 145, '#6b21a8', '#c084fc', '🛍️ MARKET & OTO GALERİ',    'shop',  2410, 1230);
+
+      // --- FOREST CABIN ---
+      addBldg('cabin', 1100, 1120, 180, 125, '#78350f', '#b45309', '🪵 ORMAN KULÜBESİ', 'campfire', 1190, 1270);
+
+      // Interactive World Spots across Mountain, Forest, Park & Sea!
       this.interactables.push(
-        { id: 'camp',       kind: 'campfire',   label: '🔥 KAMP ATEŞİ (Dinlen)',        x: this.campfire.x, y: this.campfire.y, r: 58 },
-        { id: 'altar',      kind: 'altar',      label: '⏳ ANTİK 4D SUNAK (İlham Al)',   x: this.altar.x,    y: this.altar.y,    r: 62 },
-        { id: 'park_gym',   kind: 'workout',    label: '🏃 PARK SPOR ALANI (+Sağlık)',   x: 3420, y: 1450, r: 65 },
-        { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI (+Mutluluk)',     x: 3640, y: 1200, r: 58 },
-        { id: 'pier_fish',  kind: 'fish',       label: '🎣 İSKELE — BALIK TUT',          x: this.pier.x + this.pier.w / 2, y: this.pier.y + this.pier.h - 24, r: 66 },
-        { id: 'lighthouse', kind: 'lighthouse', label: '🗼 DENİZ FENERİ (Manzara)',      x: this.lighthouse.x, y: this.lighthouse.y + 42, r: 58 }
+        { id: 'hotspring',  kind: 'hotspring',  label: '♨️ SICAK KAPLICA (+Sağlık & Enerji)', x: this.hotSpring.x, y: this.hotSpring.y + 88, r: 72 },
+        { id: 'summit',     kind: 'summit',     label: '🪨 SİSYPHOS ZİRVE KAYASI (+50 XP)',   x: this.summitRock.x, y: this.summitRock.y + 44, r: 64 },
+        { id: 'camp',       kind: 'campfire',   label: '🔥 KAMP ATEŞİ (Dinlen)',              x: this.campfire.x, y: this.campfire.y, r: 58 },
+        { id: 'altar',      kind: 'altar',      label: '⏳ ANTİK 4D SUNAK (İlham Al)',         x: this.altar.x, y: this.altar.y, r: 62 },
+        { id: 'park_gym',   kind: 'workout',    label: '🏃 PARK SPOR ALANI (+Sağlık)',         x: 3620, y: 1850, r: 66 },
+        { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI (+Mutluluk)',           x: 3860, y: 1605, r: 58 },
+        { id: 'pier_fish',  kind: 'fish',       label: '🎣 İSKELE — BALIK TUT (MİNİ-OYUN)',   x: this.pier.x + this.pier.w / 2, y: this.pier.y + this.pier.h - 24, r: 68 },
+        { id: 'lighthouse', kind: 'lighthouse', label: '🗼 DENİZ FENERİ (Manzara)',            x: this.lighthouse.x, y: this.lighthouse.y + 44, r: 58 }
       );
 
-      // Streetlamps along City & Beach Promenade
+      // Streetlamps
       const lampSpots = [
-        [1760, 1340], [2120, 1340], [2440, 1340], [2820, 1340],
-        [1760, 1820], [2120, 1820], [2440, 1820], [2820, 1820],
-        [1500, 2140], [2020, 2140], [2540, 2140], [3120, 2140],
-        [3320, 1020], [3940, 1020]
+        [1860, 1720], [2220, 1720], [2540, 1720], [2920, 1720],
+        [1860, 2220], [2220, 2220], [2540, 2220], [2920, 2220],
+        [1600, 2540], [2120, 2540], [2640, 2540], [3220, 2540],
+        [3540, 1420], [4160, 1420], [2330, 620]
       ];
       for (const [lx, ly] of lampSpots) this.streetlamps.push({ x: lx, y: ly });
 
-      // Park Benches
       this.benches = [
-        { x: 3640, y: 1190, angle: 0 },
-        { x: 3430, y: 1020, angle: Math.PI / 2 },
-        { x: 3860, y: 1020, angle: Math.PI / 2 },
-        { x: 2020, y: 2155, angle: 0 },
-        { x: 2620, y: 2155, angle: 0 }
+        { x: 3860, y: 1595, angle: 0 },
+        { x: 3630, y: 1420, angle: Math.PI / 2 },
+        { x: 4090, y: 1420, angle: Math.PI / 2 },
+        { x: 2120, y: 2555, angle: 0 },
+        { x: 2720, y: 2555, angle: 0 }
       ];
 
-      // Beach Umbrellas along the Golden Sand!
+      // Beach Umbrellas
       const umbColors = ['#ef4444', '#38bdf8', '#facc15', '#ec4899', '#22c55e', '#f97316'];
-      for (let i = 0; i < 14; i++) {
-        const ux = 320 + i * 260 + (i % 2) * 35;
-        if (Math.abs(ux - 2200) < 170) continue; // Keep pier clear
-        this.umbrellas.push({
-          x: ux,
-          y: 2310 + (i % 3) * 45,
-          r: 30,
-          color: umbColors[i % umbColors.length]
-        });
+      for (let i = 0; i < 16; i++) {
+        const ux = 280 + i * 265 + (i % 2) * 30;
+        if (Math.abs(ux - 2300) < 180) continue;
+        this.umbrellas.push({ x: ux, y: 2710 + (i % 3) * 44, r: 30, color: umbColors[i % umbColors.length] });
       }
 
-      // --- FOREST PINE & OAK TREES (Dense lush Kuzey Ormanı!) ---
-      let seed = 1337;
+      let seed = 2026;
       const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
 
-      for (let i = 0; i < 120; i++) {
-        const tx = 90 + rand() * 1490;
-        const ty = 90 + rand() * 1950;
-        // Keep campfire clearing, altar, forest cabin, and forest road clear
+      // --- SNOWY MOUNTAIN PINES (y: 80..700) ---
+      for (let i = 0; i < 75; i++) {
+        const tx = 100 + rand() * (YD.WORLD_W - 200);
+        const ty = 85 + rand() * 590;
+        if (Math.hypot(tx - this.hotSpring.x, ty - this.hotSpring.y) < 165) continue;
+        if (Math.hypot(tx - this.summitRock.x, ty - this.summitRock.y) < 110) continue;
+        if (Math.abs(tx - 2330) < 95) continue; // North-South mountain highway pass
+        if (this.isInsideBuilding(tx, ty, 52)) continue;
+        this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: 'snow_pine' });
+      }
+
+      // --- FOREST TREES (West x: 80..1680, y: 760..2460) ---
+      for (let i = 0; i < 125; i++) {
+        const tx = 90 + rand() * 1580;
+        const ty = 780 + rand() * 1640;
         if (Math.hypot(tx - this.campfire.x, ty - this.campfire.y) < 135) continue;
         if (Math.hypot(tx - this.altar.x, ty - this.altar.y) < 125) continue;
-        if (Math.abs(ty - 1340) < 95) continue; // Main West-East forest road
+        if (Math.abs(ty - 1720) < 95) continue;
         if (this.isInsideBuilding(tx, ty, 52)) continue;
         this.trees.push({ x: tx, y: ty, r: 24 + rand() * 14, kind: rand() < 0.65 ? 'pine' : 'oak' });
       }
 
-      // --- PARK TREES (Blossom & Oak around Green Park & Pond!) ---
-      for (let i = 0; i < 62; i++) {
-        const tx = 3130 + rand() * 980;
-        const ty = 110 + rand() * 1900;
-        if (this.isInPond(tx, ty, 65)) continue;
-        if (Math.hypot(tx - 3420, ty - 1450) < 115) continue; // Keep park gym open
-        if (Math.hypot(tx - 3640, ty - 1200) < 85) continue;
-        this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: rand() < 0.42 ? 'blossom' : 'oak' });
+      // --- PARK TREES (East x: 3320..4500, y: 780..2440) ---
+      for (let i = 0; i < 68; i++) {
+        const tx = 3320 + rand() * 1160;
+        const ty = 780 + rand() * 1620;
+        if (this.isInPond(tx, ty, 68)) continue;
+        if (Math.hypot(tx - 3620, ty - 1850) < 115) continue;
+        if (Math.hypot(tx - 3860, ty - 1605) < 85) continue;
+        this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: rand() < 0.45 ? 'blossom' : 'oak' });
       }
 
-      // --- BEACH PALM TREES ---
-      for (let i = 0; i < 20; i++) {
-        const px = 160 + i * 205;
-        if (Math.abs(px - 2200) < 140) continue;
-        this.trees.push({ x: px, y: 2205 + (i % 2) * 35, r: 24, kind: 'palm' });
+      // --- BEACH PALMS ---
+      for (let i = 0; i < 22; i++) {
+        const px = 140 + i * 205;
+        if (Math.abs(px - 2300) < 150) continue;
+        this.trees.push({ x: px, y: 2605 + (i % 2) * 35, r: 24, kind: 'palm' });
       }
 
-      // --- FORAGEABLE BERRIES & MUSHROOMS IN THE FOREST ---
+      // Forageables (Berries, Mushrooms + Snowy Mountain Crystals!)
       this.spawnForageables();
 
-      // --- LIVING WILDLIFE: FOREST DEER/RABBITS, PARK DUCKS, SEA SAILBOATS, CITY CARS ---
-      for (let i = 0; i < 9; i++) {
+      // Wildlife (Forest Deer/Rabbits + Park Ducks + Sea Sailboats + City Cars)
+      for (let i = 0; i < 10; i++) {
         this.wildlife.push({
           kind: i < 4 ? 'deer' : 'rabbit',
-          x: 240 + rand() * 1200,
-          y: 260 + rand() * 1550,
-          angle: rand() * Math.PI * 2,
-          speed: i < 4 ? 52 : 68,
-          timer: 1 + rand() * 3
+          x: 240 + rand() * 1320, y: 860 + rand() * 1450,
+          angle: rand() * Math.PI * 2, speed: i < 4 ? 52 : 68, timer: 1 + rand() * 3
         });
       }
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 7; i++) {
         this.ducks.push({
-          angle: (i / 6) * Math.PI * 2,
-          orbitRx: 50 + rand() * 85,
-          orbitRy: 35 + rand() * 55,
+          angle: (i / 7) * Math.PI * 2,
+          orbitRx: 52 + rand() * 90, orbitRy: 38 + rand() * 58,
           speed: (0.25 + rand() * 0.25) * (i % 2 === 0 ? 1 : -1)
         });
       }
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 5; i++) {
         this.boats.push({
-          x: 300 + i * 1000,
-          y: 2740 + (i % 2) * 190,
-          dir: i % 2 === 0 ? 1 : -1,
-          speed: 36 + i * 10,
-          sailColor: ['#ffffff', '#fde047', '#fb7185', '#38bdf8'][i]
+          x: 280 + i * 920, y: 3140 + (i % 2) * 195,
+          dir: i % 2 === 0 ? 1 : -1, speed: 36 + i * 9,
+          sailColor: ['#ffffff', '#fde047', '#fb7185', '#38bdf8', '#a7f3d0'][i]
         });
       }
-
-      // Ambient City Road Cars (along y = 1340 and y = 1840)
       const carCols = ['#ef4444', '#facc15', '#3b82f6', '#22c55e', '#f97316'];
       for (let i = 0; i < 6; i++) {
-        const roadY = i % 2 === 0 ? 1340 : 1840;
+        const roadY = i % 2 === 0 ? 1720 : 2220;
         const dir = i < 3 ? 1 : -1;
         this.cars.push({
-          x: 1680 + (i * 230) % 1350,
+          x: 1780 + (i * 250) % 1420,
           y: roadY + (dir === 1 ? 22 : -22),
-          dir,
-          speed: 120 + (i % 3) * 25,
-          color: carCols[i % carCols.length]
+          dir, speed: 120 + (i % 3) * 25, color: carCols[i % carCols.length]
         });
       }
     }
@@ -185,10 +183,12 @@ window.YasamDunya = window.YasamDunya || {};
     spawnForageables() {
       this.forageables = [];
       const spots = [
-        [320, 620, 'berry'], [480, 980, 'mushroom'], [690, 540, 'berry'],
-        [920, 1180, 'mushroom'], [1240, 560, 'berry'], [1380, 1080, 'mushroom'],
-        [620, 1580, 'berry'], [1150, 1680, 'mushroom'], [390, 1190, 'berry'],
-        [1420, 1520, 'berry'], [3340, 620, 'berry'], [3820, 1620, 'berry']
+        [340, 1020, 'berry'], [520, 1380, 'mushroom'], [720, 960, 'berry'],
+        [980, 1580, 'mushroom'], [1320, 960, 'berry'], [1460, 1480, 'mushroom'],
+        [660, 1980, 'berry'], [1220, 2080, 'mushroom'], [420, 1590, 'berry'],
+        [1500, 1920, 'berry'], [3520, 1020, 'berry'], [4020, 2020, 'berry'],
+        // High-Value Snowy Mountain Crystals!
+        [1240, 380, 'crystal'], [2880, 320, 'crystal'], [3440, 420, 'crystal'], [1840, 210, 'crystal']
       ];
       for (const [x, y, kind] of spots) {
         this.forageables.push({ x, y, kind, collected: false, respawnTimer: 0 });
@@ -196,6 +196,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     getBiome(x, y) {
+      if (y < YD.MOUNTAIN_Y) return 'mountain';
       if (y >= YD.SEA_Y) return 'sea';
       if (y >= YD.BEACH_Y) return 'beach';
       if (x < YD.CITY_X1) return 'forest';
@@ -205,13 +206,14 @@ window.YasamDunya = window.YasamDunya || {};
 
     getBiomeLabel(biome) {
       const map = {
-        forest: '🌲 KUZEY ORMANI',
-        city:   '🏙️ ŞEHİR MERKEZİ',
-        park:   '🌳 YEŞİL PARK & GÖLET',
-        beach:  '🏖️ ALTIN SAHİL',
-        sea:    '🌊 TURKUAZ DENİZ'
+        mountain: '🏔️ KARLI ZİRVE & KAPLICA',
+        forest:   '🌲 KUZEY ORMANI',
+        city:     '🏙️ ŞEHİR MERKEZİ',
+        park:     '🌳 YEŞİL PARK & GÖLET',
+        beach:    '🏖️ ALTIN SAHİL',
+        sea:      '🌊 TURKUAZ DENİZ'
       };
-      return map[biome] || 'DÜNYA';
+      return map[biome] || 'BÜYÜK DÜNYA';
     }
 
     isOnPier(x, y) {
@@ -219,9 +221,16 @@ window.YasamDunya = window.YasamDunya || {};
       return x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h;
     }
 
+    isInHotSpring(x, y) {
+      const hs = this.hotSpring;
+      const dx = (x - hs.x) / hs.rx, dy = (y - hs.y) / hs.ry;
+      return dx * dx + dy * dy <= 1;
+    }
+
     isInWater(x, y) {
       if (y >= YD.SEA_Y && !this.isOnPier(x, y)) return true;
-      return this.isInPond(x, y, 0);
+      if (this.isInPond(x, y, 0)) return true;
+      return this.isInHotSpring(x, y);
     }
 
     isInPond(x, y, pad = 0) {
@@ -237,11 +246,10 @@ window.YasamDunya = window.YasamDunya || {};
       return null;
     }
 
-    resolveCollisions(ent) {
-      ent.x = Math.max(36, Math.min(YD.WORLD_W - 36, ent.x));
-      ent.y = Math.max(36, Math.min(YD.WORLD_H - 60, ent.y));
+    resolveCollisions(ent, isCar = false) {
+      ent.x = Math.max(40, Math.min(YD.WORLD_W - 40, ent.x));
+      ent.y = Math.max(40, Math.min(isCar ? YD.SEA_Y - 34 : YD.WORLD_H - 60, ent.y));
 
-      // Solid Buildings
       for (const b of this.buildings) {
         const cx = Math.max(b.x, Math.min(ent.x, b.x + b.w));
         const cy = Math.max(b.y, Math.min(ent.y, b.y + b.h));
@@ -254,7 +262,6 @@ window.YasamDunya = window.YasamDunya || {};
         }
       }
 
-      // Tree trunks (small solid center so walking through forest feels super fluid!)
       for (const tr of this.trees) {
         const trunkR = 10;
         const dx = ent.x - tr.x, dy = ent.y - tr.y;
@@ -267,31 +274,32 @@ window.YasamDunya = window.YasamDunya || {};
         }
       }
 
-      // Lighthouse solid tower
-      {
-        const dx = ent.x - this.lighthouse.x, dy = ent.y - this.lighthouse.y;
-        const minR = ent.r + this.lighthouse.r;
+      // Cars cannot enter pond or hot spring
+      if (isCar && (this.isInPond(ent.x, ent.y, 18) || this.isInHotSpring(ent.x, ent.y))) {
+        ent.y += 16;
+      }
+
+      // Lighthouse & Summit Boulder
+      for (const solid of [this.lighthouse, this.summitRock]) {
+        const dx = ent.x - solid.x, dy = ent.y - solid.y;
+        const minR = ent.r + solid.r;
         const d2 = dx * dx + dy * dy;
         if (d2 < minR * minR) {
           const d = Math.sqrt(d2) || 0.01;
-          ent.x = this.lighthouse.x + (dx / d) * minR;
-          ent.y = this.lighthouse.y + (dy / d) * minR;
+          ent.x = solid.x + (dx / d) * minR;
+          ent.y = solid.y + (dy / d) * minR;
         }
       }
     }
 
     update(dt, player) {
       this.lighthouse.beamAngle += dt * 0.9;
-
-      // Respawn forageables over time
       for (const fg of this.forageables) {
         if (fg.collected) {
           fg.respawnTimer -= dt;
           if (fg.respawnTimer <= 0) fg.collected = false;
         }
       }
-
-      // Forest Wildlife (Deer & Rabbits hop away softly if player gets very close)
       for (const w of this.wildlife) {
         w.timer -= dt;
         const dPlayer = Math.hypot(player.x - w.x, player.y - w.y);
@@ -300,31 +308,20 @@ window.YasamDunya = window.YasamDunya || {};
           w.x += Math.cos(w.angle) * (w.speed * 1.9) * dt;
           w.y += Math.sin(w.angle) * (w.speed * 1.9) * dt;
         } else {
-          if (w.timer <= 0) {
-            w.timer = 2 + Math.random() * 3.5;
-            w.angle += (Math.random() - 0.5) * 2.2;
-          }
-          w.x += Math.cos(w.angle) * w.speed * dt;
-          w.y += Math.sin(w.angle) * w.speed * dt;
+          if (w.timer <= 0) { w.timer = 2 + Math.random() * 3.5; w.angle += (Math.random() - 0.5) * 2.2; }
+          w.x += Math.cos(w.angle) * w.speed * dt; w.y += Math.sin(w.angle) * w.speed * dt;
         }
         w.x = Math.max(90, Math.min(YD.CITY_X1 - 80, w.x));
-        w.y = Math.max(90, Math.min(YD.BEACH_Y - 110, w.y));
+        w.y = Math.max(YD.MOUNTAIN_Y + 60, Math.min(YD.BEACH_Y - 110, w.y));
       }
-
-      // Park Pond Ducks
       for (const dk of this.ducks) dk.angle += dk.speed * dt;
-
-      // Sea Sailboats
       for (const bt of this.boats) {
         bt.x += bt.dir * bt.speed * dt;
         if (bt.x > YD.WORLD_W + 140) bt.x = -140;
         if (bt.x < -140) bt.x = YD.WORLD_W + 140;
       }
-
-      // City Cars
       for (const c of this.cars) {
-        const stopForPlayer = Math.hypot(player.x - (c.x + c.dir * 48), player.y - c.y) < 42;
-        if (!stopForPlayer) {
+        if (Math.hypot(player.x - (c.x + c.dir * 48), player.y - c.y) >= 44) {
           c.x += c.dir * c.speed * dt;
           if (c.x > YD.CITY_X2 + 40) c.x = YD.CITY_X1 - 40;
           if (c.x < YD.CITY_X1 - 40) c.x = YD.CITY_X2 + 40;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Yaşam Maratonu: Büyük Dünya (60 FPS — Orman, Şehir, Park, Deniz)</title>
+  <title>Yaşam Maratonu: Büyük Dünya v2 (60 FPS — Dağ, Orman, Şehir, Park, Deniz)</title>
   <link rel="stylesheet" href="dunya/styles.css" />
 </head>
 <body>
@@ -20,13 +20,13 @@
       </div>
 
       <div class="top-center">
-        <div id="clockBadge" class="glass-panel pill-badge">🌸 GÜN 1 • YAŞ 20 • 08:00</div>
+        <div id="clockBadge" class="glass-panel pill-badge">🌸 GÜN 1 • YAŞ 20 • 08:00 • ☀️ Güneşli</div>
         <div id="biomeBadge" class="glass-panel biome-pill">🏙️ ŞEHİR MERKEZİ</div>
       </div>
 
       <div class="top-right">
         <div class="glass-panel wallet-card">
-          <span id="moneyBadge" class="money-text">₺120</span>
+          <span id="moneyBadge" class="money-text">₺160</span>
           <span id="levelBadge" class="level-text">LV 1 • 0/100 XP</span>
         </div>
         <div class="glass-panel quest-card">
@@ -36,6 +36,17 @@
       </div>
     </div>
 
+    <!-- INTERACTIVE FISHING TIMING MINI-GAME BAR -->
+    <div id="fishingBarWrap" class="glass-panel fishing-bar-wrap hidden">
+      <div class="fish-title">🎣 BALIK YAKALA! İbre ALTIN bölgeye gelince [E] / [SPACE] bas!</div>
+      <div class="fish-track">
+        <div class="fish-good-zone"></div>
+        <div id="fishSweetZone" class="fish-sweet-zone"></div>
+        <div id="fishCursor" class="fish-cursor"></div>
+      </div>
+      <button id="btnFishCatch" class="hud-btn gold" style="margin-top:8px; width:100%;">🎣 ÇEK! [E / SPACE]</button>
+    </div>
+
     <!-- CONTEXTUAL INTERACTION PROMPT -->
     <div id="interactPrompt" class="interact-prompt hidden">[E] Etkileşim</div>
 
@@ -43,41 +54,61 @@
     <div class="hud-bottom">
       <div class="action-col">
         <div class="btn-row">
-          <button id="btnShop" class="hud-btn gold">🛍️ MARKET & 4D EŞYALAR</button>
+          <button id="btnShop" class="hud-btn gold">🛍️ MARKET &amp; OTO GALERİ</button>
+          <button id="btnCar" class="hud-btn">🚗 ARABA [V]</button>
           <button id="btnBike" class="hud-btn">🚲 BİSİKLET [B]</button>
+          <button id="btnWeather" class="hud-btn">⛈️ HAVA [Y]</button>
           <button id="btnSeason" class="hud-btn">⏳ MEVSİM [T]</button>
           <button id="btnMusic" class="hud-btn">🎵 MÜZİK: AÇIK</button>
           <button id="btnResetSave" class="hud-btn">↺ SIFIRLA</button>
-          <a href="oyna.html" class="hud-btn" style="text-decoration:none;">🧊 3D SÜRÜM</a>
+          <a href="oyna.html" class="hud-btn" style="text-decoration:none;">🧊 3D</a>
         </div>
         <div class="glass-panel controls-bar">
-          <span><b>WASD</b> Gez / Yüz</span>
-          <span><b>Shift</b> Koş</span>
-          <span><b>E / Space</b> Etkileşim (İş, Balık, Kamp, Uyku)</span>
+          <span><b>WASD</b> Gez / Sür / Yüz</span>
+          <span><b>E</b> Etkileşim (Ev, İş, Balık, Kaplıca)</span>
+          <span><b>V</b> Araba</span>
           <span><b>B</b> Bisiklet</span>
-          <span><b>T</b> 4D Mevsim</span>
-          <span><b>Scroll</b> Yakınlaş</span>
+          <span><b>H/Space</b> Korna</span>
+          <span><b>Y</b> Hava</span>
+          <span><b>T</b> Mevsim</span>
         </div>
       </div>
 
       <div class="glass-panel minimap-box">
-        <canvas id="minimapCanvas" width="210" height="160"></canvas>
-        <div class="minimap-lbl">BÜYÜK DÜNYA HARİTASI</div>
+        <canvas id="minimapCanvas" width="210" height="164"></canvas>
+        <div class="minimap-lbl">BÜYÜK DÜNYA (5 BİYOM)</div>
         <div class="minimap-legend">
-          <span>🌲Orman</span><span>🏙️Şehir</span><span>🌳Park</span><span>🌊Deniz</span>
+          <span>🏔️Dağ</span><span>🌲Orman</span><span>🏙️Şehir</span><span>🌳Park</span><span>🌊Deniz</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- SHOP & 4D RELICS MODAL -->
+  <!-- SHOP & AUTO GALLERY MODAL -->
   <div id="shopModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
       <div class="shop-header">
-        <h2 style="margin:0; color:#fde047; font-size:20px;">🛍️ MARKET &amp; 4D ANTİK EŞYALAR</h2>
+        <h2 style="margin:0; color:#fde047; font-size:20px;">🛍️ MARKET, OTO GALERİ &amp; 4D EŞYALAR</h2>
         <button id="btnCloseShop" class="hud-btn">KAPAT [ESC]</button>
       </div>
       <div id="shopGrid" class="shop-grid"></div>
+    </div>
+  </div>
+
+  <!-- HOME INTERIOR & DECORATION MODAL -->
+  <div id="homeModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fde047; font-size:20px;">🏠 EVİN — DİNLEN &amp; DEKORE ET</h2>
+        <button id="btnCloseHome" class="hud-btn">ÇIK [ESC]</button>
+      </div>
+      <div id="homeRoomPreview" class="room-preview"></div>
+      <div class="btn-row" style="margin:10px 0;">
+        <button id="btnHomeSleep" class="hud-btn gold" style="flex:1;">🛏️ UYU &amp; YENİ GÜNE BAŞLA (+%100 Enerji)</button>
+      </div>
+      <div id="homeActionsRow" class="btn-row" style="margin-bottom:10px;"></div>
+      <div style="font-size:12px; font-weight:800; color:#38bdf8; margin-bottom:6px;">🛋️ EV DEKORASYONU &amp; GELİŞTİRMELER</div>
+      <div id="homeDecorGrid" class="shop-grid"></div>
     </div>
   </div>
 
@@ -88,7 +119,7 @@
       <button data-key="KeyA" class="touch-btn">◀</button><button data-key="KeyS" class="touch-btn">▼</button><button data-key="KeyD" class="touch-btn">▶</button>
     </div>
     <div style="display:flex; gap:8px;">
-      <button data-key="KeyB" class="touch-btn" style="padding:0 14px; background:#38bdf8; color:#111;">🚲</button>
+      <button data-key="KeyV" class="touch-btn" style="padding:0 14px; background:#06b6d4; color:#111;">🚗</button>
       <button data-key="KeyE" class="touch-btn" style="padding:0 18px; background:#facc15; color:#111;">ETKİLEŞİM</button>
     </div>
   </div>
