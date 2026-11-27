@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Yaşam Maratonu: Büyük Dünya (60 FPS — Orman, Şehir, Park, Deniz)</title>
+  <link rel="stylesheet" href="dunya/styles.css" />
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud">
+    <!-- TOP ROW -->
+    <div class="hud-top">
+      <div class="glass-panel stats-card">
+        <div class="stat-row"><span>❤️</span><div class="stat-bar"><div id="statHealthFill" class="stat-fill" style="width:100%; background:#ef4444;"></div></div></div>
+        <div class="stat-row"><span>⚡</span><div class="stat-bar"><div id="statEnergyFill" class="stat-fill" style="width:100%; background:#facc15;"></div></div></div>
+        <div class="stat-row"><span>🍔</span><div class="stat-bar"><div id="statHungerFill" class="stat-fill" style="width:95%; background:#fb923c;"></div></div></div>
+        <div class="stat-row"><span>😊</span><div class="stat-bar"><div id="statHappyFill" class="stat-fill" style="width:90%; background:#38bdf8;"></div></div></div>
+      </div>
+
+      <div class="top-center">
+        <div id="clockBadge" class="glass-panel pill-badge">🌸 GÜN 1 • YAŞ 20 • 08:00</div>
+        <div id="biomeBadge" class="glass-panel biome-pill">🏙️ ŞEHİR MERKEZİ</div>
+      </div>
+
+      <div class="top-right">
+        <div class="glass-panel wallet-card">
+          <span id="moneyBadge" class="money-text">₺120</span>
+          <span id="levelBadge" class="level-text">LV 1 • 0/100 XP</span>
+        </div>
+        <div class="glass-panel quest-card">
+          <div class="quest-title">📋 YAŞAM GÖREVLERİ</div>
+          <div id="questList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTEXTUAL INTERACTION PROMPT -->
+    <div id="interactPrompt" class="interact-prompt hidden">[E] Etkileşim</div>
+
+    <!-- BOTTOM ROW -->
+    <div class="hud-bottom">
+      <div class="action-col">
+        <div class="btn-row">
+          <button id="btnShop" class="hud-btn gold">🛍️ MARKET & 4D EŞYALAR</button>
+          <button id="btnBike" class="hud-btn">🚲 BİSİKLET [B]</button>
+          <button id="btnSeason" class="hud-btn">⏳ MEVSİM [T]</button>
+          <button id="btnMusic" class="hud-btn">🎵 MÜZİK: AÇIK</button>
+          <button id="btnResetSave" class="hud-btn">↺ SIFIRLA</button>
+          <a href="oyna.html" class="hud-btn" style="text-decoration:none;">🧊 3D SÜRÜM</a>
+        </div>
+        <div class="glass-panel controls-bar">
+          <span><b>WASD</b> Gez / Yüz</span>
+          <span><b>Shift</b> Koş</span>
+          <span><b>E / Space</b> Etkileşim (İş, Balık, Kamp, Uyku)</span>
+          <span><b>B</b> Bisiklet</span>
+          <span><b>T</b> 4D Mevsim</span>
+          <span><b>Scroll</b> Yakınlaş</span>
+        </div>
+      </div>
+
+      <div class="glass-panel minimap-box">
+        <canvas id="minimapCanvas" width="210" height="160"></canvas>
+        <div class="minimap-lbl">BÜYÜK DÜNYA HARİTASI</div>
+        <div class="minimap-legend">
+          <span>🌲Orman</span><span>🏙️Şehir</span><span>🌳Park</span><span>🌊Deniz</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOP & 4D RELICS MODAL -->
+  <div id="shopModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fde047; font-size:20px;">🛍️ MARKET &amp; 4D ANTİK EŞYALAR</h2>
+        <button id="btnCloseShop" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div id="shopGrid" class="shop-grid"></div>
+    </div>
+  </div>
+
+  <!-- MOBILE TOUCH CONTROLS -->
+  <div id="touchControls">
+    <div class="touch-pad">
+      <div></div><button data-key="KeyW" class="touch-btn">▲</button><div></div>
+      <button data-key="KeyA" class="touch-btn">◀</button><button data-key="KeyS" class="touch-btn">▼</button><button data-key="KeyD" class="touch-btn">▶</button>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button data-key="KeyB" class="touch-btn" style="padding:0 14px; background:#38bdf8; color:#111;">🚲</button>
+      <button data-key="KeyE" class="touch-btn" style="padding:0 18px; background:#facc15; color:#111;">ETKİLEŞİM</button>
+    </div>
+  </div>
+
+  <script defer src="dunya/src/config.js"></script>
+  <script defer src="dunya/src/audio.js"></script>
+  <script defer src="dunya/src/world.js"></script>
+  <script defer src="dunya/src/renderer.js"></script>
+  <script defer src="dunya/src/game.js"></script>
+</body>
+</html>
