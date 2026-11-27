@@ -473,13 +473,14 @@ window.YasamDunya = window.YasamDunya || {};
         this.switchLanguage(nextLang);
         this.showToast(nextLang === 'en' ? '🌐 Language switched to English!' : '🌐 Oyun dili Türkçe oldu!');
       });
-      document.getElementById('btnBike').addEventListener('click', () => { this.audio.unlock(); this.toggleBike(); });
-      document.getElementById('btnCar').addEventListener('click', () => { this.audio.unlock(); this.toggleCar(); });
-      document.getElementById('btnBoat').addEventListener('click', () => { this.audio.unlock(); this.toggleBoat(); });
-      document.getElementById('btnPetAction').addEventListener('click', () => { this.audio.unlock(); this.petCompanion(); });
-      document.getElementById('btnCamera').addEventListener('click', () => { this.audio.unlock(); this.snapPhoto(); });
-      document.getElementById('btnWeather').addEventListener('click', () => { this.audio.unlock(); this.cycleWeather(); });
-      document.getElementById('btnSeason').addEventListener('click', () => { this.audio.unlock(); this.useHourglass(); });
+      const worldOnly = () => miniBusy() || this.hasOpenModal() || this.scene !== 'world';
+      document.getElementById('btnBike').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.toggleBike(); });
+      document.getElementById('btnCar').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.toggleCar(); });
+      document.getElementById('btnBoat').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.toggleBoat(); });
+      document.getElementById('btnPetAction').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.petCompanion(); });
+      document.getElementById('btnCamera').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.snapPhoto(); });
+      document.getElementById('btnWeather').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.cycleWeather(); });
+      document.getElementById('btnSeason').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.useHourglass(); });
       document.getElementById('btnMusic').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleMusicModal(!this.musicOpen); });
       document.getElementById('btnToggleMusicPlay').addEventListener('click', () => { this.audio.unlock(); this.toggleMusic(); });
       document.getElementById('btnToggleMuteAll').addEventListener('click', () => {
@@ -520,10 +521,11 @@ window.YasamDunya = window.YasamDunya || {};
           ev.preventDefault(); this.audio.unlock(); this.keys[code] = true;
           if (code === 'KeyE') {
             if (this.fishing.active) this.resolveFishingAttempt();
+            else if (this.barista.active || this.hasOpenModal()) { /* mini-game / modal owns input */ }
             else if (this.scene === 'home') this.handleHomeInteract();
             else this.handleInteract();
           }
-          if (code === 'KeyV' && this.scene === 'world') this.toggleCar();
+          if (code === 'KeyV' && this.scene === 'world' && !miniBusy() && !this.hasOpenModal()) this.toggleCar();
         };
         const up = (ev) => { ev.preventDefault(); this.keys[code] = false; };
         btn.addEventListener('touchstart', down, { passive: false });
@@ -2792,6 +2794,8 @@ window.YasamDunya = window.YasamDunya || {};
       if (next && this.hasOpenModal()) {
         this.closeAllModals();
       }
+      if (next && this.fishing.active) this.stopFishing();
+      if (next && this.barista.active) this.finishBaristaShift(true);
       const btn = document.getElementById('btnAutoPilot');
       if (btn) btn.classList.toggle('swarm-active', next);
       const banner = document.getElementById('swarmBanner');
