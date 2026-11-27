@@ -121,6 +121,8 @@ window.YasamDunya = window.YasamDunya || {};
 
       for (const npc of game.npcs) this.drawCharacter(ctx, npc, false, false, false, now);
 
+      if (game.pet) this.drawPet(ctx, game.pet, game.world, now);
+
       if (game.player.inCar) {
         this.drawPlayerCar(ctx, game.player.x, game.player.y, game.player.angle, nightAlpha > 0.12 || weather.id !== 'clear');
       } else {
@@ -791,6 +793,11 @@ window.YasamDunya = window.YasamDunya || {};
           ctx.beginPath(); ctx.arc(rx + b.w - 46, ry + 42, 24, 0, Math.PI * 2); ctx.stroke();
           ctx.fillStyle = '#fde047'; ctx.font = '900 18px Impact, sans-serif'; ctx.textAlign = 'center';
           ctx.fillText('H', rx + b.w - 46, ry + 48);
+        } else if (b.id === 'hospital') {
+          // Iconic Red Cross on Hospital Roof!
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(rx + b.w - 46, ry + 18, 12, 32);
+          ctx.fillRect(rx + b.w - 56, ry + 28, 32, 12);
         } else if (b.id === 'cafe' || b.id === 'shop') {
           // Striped Shop Awning overhang!
           for (let ax = rx + 6; ax < rx + b.w - 12; ax += 22) {
@@ -807,6 +814,47 @@ window.YasamDunya = window.YasamDunya || {};
         ctx.fillText(b.label, rx + b.w / 2, ry + b.h / 2);
         ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
       }
+    }
+
+    drawPet(ctx, pet, world, now) {
+      const inWater = world.isInWater(pet.x, pet.y);
+      ctx.save();
+      ctx.translate(pet.x, pet.y);
+
+      if (inWater) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, 12 + Math.sin(now * 9) * 3, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.20)';
+        ctx.beginPath(); ctx.ellipse(2, 4, 11, 8, 0, 0, Math.PI * 2); ctx.fill();
+      }
+
+      ctx.rotate(pet.angle);
+      const wag = Math.sin(now * 16) * 5;
+      const bodyCol = pet.kind === 'dog' ? '#f59e0b' : '#cbd5e1';
+      const earCol  = pet.kind === 'dog' ? '#b45309' : '#64748b';
+
+      // Wagging tail
+      ctx.strokeStyle = earCol; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-17, wag); ctx.stroke();
+
+      // Body
+      ctx.fillStyle = bodyCol; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.ellipse(0, 0, 11, 7.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+      // Head + cute ears
+      ctx.beginPath(); ctx.arc(9, 0, 6.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = earCol;
+      ctx.beginPath(); ctx.arc(7, -6, 3.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(7, 6, 3.2, 0, Math.PI * 2); ctx.fill();
+
+      ctx.restore();
+
+      ctx.font = 'bold 9px "Courier New", monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#fef08a';
+      ctx.fillText(pet.kind === 'dog' ? '🐶 Paşa' : '🐱 Pamuk', pet.x, pet.y - 16);
+      ctx.textAlign = 'left';
     }
 
     drawLighthouse(ctx, world, nightAlpha) {

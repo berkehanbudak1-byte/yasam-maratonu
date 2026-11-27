@@ -237,3 +237,65 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
   .quick-dock { display: none; }
   #touchControls { display: flex; }
 }
+
+/* v4 ADDITIONS: TITLE SCREEN, CHARACTER PICKER, ACHIEVEMENTS, EVENT TOAST */
+.title-card {
+  width: min(460px, 95vw);
+  padding: 24px 26px;
+  text-align: center;
+}
+.title-badge {
+  display: inline-block; padding: 4px 12px; border-radius: 99px;
+  background: rgba(56, 189, 248, 0.18); color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  font-size: 11px; font-weight: 900; letter-spacing: 0.06em;
+}
+.title-heading {
+  margin: 10px 0 4px; font-size: 36px; font-weight: 900;
+  color: #fde047; letter-spacing: 0.04em;
+  text-shadow: 0 3px 14px rgba(250, 204, 21, 0.3);
+}
+.title-sub { margin: 0 0 16px; font-size: 12px; color: #cbd5e1; }
+.custom-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; background: rgba(255,255,255,0.06); border-radius: 10px;
+}
+.name-input {
+  width: 170px; padding: 6px 10px; border-radius: 7px;
+  border: 1.5px solid rgba(255,255,255,0.25); background: #0f172a; color: #fff;
+  font-weight: 800; font-size: 13px; user-select: text; -webkit-user-select: text;
+}
+.color-picker-row { display: flex; gap: 7px; }
+.color-dot {
+  width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid #111;
+  cursor: pointer; transition: transform 0.12s;
+}
+.color-dot.active { transform: scale(1.22); box-shadow: 0 0 0 2.5px #fde047; }
+.title-cta-row { display: flex; gap: 10px; margin-top: 16px; }
+.title-play-btn { flex: 1; padding: 12px; font-size: 15px; }
+.title-hint { margin-top: 12px; font-size: 10px; color: #94a3b8; }
+
+.event-toast {
+  align-self: center; margin-top: 10px; padding: 7px 16px;
+  font-size: 13px; font-weight: 900; color: #fde047;
+  border-color: rgba(250, 204, 21, 0.55);
+}
+
+.career-banner {
+  padding: 10px 12px; border-radius: 10px;
+  background: linear-gradient(90deg, rgba(56,189,248,0.18), rgba(250,204,21,0.14));
+  border: 1px solid rgba(56,189,248,0.35);
+  font-size: 13px; font-weight: 800; color: #f8fafc;
+}
+.ach-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px;
+}
+.ach-card {
+  padding: 8px 10px; border-radius: 9px; font-size: 11px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: #64748b;
+}
+.ach-card.unlocked {
+  background: rgba(250, 204, 21, 0.14); border-color: rgba(250, 204, 21, 0.5);
+  color: #fef08a;
+}

@@ -1,15 +1,21 @@
 /**
- * Yaşam Maratonu: Büyük Dünya v2 — 60 FPS Life Simulator Engine
- * Adds: Drivable Car ([V] + Drift + Horn [H]), Interactive Fishing Timing Mini-Game,
- * Home Interior Decoration & Upgrades, Dynamic Weather ([Y] Rain/Storm/Lightning/Snow),
- * and Snowy Mountain Peak + Hot Spring + Summit Crystals!
+ * Yaşam Maratonu: Büyük Dünya v4 — Play Store / Reddit Launch Edition
+ * Features:
+ *  - Title & Character Customizer (Name + Jacket Color + Continue/New Life)
+ *  - Loyal Pet Companion (Dog/Cat follows, swims, sniffs items, [P] to Pet!)
+ *  - Backpack Inventory ([C] Eat / Sell / Grill Fish at Campfire!)
+ *  - 5-Tier Career Ladder + 6 Life Achievements + Daily World Events
+ *  - City Hospital (Checkups + Car-Crash Emergency Recovery)
+ *  - NPC Friendship Hearts + Surprise Gifts
+ *  - Closed 4-Sided City Ring-Road Traffic + Car Collision Damage
+ *  - Crisp Instant-Stop Movement + Ultra-Clean On-Demand Hotkey HUD
  */
 window.YasamDunya = window.YasamDunya || {};
 
 (function (YD) {
   'use strict';
 
-  const SAVE_KEY = 'yasam_maratonu_dunya_save_v2';
+  const SAVE_KEY = 'yasam_maratonu_dunya_save_v4';
 
   class YasamDunyaGame {
     constructor() {
@@ -19,22 +25,25 @@ window.YasamDunya = window.YasamDunya || {};
       this.audio = new YD.CozyAudio();
       this.world = new YD.LifeWorld();
 
+      this.started = false;
       this.keys = {};
       this.shopOpen = false;
       this.homeOpen = false;
       this.questOpen = false;
       this.helpOpen = false;
+      this.bagOpen = false;
       this.minimapVisible = true;
 
-      // Interactive Fishing Timing Mini-Game State
       this.fishing = { active: false, pos: 0.5, dir: 1, speed: 1.55 };
 
+      this.playerName = 'Gezgin';
       this.player = {
         x: 2062, y: 1525, vx: 0, vy: 0, r: 16, angle: Math.PI / 2,
-        color: '#38bdf8', walkCycle: 0,
+        color: YD.JACKET_COLORS[0].hex, walkCycle: 0,
         swimming: false, onBike: false, inCar: false, carSpeed: 0,
         speech: '', speechTimer: 0
       };
+      this.pet = null; // { kind: 'dog'|'cat', x, y, angle, petCd }
       this.parkedCar = null;
       this.skidMarks = [];
       this.damageFlash = 0;
@@ -44,7 +53,8 @@ window.YasamDunya = window.YasamDunya || {};
       this.day = 1;
       this.age = 20;
       this.seasonIdx = 0;
-      this.weatherIdx = 0; // 0: clear, 1: rain, 2: storm, 3: snow
+      this.weatherIdx = 0;
+      this.dailyEventIdx = 0;
       this.weatherTimer = 55;
       this.lightningTimer = 6;
       this.lightningFlash = 0;
@@ -58,6 +68,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.level = 1;
       this.inventory = new Set();
       this.homeDecor = new Set();
+      this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0 };
+      this.achievements = new Set();
+      this.npcHearts = {};
 
       this.questProgress = {};
       this.questDone = new Set();
@@ -72,24 +85,72 @@ window.YasamDunya = window.YasamDunya || {};
         timer: 1 + Math.random() * 3, speech: '', speechTimer: 0, lineIdx: 0
       }));
 
-      this.cam = { x: this.player.x, y: this.player.y, zoom: 0.96 };
+      this.cam = { x: 2300, y: 1650, zoom: 0.94 };
       this.particles = [];
       this.popups = [];
       this.weatherParticles = [];
       this.swimQuestTimer = 0;
       this.saveTimer = 0;
+      this.toastTimeout = null;
 
-      this.loadSave();
+      this.hasSave = this.peekSave();
       this.resize();
       this.initWeatherParticles();
+      this.renderTitleScreen();
       this.bindEvents();
+
+      this.lastTime = performance.now();
+      requestAnimationFrame((ts) => this.loop(ts));
+    }
+
+    peekSave() {
+      try { return !!localStorage.getItem(SAVE_KEY); } catch (_) { return false; }
+    }
+
+    renderTitleScreen() {
+      const row = document.getElementById('colorPickerRow');
+      if (row) {
+        row.innerHTML = YD.JACKET_COLORS.map((c) =>
+          `<button class="color-dot ${c.hex === this.player.color ? 'active' : ''}" data-hex="${c.hex}" title="${c.name}" style="background:${c.hex};"></button>`
+        ).join('');
+        row.querySelectorAll('.color-dot').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            this.player.color = btn.dataset.hex;
+            this.renderTitleScreen();
+          });
+        });
+      }
+      const contBtn = document.getElementById('btnContinueGame');
+      if (contBtn) {
+        if (this.hasSave) {
+          contBtn.classList.remove('hidden');
+          document.getElementById('btnStartNewGame').textContent = '↺ YENİ HAYAT';
+        } else {
+          contBtn.classList.add('hidden');
+        }
+      }
+    }
+
+    beginPlay(loadExisting) {
+      this.audio.unlock();
+      if (loadExisting) {
+        this.loadSave();
+      } else {
+        const input = document.getElementById('inputPlayerName');
+        this.playerName = (input && input.value.trim()) || 'Gezgin';
+        this.saveGame();
+      }
+      this.syncPetFromInventory();
+      this.started = true;
+      document.getElementById('titleModal').classList.add('hidden');
+      document.getElementById('hud').classList.remove('hidden');
       this.renderShop();
       this.renderHomeModal();
       this.renderQuests();
-
-      this.say(this.player, 'Büyük Dünya v2! Karlı Zirve, Araba, Ev Dekoru & Balık Mini-Oyunu! ✨', 3.8);
-      this.lastTime = performance.now();
-      requestAnimationFrame((ts) => this.loop(ts));
+      this.renderBag();
+      const ev = YD.DAILY_EVENTS[this.dailyEventIdx];
+      this.showToast(`${ev.icon} ${ev.name} — ${ev.desc}`);
+      this.say(this.player, `Merhaba ${this.playerName}! Büyük Dünya seni bekliyor! ✨`, 3.4);
     }
 
     resize() {
@@ -105,35 +166,38 @@ window.YasamDunya = window.YasamDunya || {};
       this.weatherParticles = [];
       for (let i = 0; i < 65; i++) {
         this.weatherParticles.push({
-          x: Math.random() * this.viewW,
-          y: Math.random() * this.viewH,
-          vx: -25 - Math.random() * 30,
-          vy: 35 + Math.random() * 55,
-          r: 2 + Math.random() * 2.4
+          x: Math.random() * this.viewW, y: Math.random() * this.viewH,
+          vx: -25 - Math.random() * 30, vy: 35 + Math.random() * 55, r: 2 + Math.random() * 2.4
         });
       }
     }
 
     clearAllKeys() {
       for (const k in this.keys) this.keys[k] = false;
-      if (this.player) {
-        this.player.vx = 0;
-        this.player.vy = 0;
-        this.player.carSpeed = 0;
-      }
+      if (this.player) { this.player.vx = 0; this.player.vy = 0; this.player.carSpeed = 0; }
     }
 
     bindEvents() {
       window.addEventListener('resize', () => this.resize());
       window.addEventListener('blur', () => this.clearAllKeys());
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) this.clearAllKeys();
-      });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) this.clearAllKeys(); });
       window.addEventListener('wheel', (e) => {
+        if (!this.started) return;
         this.cam.zoom = Math.max(0.62, Math.min(1.45, this.cam.zoom - Math.sign(e.deltaY) * 0.08));
       }, { passive: true });
 
+      document.getElementById('btnContinueGame').addEventListener('click', () => this.beginPlay(true));
+      document.getElementById('btnStartNewGame').addEventListener('click', () => {
+        if (this.hasSave && !confirm('Mevcut kayıt silinip yeni hayata başlansın mı?')) return;
+        localStorage.removeItem(SAVE_KEY);
+        this.beginPlay(false);
+      });
+
       window.addEventListener('keydown', (e) => {
+        if (!this.started) return;
+        // Don't hijack typing inside inputs
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
         this.audio.unlock();
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
         this.keys[e.code] = true;
@@ -143,14 +207,14 @@ window.YasamDunya = window.YasamDunya || {};
           if (this.fishing.active) this.stopFishing();
           return;
         }
-
+        if (e.code === 'KeyC') { this.toggleBag(!this.bagOpen); return; }
         if (e.code === 'KeyG') { this.toggleQuests(!this.questOpen); return; }
         if (e.code === 'KeyI') { this.toggleShop(!this.shopOpen); return; }
         if (e.code === 'KeyK') { this.toggleHelp(!this.helpOpen); return; }
         if (e.code === 'KeyM') { this.toggleMap(); return; }
         if (e.code === 'KeyN') { this.toggleMusic(); return; }
 
-        if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen) return;
+        if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen) return;
 
         if (this.fishing.active) {
           if (e.code === 'KeyE' || e.code === 'Space') this.resolveFishingAttempt();
@@ -169,6 +233,7 @@ window.YasamDunya = window.YasamDunya || {};
           this.audio.carHorn();
           this.popup(this.player.x, this.player.y - 34, 'DÜÜT! 🚗', '#fde047');
         }
+        if (e.code === 'KeyP') this.petCompanion();
         if (e.code === 'KeyB') this.toggleBike();
         if (e.code === 'KeyV') this.toggleCar();
         if (e.code === 'KeyT') this.useHourglass();
@@ -177,10 +242,10 @@ window.YasamDunya = window.YasamDunya || {};
         if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.cam.zoom = Math.max(0.62, this.cam.zoom - 0.1);
       });
 
-      window.addEventListener('keyup', (e) => {
-        this.keys[e.code] = false;
-      });
+      window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
 
+      document.getElementById('btnBag').addEventListener('click', () => { this.audio.unlock(); this.toggleBag(!this.bagOpen); });
+      document.getElementById('btnCloseBag').addEventListener('click', () => this.toggleBag(false));
       document.getElementById('btnQuests').addEventListener('click', () => { this.audio.unlock(); this.toggleQuests(!this.questOpen); });
       document.getElementById('btnCloseQuests').addEventListener('click', () => this.toggleQuests(false));
       document.getElementById('btnShop').addEventListener('click', () => { this.audio.unlock(); this.toggleShop(!this.shopOpen); });
@@ -192,6 +257,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCloseHelp').addEventListener('click', () => this.toggleHelp(false));
       document.getElementById('btnBike').addEventListener('click', () => { this.audio.unlock(); this.toggleBike(); });
       document.getElementById('btnCar').addEventListener('click', () => { this.audio.unlock(); this.toggleCar(); });
+      document.getElementById('btnPetAction').addEventListener('click', () => { this.audio.unlock(); this.petCompanion(); });
       document.getElementById('btnWeather').addEventListener('click', () => { this.audio.unlock(); this.cycleWeather(); });
       document.getElementById('btnSeason').addEventListener('click', () => { this.audio.unlock(); this.useHourglass(); });
       document.getElementById('btnMusic').addEventListener('click', () => { this.audio.unlock(); this.toggleMusic(); });
@@ -220,13 +286,68 @@ window.YasamDunya = window.YasamDunya || {};
       });
     }
 
+    showToast(text) {
+      const el = document.getElementById('eventToast');
+      if (!el) return;
+      el.textContent = text;
+      el.classList.remove('hidden');
+      clearTimeout(this.toastTimeout);
+      this.toastTimeout = setTimeout(() => el.classList.add('hidden'), 4200);
+    }
+
+    unlockAchievement(id) {
+      if (this.achievements.has(id)) return;
+      this.achievements.add(id);
+      const a = YD.ACHIEVEMENTS.find((x) => x.id === id);
+      if (a) {
+        this.audio.levelUp();
+        this.money += 100;
+        this.showToast(`🏆 BAŞARIM AÇILDI: ${a.icon} ${a.name} (+₺100)!`);
+      }
+      this.saveGame();
+    }
+
+    checkAchievements() {
+      if (this.money >= 1000) this.unlockAchievement('ach_rich');
+      if (this.inventory.has('car')) this.unlockAchievement('ach_car');
+      if (this.inventory.has('pet_dog') || this.inventory.has('pet_cat')) this.unlockAchievement('ach_pet');
+      if (this.homeDecor.size >= 3) this.unlockAchievement('ach_decor');
+    }
+
+    syncPetFromInventory() {
+      if (this.inventory.has('pet_dog')) {
+        if (!this.pet || this.pet.kind !== 'dog') {
+          this.pet = { kind: 'dog', x: this.player.x - 28, y: this.player.y + 18, angle: 0, petCd: 0 };
+        }
+      } else if (this.inventory.has('pet_cat')) {
+        if (!this.pet || this.pet.kind !== 'cat') {
+          this.pet = { kind: 'cat', x: this.player.x - 28, y: this.player.y + 18, angle: 0, petCd: 0 };
+        }
+      }
+    }
+
+    petCompanion() {
+      if (!this.pet) {
+        this.say(this.player, 'Marketten [I] Köpek veya Kedi sahiplenebilirsin! 🐾', 2.4);
+        return;
+      }
+      if (this.pet.petCd > 0) return;
+      this.pet.petCd = 3.0;
+      this.happiness = Math.min(100, this.happiness + 12);
+      this.audio.pickup();
+      this.burst(this.pet.x, this.pet.y, '#f472b6', 14);
+      this.popup(this.pet.x, this.pet.y - 24, this.pet.kind === 'dog' ? 'HAV! ❤️ +12 Mutluluk' : 'MİYAV! ❤️ +12 Mutluluk', '#f9a8d4');
+    }
+
     saveGame() {
       const data = {
+        playerName: this.playerName, color: this.player.color,
         day: this.day, age: this.age, seasonIdx: this.seasonIdx, weatherIdx: this.weatherIdx,
-        timeMinutes: this.timeMinutes, money: this.money,
-        health: this.health, energy: this.energy, hunger: this.hunger,
-        happiness: this.happiness, xp: this.xp, level: this.level,
+        dailyEventIdx: this.dailyEventIdx, timeMinutes: this.timeMinutes,
+        money: this.money, health: this.health, energy: this.energy,
+        hunger: this.hunger, happiness: this.happiness, xp: this.xp, level: this.level,
         inventory: [...this.inventory], homeDecor: [...this.homeDecor],
+        bag: this.bag, achievements: [...this.achievements], npcHearts: this.npcHearts,
         questProgress: this.questProgress, questDone: [...this.questDone],
         px: this.player.x, py: this.player.y
       };
@@ -238,14 +359,20 @@ window.YasamDunya = window.YasamDunya || {};
         const raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return;
         const d = JSON.parse(raw);
+        this.playerName = d.playerName || 'Gezgin';
+        if (d.color) this.player.color = d.color;
         this.day = d.day || 1; this.age = d.age || 20;
         this.seasonIdx = d.seasonIdx || 0; this.weatherIdx = d.weatherIdx || 0;
+        this.dailyEventIdx = d.dailyEventIdx || 0;
         this.timeMinutes = d.timeMinutes || 480;
         this.money = d.money ?? 160; this.health = d.health ?? 100;
         this.energy = d.energy ?? 100; this.hunger = d.hunger ?? 95;
         this.happiness = d.happiness ?? 90; this.xp = d.xp || 0; this.level = d.level || 1;
         this.inventory = new Set(d.inventory || []);
         this.homeDecor = new Set(d.homeDecor || []);
+        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, ...(d.bag || {}) };
+        this.achievements = new Set(d.achievements || []);
+        this.npcHearts = d.npcHearts || {};
         this.questProgress = d.questProgress || {};
         this.questDone = new Set(d.questDone || []);
         if (d.px && d.py) { this.player.x = d.px; this.player.y = d.py; }
@@ -269,8 +396,10 @@ window.YasamDunya = window.YasamDunya || {};
       const needed = this.level * 100;
       if (this.xp >= needed) {
         this.xp -= needed; this.level++;
+        const career = YD.getCareer(this.level);
         this.audio.levelUp();
         this.popup(this.player.x, this.player.y - 45, `SEVİYE ${this.level}! 🌟`, '#fde047');
+        this.showToast(`🌟 Seviye ${this.level} • Unvan: ${career.title}!`);
         this.burst(this.player.x, this.player.y, '#fde047', 22);
       }
     }
@@ -285,7 +414,8 @@ window.YasamDunya = window.YasamDunya || {};
         this.addXp(q.rewardXp);
         this.happiness = Math.min(100, this.happiness + 15);
         this.audio.levelUp();
-        this.popup(this.player.x, this.player.y - 54, `GÖREV TAMAM! +₺${q.rewardMoney}`, '#4ade80');
+        this.showToast(`✅ GÖREV TAMAM: ${q.title} (+₺${q.rewardMoney})`);
+        this.checkAchievements();
       }
       this.renderQuests();
     }
@@ -308,9 +438,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     toggleBike() {
-      if (!this.inventory.has('bike')) {
-        this.say(this.player, 'Önce Marketten [I] Bisiklet (₺160) almalısın! 🚲', 2.4); return;
-      }
+      if (!this.inventory.has('bike')) { this.say(this.player, 'Önce Marketten [I] Bisiklet (₺160) almalısın! 🚲', 2.4); return; }
       if (this.player.swimming) { this.say(this.player, 'Suda bisiklet sürülmez! 😅', 1.8); return; }
       if (this.player.inCar) this.toggleCar();
       this.player.onBike = !this.player.onBike;
@@ -319,15 +447,11 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     toggleCar() {
-      if (!this.inventory.has('car')) {
-        this.say(this.player, 'Marketten [I] Elektrikli Araba (₺340) al! 🚗', 2.5); return;
-      }
-      if (this.player.swimming) { this.say(this.player, 'Denizden karaya çıkınca arabaya binebilirsin!', 2.2); return; }
+      if (!this.inventory.has('car')) { this.say(this.player, 'Marketten [I] Elektrikli Araba (₺340) al! 🚗', 2.5); return; }
+      if (this.player.swimming) { this.say(this.player, 'Karaya çıkınca arabaya binebilirsin!', 2.2); return; }
       this.player.onBike = false;
       if (!this.player.inCar) {
-        this.player.inCar = true;
-        this.player.carSpeed = 0;
-        this.parkedCar = null;
+        this.player.inCar = true; this.player.carSpeed = 0; this.parkedCar = null;
         this.audio.carStart();
         this.popup(this.player.x, this.player.y - 32, '🚗 ARABA MODU! ([H]/[Space] Korna)', '#22d3ee');
       } else {
@@ -340,9 +464,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     useHourglass() {
-      if (!this.inventory.has('hourglass')) {
-        this.say(this.player, '4D Kum Saati için Marketten [I] al! ⏳', 2.4); return;
-      }
+      if (!this.inventory.has('hourglass')) { this.say(this.player, '4D Kum Saati için Marketten [I] al! ⏳', 2.4); return; }
       this.seasonIdx = (this.seasonIdx + 1) % YD.SEASONS.length;
       this.audio.timeWarp();
       const s = YD.SEASONS[this.seasonIdx];
@@ -353,59 +475,31 @@ window.YasamDunya = window.YasamDunya || {};
 
     closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = false;
-      this.homeOpen = false;
-      this.questOpen = false;
-      this.helpOpen = false;
-      document.getElementById('shopModal').classList.add('hidden');
-      document.getElementById('homeModal').classList.add('hidden');
-      document.getElementById('questModal').classList.add('hidden');
-      document.getElementById('helpModal').classList.add('hidden');
+      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = false;
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal'].forEach((id) => {
+        document.getElementById(id).classList.add('hidden');
+      });
     }
 
-    toggleShop(open) {
-      this.closeAllModals();
-      this.shopOpen = open;
-      document.getElementById('shopModal').classList.toggle('hidden', !open);
-      if (open) this.renderShop();
-    }
-
-    toggleHome(open) {
-      this.closeAllModals();
-      this.homeOpen = open;
-      document.getElementById('homeModal').classList.toggle('hidden', !open);
-      if (open) this.renderHomeModal();
-    }
-
-    toggleQuests(open) {
-      this.closeAllModals();
-      this.questOpen = open;
-      document.getElementById('questModal').classList.toggle('hidden', !open);
-      if (open) this.renderQuests();
-    }
-
-    toggleHelp(open) {
-      this.closeAllModals();
-      this.helpOpen = open;
-      document.getElementById('helpModal').classList.toggle('hidden', !open);
-    }
+    toggleShop(open)   { this.closeAllModals(); this.shopOpen = open;  document.getElementById('shopModal').classList.toggle('hidden', !open);  if (open) this.renderShop(); }
+    toggleHome(open)   { this.closeAllModals(); this.homeOpen = open;  document.getElementById('homeModal').classList.toggle('hidden', !open);  if (open) this.renderHomeModal(); }
+    toggleQuests(open) { this.closeAllModals(); this.questOpen = open; document.getElementById('questModal').classList.toggle('hidden', !open); if (open) this.renderQuests(); }
+    toggleBag(open)    { this.closeAllModals(); this.bagOpen = open;   document.getElementById('bagModal').classList.toggle('hidden', !open);   if (open) this.renderBag(); }
+    toggleHelp(open)   { this.closeAllModals(); this.helpOpen = open;  document.getElementById('helpModal').classList.toggle('hidden', !open); }
 
     handleCarHitPlayer(car) {
       if (this.carHitInvuln > 0) return;
       this.carHitInvuln = 1.25;
       this.damageFlash = 0.85;
-      this.audio.carHorn();
-      this.audio.miss();
+      this.audio.carHorn(); this.audio.miss();
 
       const p = this.player;
       const dmg = p.inCar ? 6 : 18;
       this.health = Math.max(0, this.health - dmg);
       this.happiness = Math.max(0, this.happiness - 6);
 
-      // Push player safely sideways out of the car's bumper path!
       const pushAng = Math.atan2(p.y - car.y, p.x - car.x);
-      p.x += Math.cos(pushAng) * 44;
-      p.y += Math.sin(pushAng) * 44;
+      p.x += Math.cos(pushAng) * 44; p.y += Math.sin(pushAng) * 44;
       if (p.inCar) p.carSpeed = -120;
       this.world.resolveCollisions(p, p.inCar);
 
@@ -413,18 +507,72 @@ window.YasamDunya = window.YasamDunya || {};
       this.popup(p.x, p.y - 36, p.inCar ? `-${dmg} ❤️ ÇARPIŞMA!` : `-${dmg} ❤️ ARABA ÇARPTI!!`, '#ef4444');
       this.say(p, 'AHH!! Trafiğe dikkat etmeliyim! 🚗💥', 2.4);
 
-      // If Health hits 0 -> Emergency Hospital Recovery at Home!
       if (this.health <= 0) {
         const fee = Math.min(this.money, 40);
         this.money -= fee;
-        this.health = 80;
-        this.energy = Math.max(50, this.energy);
-        p.inCar = false;
-        p.onBike = false;
-        p.x = 2062; p.y = 1525;
-        this.say(p, `🏥 Acil servisten taburcu oldun! (-₺${fee})`, 3.6);
+        this.health = 85;
+        this.energy = Math.max(55, this.energy);
+        p.inCar = false; p.onBike = false;
+        // Wake up right outside Şehir Hastanesi!
+        p.x = 2082; p.y = 1068;
+        this.showToast(`🏥 Şehir Hastanesinden taburcu oldun! (-₺${fee})`);
       }
       this.saveGame();
+    }
+
+    renderBag() {
+      const grid = document.getElementById('bagGrid');
+      if (!grid) return;
+      const nearFire = Math.hypot(this.player.x - this.world.campfire.x, this.player.y - this.world.campfire.y) < 110;
+      const keys = Object.keys(YD.BAG_ITEMS).filter((k) => (this.bag[k] || 0) > 0);
+      if (keys.length === 0) {
+        grid.innerHTML = `<div class="shop-item" style="justify-content:center; color:#94a3b8;">Çantan boş! Ormandan böğürtlen, dağdan kristal veya iskeleden balık topla!</div>`;
+        return;
+      }
+      const crystalMult = this.dailyEventIdx === 3 ? 1.6 : 1.0;
+      grid.innerHTML = keys.map((k) => {
+        const info = YD.BAG_ITEMS[k];
+        const qty = this.bag[k];
+        const sellVal = Math.round(info.sell * (k === 'crystal' ? crystalMult : 1));
+        return `
+          <div class="shop-item">
+            <div style="font-size:24px;">${info.icon}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800;">${info.name} <span style="color:#fde047;">x${qty}</span></div>
+              <div style="font-size:11px; color:#94a3b8;">${info.hunger > 0 ? `+${info.hunger} Tokluk ` : ''}${info.energy > 0 ? `+${info.energy} Enerji` : ''}</div>
+            </div>
+            <div class="btn-row">
+              ${info.hunger > 0 ? `<button class="hud-btn" data-eat="${k}">YE</button>` : ''}
+              ${k === 'fish' && nearFire ? `<button class="hud-btn gold" data-grill="fish">🔥 PİŞİR</button>` : ''}
+              <button class="shop-buy-btn" data-sell="${k}">SAT ₺${sellVal}</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      grid.querySelectorAll('[data-eat]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.eat, info = YD.BAG_ITEMS[k];
+        if (!this.bag[k]) return;
+        this.bag[k]--;
+        this.hunger = Math.min(100, this.hunger + info.hunger);
+        this.health = Math.min(100, this.health + info.health);
+        this.energy = Math.min(100, this.energy + info.energy);
+        this.audio.pickup();
+        this.renderBag(); this.saveGame();
+      }));
+      grid.querySelectorAll('[data-grill]').forEach((b) => b.addEventListener('click', () => {
+        if (!this.bag.fish) return;
+        this.bag.fish--; this.bag.grilled = (this.bag.grilled || 0) + 1;
+        this.audio.pickup(); this.showToast('🔥 Izgara Balık pişti! (+65 Tokluk)');
+        this.renderBag(); this.saveGame();
+      }));
+      grid.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.sell, info = YD.BAG_ITEMS[k];
+        if (!this.bag[k]) return;
+        const sellVal = Math.round(info.sell * (k === 'crystal' && this.dailyEventIdx === 3 ? 1.6 : 1));
+        this.bag[k]--; this.money += sellVal;
+        this.audio.coin(); this.checkAchievements();
+        this.renderBag(); this.saveGame();
+      }));
     }
 
     renderShop() {
@@ -452,29 +600,23 @@ window.YasamDunya = window.YasamDunya || {};
           if (this.money < item.price) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
           this.money -= item.price;
           this.inventory.add(item.id);
+          this.syncPetFromInventory();
           this.audio.coin();
           this.popup(this.player.x, this.player.y - 34, `${item.icon} ${item.name} ALINDI!`, '#4ade80');
-          this.renderShop();
-          this.saveGame();
+          this.checkAchievements();
+          this.renderShop(); this.saveGame();
         });
       });
     }
 
     renderHomeModal() {
-      // Visual Room Preview showing unlocked cozy items!
       const preview = document.getElementById('homeRoomPreview');
       if (preview) {
-        const itemsHtml = [
+        preview.innerHTML = [
           `<div class="room-slot">🛏️ Yatak</div>`,
-          ...YD.HOME_DECOR.map((d) => {
-            const has = this.homeDecor.has(d.id);
-            return `<div class="room-slot ${has ? 'unlocked' : 'locked'}">${d.icon} ${d.name}</div>`;
-          })
+          ...YD.HOME_DECOR.map((d) => `<div class="room-slot ${this.homeDecor.has(d.id) ? 'unlocked' : 'locked'}">${d.icon} ${d.name}</div>`)
         ].join('');
-        preview.innerHTML = itemsHtml;
       }
-
-      // Interactive Home Actions (Remote Work PC / Watch TV / Play Guitar!)
       const acts = document.getElementById('homeActionsRow');
       if (acts) {
         let html = '';
@@ -488,7 +630,7 @@ window.YasamDunya = window.YasamDunya || {};
           if (this.energy < 18) { this.popup(this.player.x, this.player.y - 30, 'Çok yorgunsun, uyu!', '#ef4444'); return; }
           this.energy -= 18; this.money += 95; this.addXp(22); this.timeMinutes += 75;
           this.audio.coin(); this.popup(this.player.x, this.player.y - 34, '🖥️ Remote İş! +₺95', '#4ade80');
-          this.advanceQuest('q_work', 1); this.saveGame();
+          this.advanceQuest('q_work', 1); this.checkAchievements(); this.saveGame();
         });
         const tv = document.getElementById('actWatchTv');
         if (tv) tv.addEventListener('click', () => {
@@ -528,34 +670,43 @@ window.YasamDunya = window.YasamDunya || {};
           const d = YD.HOME_DECOR.find((x) => x.id === btn.dataset.decor);
           if (!d) return;
           if (this.money < d.price) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
-          this.money -= d.price;
-          this.homeDecor.add(d.id);
+          this.money -= d.price; this.homeDecor.add(d.id);
           this.happiness = Math.min(100, this.happiness + 15);
-          this.audio.coin();
-          this.renderHomeModal();
-          this.saveGame();
+          this.audio.coin(); this.checkAchievements();
+          this.renderHomeModal(); this.saveGame();
         });
       });
     }
 
     renderQuests() {
+      const career = YD.getCareer(this.level);
+      const ev = YD.DAILY_EVENTS[this.dailyEventIdx];
+      const cb = document.getElementById('careerBanner');
+      if (cb) {
+        cb.innerHTML = `👤 <b>${this.playerName}</b> · 💼 <b>${career.title}</b> (Maaş x${career.bonus}) · ${ev.icon} <b>${ev.name}</b>`;
+      }
       const box = document.getElementById('questList');
-      if (!box) return;
-      box.innerHTML = YD.QUESTS.map((q) => {
-        const done = this.questDone.has(q.id);
-        const cur = Math.min(q.target, this.questProgress[q.id] || 0);
-        return `<div class="quest-row ${done ? 'done' : ''}">${done ? '✅' : '⬜'} ${q.title} (${cur}/${q.target})</div>`;
-      }).join('');
+      if (box) {
+        box.innerHTML = YD.QUESTS.map((q) => {
+          const done = this.questDone.has(q.id);
+          const cur = Math.min(q.target, this.questProgress[q.id] || 0);
+          return `<div class="quest-row ${done ? 'done' : ''}"><span>${done ? '✅' : '⬜'} ${q.title}</span><b>${cur}/${q.target}</b></div>`;
+        }).join('');
+      }
+      const ach = document.getElementById('achGrid');
+      if (ach) {
+        ach.innerHTML = YD.ACHIEVEMENTS.map((a) => {
+          const ok = this.achievements.has(a.id);
+          return `<div class="ach-card ${ok ? 'unlocked' : ''}"><b>${a.icon} ${a.name}</b><br/>${a.desc} ${ok ? '✓' : ''}</div>`;
+        }).join('');
+      }
     }
 
-    /* =======================================================================
-       INTERACTIVE FISHING TIMING MINI-GAME
-       ======================================================================= */
     startFishing() {
       if (this.energy < 10) { this.say(this.player, 'Olta sallayacak enerjin kalmadı!', 2.0); return; }
+      this.clearAllKeys();
       this.fishing.active = true;
-      this.fishing.pos = 0.05;
-      this.fishing.dir = 1;
+      this.fishing.pos = 0.05; this.fishing.dir = 1;
       this.fishing.speed = this.inventory.has('rod') ? 1.25 : 1.65;
       document.getElementById('fishSweetZone').style.width = this.inventory.has('rod') ? '24%' : '15%';
       document.getElementById('fishingBarWrap').classList.remove('hidden');
@@ -569,39 +720,37 @@ window.YasamDunya = window.YasamDunya || {};
 
     resolveFishingAttempt() {
       if (!this.fishing.active) return;
-      const distFromCenter = Math.abs(this.fishing.pos - 0.5);
+      const dist = Math.abs(this.fishing.pos - 0.5);
       const sweetHalf = this.inventory.has('rod') ? 0.12 : 0.075;
-      const rainBonus = (this.weatherIdx === 1 || this.weatherIdx === 2) ? 1.4 : 1.0;
+      const bonus = ((this.weatherIdx === 1 || this.weatherIdx === 2) ? 1.35 : 1.0) * (this.dailyEventIdx === 1 ? 2.0 : 1.0);
 
       this.stopFishing();
       this.energy = Math.max(0, this.energy - 10);
       this.timeMinutes += 35;
 
-      if (distFromCenter <= sweetHalf) {
-        // GOLDEN PERFECT CATCH!
-        const val = Math.round((this.inventory.has('rod') ? 185 : 125) * rainBonus);
-        this.money += val;
-        this.happiness = Math.min(100, this.happiness + 20);
-        this.addXp(36);
+      if (dist <= sweetHalf) {
+        this.bag.goldfish = (this.bag.goldfish || 0) + 1;
+        const instantBonus = Math.round(70 * bonus);
+        this.money += instantBonus;
+        this.happiness = Math.min(100, this.happiness + 22);
+        this.addXp(38);
         this.audio.levelUp();
         this.burst(this.player.x, this.player.y + 30, '#fde047', 22);
-        this.popup(this.player.x, this.player.y - 38, `🌟 4D ALTIN BALIK! +₺${val}`, '#fde047');
+        this.popup(this.player.x, this.player.y - 38, `🌟 4D ALTIN BALIK ÇANTANDA! (+₺${instantBonus})`, '#fde047');
         this.advanceQuest('q_fish', 1);
-      } else if (distFromCenter <= 0.28) {
-        // GOOD NORMAL CATCH
-        const val = Math.round((this.inventory.has('rod') ? 85 : 55) * rainBonus);
-        this.money += val;
+      } else if (dist <= 0.28) {
+        this.bag.fish = (this.bag.fish || 0) + 1;
         this.happiness = Math.min(100, this.happiness + 12);
         this.addXp(20);
         this.audio.coin();
         this.burst(this.player.x, this.player.y + 30, '#38bdf8', 14);
-        this.popup(this.player.x, this.player.y - 34, `🐟 Taze Levrek! +₺${val}`, '#38bdf8');
+        this.popup(this.player.x, this.player.y - 34, '🐟 Taze Levrek Çantana Eklendi! [C]', '#38bdf8');
         this.advanceQuest('q_fish', 1);
       } else {
-        // MISSED!
         this.audio.miss();
         this.popup(this.player.x, this.player.y - 34, '🥾 Kaçtı! Tekrar dene!', '#fb7185');
       }
+      this.checkAchievements();
       this.saveGame();
     }
 
@@ -609,13 +758,14 @@ window.YasamDunya = window.YasamDunya || {};
       const p = this.player;
       for (const fg of this.world.forageables) {
         if (!fg.collected && Math.hypot(p.x - fg.x, p.y - fg.y) < 52) {
-          const lbl = fg.kind === 'crystal' ? '💎 Zirve Kristali Topla (+₺65)' : (fg.kind === 'berry' ? '🍓 Böğürtlen Topla' : '🍄 Mantar Topla');
+          const lbl = fg.kind === 'crystal' ? '💎 Zirve Kristali Topla' : (fg.kind === 'berry' ? '🍓 Böğürtlen Topla' : '🍄 Mantar Topla');
           return { kind: 'forage', ref: fg, text: `[E] ${lbl}` };
         }
       }
       for (const npc of this.npcs) {
         if (Math.hypot(p.x - npc.x, p.y - npc.y) < 64) {
-          return { kind: 'npc', ref: npc, text: `[E] 💬 ${npc.name} ile Konuş` };
+          const hearts = this.npcHearts[npc.name] || 0;
+          return { kind: 'npc', ref: npc, text: `[E] 💬 ${npc.name} (${hearts > 0 ? '❤️'.repeat(Math.min(5, hearts)) : 'Tanış'})` };
         }
       }
       for (const it of this.world.interactables) {
@@ -627,7 +777,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     handleInteract() {
-      if (this.shopOpen || this.homeOpen) return;
+      if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen) return;
       const target = this.findNearestInteraction();
       if (!target) return;
       const p = this.player;
@@ -636,36 +786,39 @@ window.YasamDunya = window.YasamDunya || {};
       if (target.kind === 'forage') {
         target.ref.collected = true;
         target.ref.respawnTimer = 42;
-        if (target.ref.kind === 'crystal') {
-          const val = Math.round(65 * bonusMult);
-          this.money += val; this.addXp(26);
-          this.audio.coin();
-          this.burst(target.ref.x, target.ref.y, '#38bdf8', 18);
-          this.popup(p.x, p.y - 32, `💎 Zirve Kristali! +₺${val}`, '#38bdf8');
-        } else {
-          this.hunger = Math.min(100, this.hunger + 16);
-          this.health = Math.min(100, this.health + 8);
-          this.money += 20; this.addXp(14);
-          this.audio.pickup();
-          this.burst(target.ref.x, target.ref.y, '#4ade80', 12);
-          this.popup(p.x, p.y - 30, '+16 Tokluk • +₺20 🍓', '#4ade80');
-          this.advanceQuest('q_forest', 1);
-        }
+        const k = target.ref.kind;
+        this.bag[k] = (this.bag[k] || 0) + 1;
+        this.addXp(k === 'crystal' ? 24 : 14);
+        this.audio.pickup();
+        this.burst(target.ref.x, target.ref.y, k === 'crystal' ? '#38bdf8' : '#4ade80', 14);
+        this.popup(p.x, p.y - 32, `${YD.BAG_ITEMS[k].icon} ${YD.BAG_ITEMS[k].name} Çantada! [C]`, '#4ade80');
+        if (k !== 'crystal') this.advanceQuest('q_forest', 1);
       } else if (target.kind === 'npc') {
         const npc = target.ref;
-        this.say(npc, npc.lines[npc.lineIdx++ % npc.lines.length], 3.2);
-        this.happiness = Math.min(100, this.happiness + 6);
-        this.addXp(8); this.audio.pickup();
+        const curH = this.npcHearts[npc.name] || 0;
+        const nextH = Math.min(5, curH + 1);
+        this.npcHearts[npc.name] = nextH;
+        const line = npc.lines[Math.min(npc.lines.length - 1, nextH - 1)];
+        this.say(npc, line, 3.2);
+        this.happiness = Math.min(100, this.happiness + 8);
+        this.addXp(10); this.audio.pickup();
+        if (nextH === 3 && curH < 3) {
+          this.money += 50;
+          this.popup(npc.x, npc.y - 34, '❤️ Dostluk Hediyesi: +₺50!', '#f472b6');
+        }
+      } else if (target.kind === 'hospital') {
+        if (this.health >= 99) { this.say(p, 'Turp gibiyim, sağlığım tam! ❤️', 2.0); return; }
+        if (this.money < 30) { this.say(p, 'Muayene için ₺30 gerekiyor!', 2.0); return; }
+        this.money -= 30; this.health = 100;
+        this.audio.levelUp();
+        this.popup(p.x, p.y - 34, '🏥 %100 SAĞLIK! (-₺30)', '#4ade80');
       } else if (target.kind === 'home') {
         this.toggleHome(true);
       } else if (target.kind === 'lodge' || target.kind === 'hotspring') {
-        this.health = 100;
-        this.energy = Math.min(100, this.energy + 45);
-        this.happiness = Math.min(100, this.happiness + 30);
-        this.timeMinutes += 40;
-        this.audio.pickup();
-        this.burst(p.x, p.y, '#2dd4bf', 20);
-        this.popup(p.x, p.y - 36, '♨️ Karlı Zirve & Kaplıca Şifası! (+%100 Sağlık)', '#2dd4bf');
+        this.health = 100; this.energy = Math.min(100, this.energy + 45);
+        this.happiness = Math.min(100, this.happiness + 30); this.timeMinutes += 40;
+        this.audio.pickup(); this.burst(p.x, p.y, '#2dd4bf', 20);
+        this.popup(p.x, p.y - 36, '♨️ Karlı Zirve & Kaplıca Şifası!', '#2dd4bf');
         this.advanceQuest('q_mountain', 1);
       } else if (target.kind === 'summit') {
         this.addXp(Math.round(50 * bonusMult));
@@ -673,29 +826,30 @@ window.YasamDunya = window.YasamDunya || {};
         this.audio.levelUp();
         this.burst(this.world.summitRock.x, this.world.summitRock.y, '#fde047', 22);
         this.say(p, 'Sisyphos\'un Zirvesine ulaştın! (+50 XP) 🪨🏔️', 3.0);
+        this.unlockAchievement('ach_summit');
         this.advanceQuest('q_mountain', 1);
       } else if (target.kind === 'work') {
         if (this.energy < 22) { this.say(p, 'Çok yorgunum, önce uyu veya kahve iç! 😴', 2.2); return; }
-        const pay = Math.round((80 + this.level * 24) * bonusMult);
+        const career = YD.getCareer(this.level);
+        const evMult = this.dailyEventIdx === 2 ? 1.5 : 1.0;
+        const pay = Math.round((80 + this.level * 18) * career.bonus * bonusMult * evMult);
         this.energy -= 22; this.hunger = Math.max(0, this.hunger - 14);
-        this.timeMinutes += 120; this.money += pay; this.addXp(28);
+        this.timeMinutes += 120; this.money += pay; this.addXp(30);
         this.audio.coin();
-        this.popup(p.x, p.y - 34, `+₺${pay} MAAŞ! 💼`, '#facc15');
+        this.popup(p.x, p.y - 34, `+₺${pay} (${career.title}) 💼`, '#facc15');
         this.advanceQuest('q_work', 1);
       } else if (target.kind === 'cafe') {
         if (this.money < 25) { this.say(p, 'Kahve için ₺25 gerekiyor!', 2.0); return; }
-        this.money -= 25;
-        this.energy = Math.min(100, this.energy + 35);
-        this.hunger = Math.min(100, this.hunger + 35);
-        this.happiness = Math.min(100, this.happiness + 18);
+        this.money -= 25; this.energy = Math.min(100, this.energy + 35);
+        this.hunger = Math.min(100, this.hunger + 35); this.happiness = Math.min(100, this.happiness + 18);
         this.audio.pickup();
         this.popup(p.x, p.y - 34, '☕ Latte & Simit! +Enerji +Tokluk', '#fb923c');
       } else if (target.kind === 'study') {
         if (this.energy < 18) { this.say(p, 'Kafam almıyor, dinlenmeliyim!', 2.0); return; }
         this.energy -= 18; this.timeMinutes += 90;
-        this.addXp(Math.round(45 * bonusMult));
+        this.addXp(Math.round(48 * bonusMult));
         this.audio.pickup();
-        this.popup(p.x, p.y - 34, `🎓 +${Math.round(45 * bonusMult)} BİLGİ XP!`, '#38bdf8');
+        this.popup(p.x, p.y - 34, `🎓 +${Math.round(48 * bonusMult)} BİLGİ XP!`, '#38bdf8');
       } else if (target.kind === 'shop') {
         this.toggleShop(true);
       } else if (target.kind === 'campfire') {
@@ -704,7 +858,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.health = Math.min(100, this.health + 15);
         this.timeMinutes += 45; this.audio.pickup();
         this.burst(this.world.campfire.x, this.world.campfire.y, '#fb923c', 16);
-        this.popup(p.x, p.y - 34, '🔥 Kamp Ateşi Huzuru! +Enerji', '#fb923c');
+        this.popup(p.x, p.y - 34, '🔥 Kamp Ateşi Huzuru! ([C] Balık Pişir)', '#fb923c');
       } else if (target.kind === 'altar') {
         this.addXp(35); this.happiness = Math.min(100, this.happiness + 20);
         this.audio.timeWarp();
@@ -712,25 +866,24 @@ window.YasamDunya = window.YasamDunya || {};
         this.say(p, 'Zaman bir nehir gibi akıyor... (+35 XP) ⏳', 2.8);
       } else if (target.kind === 'workout') {
         if (this.energy < 15) { this.say(p, 'Spor için biraz enerji lazım!', 2.0); return; }
-        this.energy -= 15;
-        this.health = Math.min(100, this.health + Math.round(24 * bonusMult));
-        this.happiness = Math.min(100, this.happiness + 16);
-        this.addXp(22); this.audio.pickup();
+        this.energy -= 15; this.health = Math.min(100, this.health + Math.round(24 * bonusMult));
+        this.happiness = Math.min(100, this.happiness + 16); this.addXp(22);
+        this.audio.pickup();
         this.popup(p.x, p.y - 34, '🏃 Harika Antrenman! +Sağlık', '#4ade80');
         this.advanceQuest('q_park', 1);
       } else if (target.kind === 'relax') {
-        this.energy = Math.min(100, this.energy + 22);
-        this.happiness = Math.min(100, this.happiness + 24);
+        this.energy = Math.min(100, this.energy + 22); this.happiness = Math.min(100, this.happiness + 24);
         this.timeMinutes += 30; this.audio.pickup();
         this.popup(p.x, p.y - 34, '🦆 Ördekleri İzledin (+Mutluluk)', '#38bdf8');
         this.advanceQuest('q_park', 1);
       } else if (target.kind === 'fish') {
         this.startFishing();
       } else if (target.kind === 'lighthouse') {
-        this.happiness = Math.min(100, this.happiness + 25);
-        this.addXp(20); this.audio.pickup();
+        this.happiness = Math.min(100, this.happiness + 25); this.addXp(20);
+        this.audio.pickup();
         this.say(p, 'Deniz Fenerinden tüm kıyı görünüyor! 🗼✨', 3.0);
       }
+      this.checkAchievements();
       this.saveGame();
     }
 
@@ -747,9 +900,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.hunger = Math.max(45, this.hunger - 12);
       this.audio.sleep();
 
-      // Natural weather roll each morning
       const r = Math.random();
       this.weatherIdx = this.seasonIdx === 3 ? (r < 0.6 ? 3 : 0) : (r < 0.58 ? 0 : (r < 0.85 ? 1 : 2));
+      this.dailyEventIdx = Math.floor(Math.random() * YD.DAILY_EVENTS.length);
 
       if (this.todayPath.length > 5) {
         this.yesterdayPath = [...this.todayPath];
@@ -759,14 +912,8 @@ window.YasamDunya = window.YasamDunya || {};
 
       this.player.x = 2062; this.player.y = 1525;
       this.player.onBike = false; this.player.inCar = false;
-      const s = YD.SEASONS[this.seasonIdx], w = YD.WEATHERS[this.weatherIdx];
-      this.say(
-        this.player,
-        fainted
-          ? `Enerjin bitti, eve taşındın! Gün ${this.day}`
-          : `Günaydın! Gün ${this.day} • ${s.icon} ${s.name} • ${w.icon} ${w.name}`,
-        3.5
-      );
+      const s = YD.SEASONS[this.seasonIdx], ev = YD.DAILY_EVENTS[this.dailyEventIdx];
+      this.showToast(`☀️ Gün ${this.day} (${s.icon} ${s.name}) • ${ev.icon} ${ev.name}`);
       this.saveGame();
     }
 
@@ -774,9 +921,16 @@ window.YasamDunya = window.YasamDunya || {};
       this.damageFlash = Math.max(0, this.damageFlash - dt * 2.2);
       this.carHitInvuln = Math.max(0, this.carHitInvuln - dt);
 
-      if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen) return;
+      // Live scenic world pan behind Title Screen!
+      if (!this.started) {
+        this.world.update(dt, this.player, null);
+        this.cam.x = 2300 + Math.sin(performance.now() * 0.00018) * 750;
+        this.cam.y = 1750 + Math.cos(performance.now() * 0.00015) * 650;
+        return;
+      }
 
-      // Update Fishing Timing Bar if active
+      if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen) return;
+
       if (this.fishing.active) {
         this.fishing.pos += this.fishing.dir * this.fishing.speed * dt;
         if (this.fishing.pos >= 1) { this.fishing.pos = 1; this.fishing.dir = -1; }
@@ -788,7 +942,6 @@ window.YasamDunya = window.YasamDunya || {};
       this.timeMinutes += dt * 2.4;
       if (this.timeMinutes >= 24 * 60) this.startNextDay(false);
 
-      // Dynamic Weather & Storm Lightning!
       this.weatherTimer -= dt;
       if (this.weatherTimer <= 0) {
         this.weatherTimer = 50 + Math.random() * 45;
@@ -800,8 +953,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.lightningTimer -= dt;
         if (this.lightningTimer <= 0) {
           this.lightningTimer = 5 + Math.random() * 7;
-          this.lightningFlash = 0.85;
-          this.audio.thunder();
+          this.lightningFlash = 0.85; this.audio.thunder();
         }
       }
 
@@ -809,15 +961,12 @@ window.YasamDunya = window.YasamDunya || {};
       p.speechTimer = Math.max(0, p.speechTimer - dt);
 
       if (p.inCar) {
-        // CRISP DRIVABLE CAR PHYSICS (Instant braking when gas released!)
         const accelInput = (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0) - (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0);
         const steerInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
-        const maxCarSpd = 540;
         if (accelInput !== 0) {
           p.carSpeed += accelInput * 760 * dt;
-          p.carSpeed = Math.max(-220, Math.min(maxCarSpd, p.carSpeed));
+          p.carSpeed = Math.max(-220, Math.min(540, p.carSpeed));
         } else {
-          // Strong engine braking so releasing W stops quickly without coasting forever
           p.carSpeed *= Math.pow(0.0004, dt);
           if (Math.abs(p.carSpeed) < 18) p.carSpeed = 0;
         }
@@ -828,12 +977,10 @@ window.YasamDunya = window.YasamDunya || {};
             if (this.skidMarks.length > 90) this.skidMarks.shift();
           }
         }
-        p.vx = Math.cos(p.angle) * p.carSpeed;
-        p.vy = Math.sin(p.angle) * p.carSpeed;
+        p.vx = Math.cos(p.angle) * p.carSpeed; p.vy = Math.sin(p.angle) * p.carSpeed;
         p.x += p.vx * dt; p.y += p.vy * dt;
         this.world.resolveCollisions(p, true);
       } else {
-        // Ultra-Responsive Foot / Bike / Swimming Movement (Instant stop on key release!)
         let ix = 0, iy = 0;
         if (this.keys['KeyW'] || this.keys['ArrowUp']) iy -= 1;
         if (this.keys['KeyS'] || this.keys['ArrowDown']) iy += 1;
@@ -846,26 +993,17 @@ window.YasamDunya = window.YasamDunya || {};
         if (inWater && !p.swimming) {
           p.swimming = true; p.onBike = false;
           this.audio.splash(); this.burst(p.x, p.y, '#38bdf8', 12);
-        } else if (!inWater && p.swimming) {
-          p.swimming = false;
-        }
+        } else if (!inWater && p.swimming) p.swimming = false;
 
         const sprinting = !!(this.keys['ShiftLeft'] || this.keys['ShiftRight']) && !p.swimming && this.energy > 8;
         const maxSpd = p.swimming ? 185 : (p.onBike ? 430 : (sprinting ? 335 : 255));
-        if (len === 0) {
-          p.vx = 0;
-          p.vy = 0;
-        } else {
-          p.vx = ix * maxSpd;
-          p.vy = iy * maxSpd;
-          p.angle = Math.atan2(iy, ix);
-          p.walkCycle += dt * (maxSpd * 0.055);
-        }
+        if (len === 0) { p.vx = 0; p.vy = 0; }
+        else { p.vx = ix * maxSpd; p.vy = iy * maxSpd; p.angle = Math.atan2(iy, ix); p.walkCycle += dt * (maxSpd * 0.055); }
         p.x += p.vx * dt; p.y += p.vy * dt;
         this.world.resolveCollisions(p, false);
 
         if (p.swimming) {
-          this.happiness = Math.min(100, this.happiness + dt * 3.5);
+          this.happiness = Math.min(100, this.happiness + dt * (this.dailyEventIdx === 1 ? 6 : 3.5));
           if (this.world.isInHotSpring(p.x, p.y)) {
             this.health = Math.min(100, this.health + dt * 6);
             this.energy = Math.min(100, this.energy + dt * 6);
@@ -878,6 +1016,20 @@ window.YasamDunya = window.YasamDunya || {};
         this.energy = Math.max(0, this.energy - (sprinting ? 2.2 : (p.swimming ? 1.4 : 0.4)) * dt);
       }
 
+      // Loyal Pet Companion Follow Logic!
+      if (this.pet) {
+        this.pet.petCd = Math.max(0, this.pet.petCd - dt);
+        const dx = p.x - this.pet.x, dy = p.y - this.pet.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 48) {
+          const ang = Math.atan2(dy, dx);
+          this.pet.angle = ang;
+          const pSpd = Math.min(540, Math.max(210, d * 3.8));
+          this.pet.x += Math.cos(ang) * pSpd * dt;
+          this.pet.y += Math.sin(ang) * pSpd * dt;
+        }
+      }
+
       this.hunger = Math.max(0, this.hunger - 0.32 * dt);
       if (this.hunger <= 5) this.health = Math.max(5, this.health - 1.2 * dt);
 
@@ -886,12 +1038,9 @@ window.YasamDunya = window.YasamDunya || {};
           this.energy = 65;
           this.popup(p.x, p.y - 38, '🪶 ANKA TÜYÜ DEVREDE! +65 Enerji', '#fb923c');
           this.burst(p.x, p.y, '#fb923c', 22);
-        } else {
-          this.startNextDay(true);
-        }
+        } else this.startNextDay(true);
       }
 
-      // Past-Self 4D Echo
       this.pathSampleTimer += dt;
       if (this.pathSampleTimer >= 0.45 && this.todayPath.length < 300) {
         this.pathSampleTimer = 0; this.todayPath.push({ x: p.x, y: p.y });
@@ -902,10 +1051,11 @@ window.YasamDunya = window.YasamDunya || {};
         this.pastEcho.x += (pt.x - this.pastEcho.x) * Math.min(1, dt * 6);
         this.pastEcho.y += (pt.y - this.pastEcho.y) * Math.min(1, dt * 6);
         if (Math.hypot(p.x - this.pastEcho.x, p.y - this.pastEcho.y) < 36) {
-          this.pastEcho.claimed = true; this.addXp(30);
+          this.pastEcho.claimed = true; this.addXp(35);
           this.happiness = Math.min(100, this.happiness + 18);
           this.audio.timeWarp(); this.burst(this.pastEcho.x, this.pastEcho.y, '#fde047', 22);
-          this.popup(p.x, p.y - 40, '✨ GEÇMİŞİNLE BARIŞTIN! +30 XP', '#fde047');
+          this.popup(p.x, p.y - 40, '✨ GEÇMİŞİNLE BARIŞTIN! +35 XP', '#fde047');
+          this.unlockAchievement('ach_echo');
         }
       }
 
@@ -936,13 +1086,11 @@ window.YasamDunya = window.YasamDunya || {};
 
       const rainSpeedMult = (this.weatherIdx === 1 || this.weatherIdx === 2) ? 6.5 : 1.0;
       for (const wp of this.weatherParticles) {
-        wp.x += wp.vx * rainSpeedMult * dt;
-        wp.y += wp.vy * rainSpeedMult * dt;
+        wp.x += wp.vx * rainSpeedMult * dt; wp.y += wp.vy * rainSpeedMult * dt;
         if (wp.x < 0) wp.x = this.viewW;
         if (wp.y > this.viewH) { wp.y = 0; wp.x = Math.random() * this.viewW; }
       }
 
-      // Smooth Camera with Velocity Look-Ahead + slight zoom-out when driving fast!
       const targetZoom = p.inCar ? 0.84 : 1.0;
       this.cam.zoom += (targetZoom - this.cam.zoom) * Math.min(1, dt * 2.5);
       this.cam.x += (p.x + p.vx * 0.16 - this.cam.x) * Math.min(1, dt * 7.5);

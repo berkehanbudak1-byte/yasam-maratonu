@@ -54,11 +54,12 @@ window.YasamDunya = window.YasamDunya || {};
       addBldg('lodge', 1520, 290, 210, 130, '#78350f', '#e2e8f0', '🏔️ DAĞ KULÜBESİ', 'lodge', 1625, 445);
 
       // City Buildings positioned cleanly INSIDE the closed Ring Road blocks!
-      addBldg('home',   1950, 1340, 225, 145, '#b45309', '#f59e0b', '🏠 EVİN', 'home',  2062, 1510);
-      addBldg('office', 2620, 1310, 285, 175, '#1d4ed8', '#38bdf8', '🏢 İŞ MERKEZİ', 'work',  2762, 1510);
-      addBldg('cafe',   1950, 1875, 225, 145, '#be123c', '#fb7185', '☕ KAFE & FIRIN', 'cafe', 2062, 2045);
-      addBldg('uni',    2620, 1875, 285, 160, '#0f766e', '#2dd4bf', '🎓 ÜNİVERSİTE', 'study', 2762, 2060);
-      addBldg('shop',   2450, 880,  265, 145, '#6b21a8', '#c084fc', '🛍️ MARKET & GALERİ', 'shop', 2582, 1050);
+      addBldg('hospital', 1950, 880,  265, 145, '#dc2626', '#f8fafc', '🏥 ŞEHİR HASTANESİ', 'hospital', 2082, 1050);
+      addBldg('shop',     2450, 880,  265, 145, '#6b21a8', '#c084fc', '🛍️ MARKET & GALERİ', 'shop',     2582, 1050);
+      addBldg('home',     1950, 1340, 225, 145, '#b45309', '#f59e0b', '🏠 EVİN',            'home',     2062, 1510);
+      addBldg('office',   2620, 1310, 285, 175, '#1d4ed8', '#38bdf8', '🏢 İŞ MERKEZİ',      'work',     2762, 1510);
+      addBldg('cafe',     1950, 1875, 225, 145, '#be123c', '#fb7185', '☕ KAFE & FIRIN',     'cafe',     2062, 2045);
+      addBldg('uni',      2620, 1875, 285, 160, '#0f766e', '#2dd4bf', '🎓 ÜNİVERSİTE',       'study',    2762, 2060);
 
       // Forest Cabin
       addBldg('cabin', 1100, 1120, 180, 125, '#78350f', '#b45309', '🪵 ORMAN KULÜBESİ', 'campfire', 1190, 1270);

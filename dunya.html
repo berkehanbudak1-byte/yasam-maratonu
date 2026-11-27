@@ -14,10 +14,36 @@
   <canvas id="gameCanvas"></canvas>
 
   <!-- =========================================================================
-       ULTRA-CLEAN MINIMAL HUD (90%+ unobstructed open world!)
-       All panels open via hotkeys: [G] Görevler | [I] Market | [M] Harita | [K] Tuşlar
+       SLEEK START / CHARACTER CUSTOMIZER OVERLAY (Live 60 FPS World Behind!)
        ========================================================================= -->
-  <div id="hud">
+  <div id="titleModal" class="modal-backdrop">
+    <div class="glass-panel title-card">
+      <div class="title-badge">60 FPS AÇIK DÜNYA YAŞAM SİMÜLATÖRÜ</div>
+      <h1 class="title-heading">YAŞAM MARATONU</h1>
+      <p class="title-sub">🏔️ Karlı Zirve · 🌲 Kuzey Ormanı · 🏙️ Şehir · 🌳 Yeşil Park · 🌊 Turkuaz Deniz</p>
+
+      <div class="custom-row">
+        <label style="font-size:12px; color:#cbd5e1; font-weight:800;">KARAKTER ADIN</label>
+        <input id="inputPlayerName" type="text" maxlength="16" value="Gezgin" class="name-input" />
+      </div>
+
+      <div class="custom-row" style="margin-top:10px;">
+        <label style="font-size:12px; color:#cbd5e1; font-weight:800;">CEKET RENGİ</label>
+        <div id="colorPickerRow" class="color-picker-row"></div>
+      </div>
+
+      <div class="title-cta-row">
+        <button id="btnContinueGame" class="hud-btn gold title-play-btn hidden">▶ DEVAM ET</button>
+        <button id="btnStartNewGame" class="hud-btn gold title-play-btn">✨ OYUNA BAŞLA</button>
+      </div>
+      <div class="title-hint">WASD Gez/Sür · [E] Etkileşim · [C] Çanta · [G] Görevler · [I] Market · [M] Harita · [K] Tuşlar</div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       ULTRA-CLEAN MINIMAL HUD (All panels open on demand via hotkeys!)
+       ========================================================================= -->
+  <div id="hud" class="hidden">
     <div class="hud-top">
 
       <!-- TOP-LEFT: SLIM COMPACT NEEDS & WALLET BAR -->
@@ -38,14 +64,18 @@
         <span id="biomeBadge" style="color:#38bdf8;">🏙️ ŞEHİR MERKEZİ</span>
       </div>
 
-      <!-- TOP-RIGHT: CLEAN HOTKEY ICON PILLS (NO SCREEN CLUTTER!) -->
+      <!-- TOP-RIGHT: CLEAN HOTKEY ICON PILLS -->
       <div class="hotkey-bar">
-        <button id="btnQuests" class="icon-pill" title="Görevler [G]">📋 <b>[G]</b></button>
+        <button id="btnBag" class="icon-pill" title="Çanta / Envanter [C]">🎒 <b>[C]</b></button>
+        <button id="btnQuests" class="icon-pill" title="Görevler & Başarımlar [G]">📋 <b>[G]</b></button>
         <button id="btnShop" class="icon-pill gold" title="Market & Galeri [I]">🛍️ <b>[I]</b></button>
         <button id="btnMapToggle" class="icon-pill" title="Harita Göster/Gizle [M]">🗺️ <b>[M]</b></button>
-        <button id="btnHelp" class="icon-pill" title="Kontroller & Araçlar [K]">⌨️ <b>[K]</b></button>
+        <button id="btnHelp" class="icon-pill" title="Kontroller [K]">⌨️ <b>[K]</b></button>
       </div>
     </div>
+
+    <!-- TEMPORARY FLOATING EVENT / ACHIEVEMENT TOAST -->
+    <div id="eventToast" class="glass-panel event-toast hidden"></div>
 
     <!-- INTERACTIVE FISHING TIMING MINI-GAME BAR -->
     <div id="fishingBarWrap" class="glass-panel fishing-bar-wrap hidden">
@@ -61,11 +91,12 @@
     <!-- CONTEXTUAL INTERACTION PROMPT -->
     <div id="interactPrompt" class="interact-prompt hidden">[E] Etkileşim</div>
 
-    <!-- BOTTOM: ONLY TINY QUICK VEHICLE/AUDIO DOCK + TOGGLEABLE MINIMAP -->
+    <!-- BOTTOM: TINY QUICK DOCK + TOGGLEABLE MINIMAP -->
     <div class="hud-bottom">
       <div class="quick-dock">
         <button id="btnCar" class="dock-btn" title="Araba [V]">🚗<span>V</span></button>
         <button id="btnBike" class="dock-btn" title="Bisiklet [B]">🚲<span>B</span></button>
+        <button id="btnPetAction" class="dock-btn" title="Evcil Hayvanı Sev [P]">🐾<span>P</span></button>
         <button id="btnWeather" class="dock-btn" title="Hava Durumu [Y]">⛈️<span>Y</span></button>
         <button id="btnSeason" class="dock-btn" title="4D Mevsim [T]">⏳<span>T</span></button>
         <button id="btnMusic" class="dock-btn" title="Müzik Aç/Kapa [N]">🎵<span>N</span></button>
@@ -81,29 +112,44 @@
     </div>
   </div>
 
-  <!-- QUESTS MODAL (OPENS WITH [G]) -->
-  <div id="questModal" class="modal-backdrop hidden">
+  <!-- BACKPACK / INVENTORY MODAL ([C]) -->
+  <div id="bagModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
       <div class="shop-header">
-        <h2 style="margin:0; color:#fde047; font-size:20px;">📋 YAŞAM GÖREVLERİ</h2>
-        <button id="btnCloseQuests" class="hud-btn">KAPAT [ESC]</button>
+        <h2 style="margin:0; color:#fde047; font-size:20px;">🎒 ÇANTAN — YE, PİŞİR VEYA SAT</h2>
+        <button id="btnCloseBag" class="hud-btn">KAPAT [ESC]</button>
       </div>
-      <div id="questList" class="quest-modal-list"></div>
+      <div id="bagGrid" class="shop-grid"></div>
     </div>
   </div>
 
-  <!-- SHOP & AUTO GALLERY MODAL (OPENS WITH [I]) -->
+  <!-- QUESTS, CAREER & ACHIEVEMENTS MODAL ([G]) -->
+  <div id="questModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fde047; font-size:20px;">📋 GÖREVLER, KARİYER &amp; BAŞARIMLAR</h2>
+        <button id="btnCloseQuests" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div id="careerBanner" class="career-banner"></div>
+      <div style="font-size:11px; font-weight:900; color:#38bdf8; margin:10px 0 6px;">AKTİF GÖREVLER</div>
+      <div id="questList" class="quest-modal-list"></div>
+      <div style="font-size:11px; font-weight:900; color:#fde047; margin:14px 0 6px;">🏆 YAŞAM BAŞARIMLARI</div>
+      <div id="achGrid" class="ach-grid"></div>
+    </div>
+  </div>
+
+  <!-- SHOP, AUTO GALLERY & PETS MODAL ([I]) -->
   <div id="shopModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
       <div class="shop-header">
-        <h2 style="margin:0; color:#fde047; font-size:20px;">🛍️ MARKET, OTO GALERİ &amp; 4D EŞYALAR</h2>
+        <h2 style="margin:0; color:#fde047; font-size:20px;">🛍️ MARKET, GALERİ, PET &amp; 4D EŞYALAR</h2>
         <button id="btnCloseShop" class="hud-btn">KAPAT [ESC]</button>
       </div>
       <div id="shopGrid" class="shop-grid"></div>
     </div>
   </div>
 
-  <!-- HOME INTERIOR & DECORATION MODAL (OPENS WITH [E] AT HOME) -->
+  <!-- HOME INTERIOR & DECORATION MODAL ([E] AT HOME) -->
   <div id="homeModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
       <div class="shop-header">
@@ -120,7 +166,7 @@
     </div>
   </div>
 
-  <!-- CONTROLS & SYSTEM MODAL (OPENS WITH [K]) -->
+  <!-- CONTROLS & SYSTEM MODAL ([K]) -->
   <div id="helpModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
       <div class="shop-header">
@@ -130,17 +176,16 @@
       <div class="help-grid">
         <div><b>WASD / Oklar</b><span>Yürü / Yüz / Araba Sür</span></div>
         <div><b>Shift</b><span>Koş (Sprint)</span></div>
-        <div><b>E / Space</b><span>Etkileşim (Ev, İş, Balık, Kaplıca)</span></div>
-        <div><b>G</b><span>Görevler Penceresi</span></div>
-        <div><b>I</b><span>Market &amp; Oto Galeri</span></div>
+        <div><b>E / Space</b><span>Etkileşim (Ev, Hastane, Balık)</span></div>
+        <div><b>C</b><span>Çanta (Ye / Sat / Izgara)</span></div>
+        <div><b>G</b><span>Görevler, Kariyer &amp; Başarımlar</span></div>
+        <div><b>I</b><span>Market, Galeri &amp; Evcil Hayvan</span></div>
+        <div><b>P</b><span>Evcil Hayvanı Sev (+Mutluluk)</span></div>
         <div><b>M</b><span>Haritayı Göster / Gizle</span></div>
-        <div><b>V</b><span>Elektrikli Arabaya Bin / İn</span></div>
-        <div><b>B</b><span>Bisiklete Bin / İn</span></div>
+        <div><b>V / B</b><span>Araba / Bisiklet</span></div>
         <div><b>H / Space</b><span>Araba Kornası</span></div>
-        <div><b>Y</b><span>Hava Durumu (Güneş/Yağmur/Fırtına/Kar)</span></div>
-        <div><b>T</b><span>4D Kum Saati (Mevsim Değiştir)</span></div>
+        <div><b>Y / T</b><span>Hava Durumu / 4D Mevsim</span></div>
         <div><b>N</b><span>Müziği Aç / Kapat</span></div>
-        <div><b>Scroll / +/-</b><span>Kamera Yakınlaştır / Uzaklaştır</span></div>
       </div>
       <div class="btn-row" style="margin-top:14px; justify-content:space-between;">
         <button id="btnResetSave" class="hud-btn" style="border-color:#ef4444; color:#fca5a5;">↺ Kaydı Sıfırla</button>
