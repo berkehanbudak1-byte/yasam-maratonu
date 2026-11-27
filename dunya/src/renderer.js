@@ -77,6 +77,11 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     render(game) {
+      if (game.scene === 'home') {
+        this.renderHomeInterior(game);
+        return;
+      }
+
       const ctx = this.ctx;
       const vw = game.viewW, vh = game.viewH;
       ctx.clearRect(0, 0, vw, vh);
@@ -102,6 +107,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.drawBiomes(ctx, game.world, season, now, viewBox);
       this.drawGroundDetails(ctx, season, now, viewBox);
       this.drawRoadsAndPaths(ctx, game.world);
+      this.drawGarden(ctx, game.world, now);
       this.drawSkidMarks(ctx, game.skidMarks);
       this.drawHotSpringAndSummit(ctx, game.world, now);
       this.drawPondAndPier(ctx, game.world, now);
@@ -129,7 +135,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.drawCharacter(ctx, game.player, true, game.player.swimming, game.player.onBike, now);
       }
 
-      this.drawBuildings3D(ctx, game.world, game.cam, now, nightAlpha);
+      this.drawBuildings3D(ctx, game.world, game.cam, now, nightAlpha, game);
       this.drawLighthouse(ctx, game.world, nightAlpha);
       this.drawTrees(ctx, game.world, season, now, viewBox);
       this.drawParticles(ctx, game.particles);
@@ -750,12 +756,13 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
-    drawBuildings3D(ctx, world, cam, now, nightAlpha) {
+    drawBuildings3D(ctx, world, cam, now, nightAlpha, game) {
       for (const b of world.buildings) {
         const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
         const ox = Math.max(-22, Math.min(22, (cx - cam.x) * 0.045));
         const oy = Math.max(-22, Math.min(22, (cy - cam.y) * 0.045));
         const rx = b.x + ox, ry = b.y + oy;
+        const isOwnedCafe = !!(game && game.ownsCafe && b.id === 'cafe');
 
         // Soft drop shadow
         ctx.fillStyle = 'rgba(0,0,0,0.26)'; ctx.fillRect(b.x + 12, b.y + 14, b.w, b.h);
@@ -769,8 +776,8 @@ window.YasamDunya = window.YasamDunya || {};
 
         // Elevated Roof Surface with Architectural Details!
         const roofG = ctx.createLinearGradient(rx, ry, rx, ry + b.h);
-        roofG.addColorStop(0, b.roof);
-        roofG.addColorStop(1, b.color);
+        roofG.addColorStop(0, isOwnedCafe ? '#fde047' : b.roof);
+        roofG.addColorStop(1, isOwnedCafe ? '#d97706' : b.color);
         ctx.fillStyle = roofG;
         ctx.fillRect(rx, ry, b.w, b.h); ctx.strokeRect(rx, ry, b.w, b.h);
 
@@ -801,17 +808,18 @@ window.YasamDunya = window.YasamDunya || {};
         } else if (b.id === 'cafe' || b.id === 'shop') {
           // Striped Shop Awning overhang!
           for (let ax = rx + 6; ax < rx + b.w - 12; ax += 22) {
-            ctx.fillStyle = ((ax - rx) / 22) % 2 === 0 ? '#ffffff' : b.roof;
+            ctx.fillStyle = ((ax - rx) / 22) % 2 === 0 ? '#ffffff' : (isOwnedCafe ? '#f59e0b' : b.roof);
             ctx.fillRect(ax, ry + b.h - 14, 18, 14);
           }
         }
 
         // Bold Readable Signboard
+        const signText = isOwnedCafe ? `⭐ ${(game.playerName || 'SENİN').toUpperCase()} KAFE` : b.label;
         ctx.font = '900 15px Impact, "Arial Black", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(15,23,42,0.75)';
+        ctx.fillStyle = isOwnedCafe ? 'rgba(120,53,15,0.92)' : 'rgba(15,23,42,0.75)';
         ctx.fillRect(rx + 18, ry + b.h / 2 - 14, b.w - 36, 28);
         ctx.fillStyle = '#fef08a';
-        ctx.fillText(b.label, rx + b.w / 2, ry + b.h / 2);
+        ctx.fillText(signText, rx + b.w / 2, ry + b.h / 2);
         ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
       }
     }
@@ -1011,6 +1019,268 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
+    drawGarden(ctx, world, now) {
+      const gb = world.gardenBounds;
+      if (!gb) return;
+
+      // Soft warm grass clearing & wooden picket fence (open southern entrance!)
+      ctx.save();
+      ctx.fillStyle = 'rgba(132, 204, 22, 0.25)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(gb.x, gb.y, gb.w, gb.h, 14);
+      else ctx.rect(gb.x, gb.y, gb.w, gb.h);
+      ctx.fill();
+
+      ctx.strokeStyle = '#92400e';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      // Left, Top, Right fence + two short bottom wings leaving wide south entrance
+      ctx.moveTo(gb.x + 115, gb.y + gb.h);
+      ctx.lineTo(gb.x, gb.y + gb.h);
+      ctx.lineTo(gb.x, gb.y);
+      ctx.lineTo(gb.x + gb.w, gb.y);
+      ctx.lineTo(gb.x + gb.w, gb.y + gb.h);
+      ctx.lineTo(gb.x + gb.w - 115, gb.y + gb.h);
+      ctx.stroke();
+
+      // Cute wooden fence posts
+      ctx.fillStyle = '#d97706';
+      for (let fx = gb.x; fx <= gb.x + gb.w; fx += 31) {
+        ctx.fillRect(fx - 3, gb.y - 4, 6, 8);
+      }
+
+      // Signboard above garden
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+      ctx.fillRect(gb.x + gb.w / 2 - 58, gb.y - 22, 116, 18);
+      ctx.font = 'bold 11px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#bef264';
+      ctx.fillText('🌱 ORGANİK BAHÇEN', gb.x + gb.w / 2, gb.y - 9);
+
+      // Draw each of the 6 soil beds + crop stage!
+      for (const plot of world.gardenPlots) {
+        const px = plot.x - plot.w / 2;
+        const py = plot.y - plot.h / 2;
+
+        // Tilled soil (darker rich soil when watered!)
+        ctx.fillStyle = plot.watered ? '#451a03' : '#78350f';
+        ctx.strokeStyle = plot.watered ? '#38bdf8' : '#292524';
+        ctx.lineWidth = plot.watered ? 2.5 : 2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(px, py, plot.w, plot.h, 8);
+        else ctx.rect(px, py, plot.w, plot.h);
+        ctx.fill();
+        ctx.stroke();
+
+        // Soil furrows
+        ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+        ctx.lineWidth = 1.5;
+        for (let r = 10; r < plot.h - 6; r += 11) {
+          ctx.beginPath(); ctx.moveTo(px + 8, py + r); ctx.lineTo(px + plot.w - 8, py + r); ctx.stroke();
+        }
+
+        if (!plot.crop) {
+          ctx.fillStyle = 'rgba(255,255,255,0.45)';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.fillText('+ EK', plot.x, plot.y + 4);
+        } else {
+          const info = YD.CROPS[plot.crop];
+          if (plot.growth >= 1) {
+            // Ripe glowing harvestable crop!
+            const bob = Math.sin(now * 5 + plot.id) * 3;
+            ctx.strokeStyle = '#fde047';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.arc(plot.x, plot.y, 20 + Math.sin(now * 6) * 2.5, 0, Math.PI * 2); ctx.stroke();
+            ctx.font = '24px sans-serif';
+            ctx.fillText(info.icon, plot.x, plot.y + 8 + bob);
+          } else {
+            // Sprout / growing bush + tiny progress bar
+            const sz = plot.growth < 0.45 ? 13 : 19;
+            ctx.font = `${sz}px sans-serif`;
+            ctx.fillText(plot.growth < 0.45 ? '🌱' : '🌿', plot.x, plot.y + 4);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(px + 8, py + plot.h - 9, plot.w - 16, 5);
+            ctx.fillStyle = plot.watered ? '#38bdf8' : '#4ade80';
+            ctx.fillRect(px + 8, py + plot.h - 9, (plot.w - 16) * plot.growth, 5);
+          }
+        }
+      }
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+
+    renderHomeInterior(game) {
+      const ctx = this.ctx;
+      const vw = game.viewW, vh = game.viewH;
+      const now = performance.now() * 0.001;
+      const room = YD.HOME_ROOM;
+      const scale = Math.min((vw - 60) / room.w, (vh - 140) / room.h, 1.35);
+
+      // Cozy warm ambient dark backdrop outside room walls
+      const bg = ctx.createRadialGradient(vw / 2, vh / 2, 80, vw / 2, vh / 2, Math.max(vw, vh) * 0.7);
+      bg.addColorStop(0, '#1e1b2e');
+      bg.addColorStop(1, '#090b12');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, vw, vh);
+
+      ctx.save();
+      ctx.translate(vw / 2, vh / 2 + 12);
+      ctx.scale(scale, scale);
+      ctx.translate(-room.w / 2, -room.h / 2);
+
+      // Outer shadow + timber walls
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(10, 14, room.w, room.h);
+
+      // Hardwood Plank Floor
+      ctx.fillStyle = '#9a6b42';
+      ctx.fillRect(0, 0, room.w, room.h);
+      ctx.strokeStyle = 'rgba(69, 26, 3, 0.25)';
+      ctx.lineWidth = 1.5;
+      for (let y = 24; y < room.h; y += 24) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(room.w, y); ctx.stroke();
+      }
+      for (let y = 0; y < room.h; y += 24) {
+        const off = (y % 48 === 0) ? 0 : 48;
+        for (let x = off; x < room.w; x += 96) {
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 24); ctx.stroke();
+        }
+      }
+
+      // North Wall Panel (gives cozy 2.5D depth!)
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(0, 0, room.w, 64);
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(0, 58, room.w, 8);
+
+      // Sunlit / Starry Window reflecting real time of day outside!
+      const nightAlpha = this.getNightAlpha(game.timeMinutes);
+      const winX = room.w / 2 - 58, winY = 10, winW = 116, winH = 42;
+      ctx.fillStyle = nightAlpha > 0.25 ? '#0f172a' : '#38bdf8';
+      ctx.fillRect(winX, winY, winW, winH);
+      if (nightAlpha > 0.25) {
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath(); ctx.arc(winX + 26, winY + 16, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(winX + 74, winY + 12, 3, 3);
+        ctx.fillRect(winX + 92, winY + 24, 2, 2);
+      } else {
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath(); ctx.arc(winX + 88, winY + 15, 9, 0, Math.PI * 2); ctx.fill();
+        // Warm sunbeam shaft onto floor!
+        ctx.fillStyle = 'rgba(254, 240, 138, 0.14)';
+        ctx.beginPath();
+        ctx.moveTo(winX, 64); ctx.lineTo(winX + winW, 64);
+        ctx.lineTo(winX + winW + 45, 220); ctx.lineTo(winX - 45, 220);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4;
+      ctx.strokeRect(winX, winY, winW, winH);
+      ctx.beginPath(); ctx.moveTo(winX + winW / 2, winY); ctx.lineTo(winX + winW / 2, winY + winH); ctx.stroke();
+
+      // Cozy Woven Living-Room Rug in center
+      ctx.fillStyle = '#9f1239';
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(room.w / 2 - 125, room.h / 2 - 62, 250, 136, 12);
+      else ctx.rect(room.w / 2 - 125, room.h / 2 - 62, 250, 136);
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(254, 240, 138, 0.45)'; ctx.lineWidth = 2;
+      ctx.strokeRect(room.w / 2 - 110, room.h / 2 - 48, 220, 108);
+
+      // Draw every furniture spot (Owned = vivid 2D prop; Locked = subtle dashed blueprint!)
+      const hp = game.homePlayer;
+      for (const sp of room.spots) {
+        const unlocked = !sp.decor || game.homeDecor.has(sp.decor);
+        const near = Math.hypot(hp.x - sp.x, hp.y - sp.y) < 76;
+        const sx = sp.x - sp.w / 2, sy = sp.y - sp.h / 2;
+
+        ctx.save();
+        if (!unlocked) {
+          ctx.setLineDash([6, 5]);
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.25)';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.lineWidth = 2;
+          ctx.fillRect(sx, sy, sp.w, sp.h);
+          ctx.strokeRect(sx, sy, sp.w, sp.h);
+          ctx.setLineDash([]);
+          ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.fillText(`🔒 ${sp.icon}`, sp.x, sp.y + 4);
+          ctx.restore();
+          continue;
+        }
+
+        // Glow highlight when player stands nearby!
+        if (near) {
+          ctx.strokeStyle = `rgba(253, 224, 71, ${0.65 + Math.sin(now * 6) * 0.3})`;
+          ctx.lineWidth = 3.5;
+          ctx.strokeRect(sx - 5, sy - 5, sp.w + 10, sp.h + 10);
+        }
+
+        // Custom illustrated furniture graphics!
+        if (sp.kind === 'bed') {
+          ctx.fillStyle = '#78350f'; ctx.fillRect(sx, sy, sp.w, sp.h);
+          ctx.fillStyle = '#f8fafc'; ctx.fillRect(sx + 6, sy + 6, sp.w - 12, 24);
+          ctx.fillStyle = '#38bdf8'; ctx.fillRect(sx + 6, sy + 28, sp.w - 12, sp.h - 34);
+          ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.strokeRect(sx, sy, sp.w, sp.h);
+        } else if (sp.kind === 'pc') {
+          ctx.fillStyle = '#475569'; ctx.fillRect(sx, sy, sp.w, sp.h);
+          ctx.fillStyle = '#0f172a'; ctx.fillRect(sx + 18, sy + 8, sp.w - 36, 26);
+          ctx.fillStyle = '#22d3ee'; ctx.fillRect(sx + 22, sy + 12, sp.w - 44, 18);
+          ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.strokeRect(sx, sy, sp.w, sp.h);
+        } else if (sp.kind === 'sofa') {
+          ctx.fillStyle = '#7c2d12'; ctx.fillRect(sx, sy + 26, sp.w, sp.h - 26);
+          ctx.fillStyle = '#b45309'; ctx.fillRect(sx + 10, sy + 32, sp.w - 20, sp.h - 36);
+          // Flat-screen TV opposite the couch
+          ctx.fillStyle = '#0f172a'; ctx.fillRect(sx + 26, sy, sp.w - 52, 18);
+          ctx.fillStyle = `hsl(${(now * 45) % 360}, 70%, 60%)`; ctx.fillRect(sx + 30, sy + 3, sp.w - 60, 12);
+          ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(sx, sy + 26, sp.w, sp.h - 26);
+        } else if (sp.kind === 'exit') {
+          ctx.fillStyle = '#d97706'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
+          ctx.fillRect(sx, sy, sp.w, sp.h); ctx.strokeRect(sx, sy, sp.w, sp.h);
+          ctx.font = 'bold 11px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#fef3c7';
+          ctx.fillText('🚪 DIŞARI ÇIK', sp.x, sp.y + 4);
+        } else {
+          ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(sx, sy, sp.w, sp.h, 10);
+          else ctx.rect(sx, sy, sp.w, sp.h);
+          ctx.fill(); ctx.stroke();
+        }
+
+        if (sp.kind !== 'exit') {
+          ctx.font = '22px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(sp.icon, sp.x, sp.y + 7);
+        }
+        ctx.restore();
+      }
+
+      // Draw indoor Pet curling/following inside!
+      if (game.pet && game.homePet) {
+        this.drawPet(ctx, game.homePet, { isInWater: () => false }, now);
+      }
+
+      // Draw Player walking inside the room!
+      this.drawCharacter(ctx, hp, true, false, false, now);
+
+      // Room border frame + title badge
+      ctx.strokeStyle = '#451a03'; ctx.lineWidth = 10;
+      ctx.strokeRect(0, 0, room.w, room.h);
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(room.w / 2 - 125, -34, 250, 26);
+      ctx.font = '900 13px Impact, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fde047';
+      ctx.fillText(`🏠 ${(game.playerName || 'SENİN').toUpperCase()} EVİ — [ESC] ÇIK`, room.w / 2, -16);
+
+      // Indoor popups & particles
+      this.drawParticles(ctx, game.particles);
+      this.drawPopups(ctx, game.popups);
+      ctx.restore();
+    }
+
     drawMinimap(game, season) {
       const mctx = this.miniCtx;
       const mw = this.miniCanvas.width, mh = this.miniCanvas.height;
@@ -1030,6 +1300,12 @@ window.YasamDunya = window.YasamDunya || {};
       mctx.beginPath(); mctx.ellipse(game.world.pond.x * sx, game.world.pond.y * sy, game.world.pond.rx * sx, game.world.pond.ry * sy, 0, 0, Math.PI * 2); mctx.fill();
       mctx.fillStyle = '#92400e';
       mctx.fillRect(game.world.pier.x * sx, game.world.pier.y * sy, Math.max(4, game.world.pier.w * sx), game.world.pier.h * sy);
+
+      if (game.world.gardenBounds) {
+        const gb = game.world.gardenBounds;
+        mctx.fillStyle = '#84cc16';
+        mctx.fillRect(gb.x * sx, gb.y * sy, Math.max(5, gb.w * sx), Math.max(4, gb.h * sy));
+      }
 
       mctx.fillStyle = '#1e293b';
       for (const b of game.world.buildings) mctx.fillRect(b.x * sx, b.y * sy, b.w * sx, b.h * sy);

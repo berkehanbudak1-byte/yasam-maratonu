@@ -26,15 +26,20 @@ window.YasamDunya = window.YasamDunya || {};
       this.world = new YD.LifeWorld();
 
       this.started = false;
+      this.scene = 'world'; // 'world' | 'home'
       this.keys = {};
       this.shopOpen = false;
       this.homeOpen = false;
       this.questOpen = false;
       this.helpOpen = false;
       this.bagOpen = false;
+      this.gardenOpen = false;
+      this.cafeOpen = false;
+      this.activePlotId = null;
       this.minimapVisible = true;
 
       this.fishing = { active: false, pos: 0.5, dir: 1, speed: 1.55 };
+      this.barista = { active: false, timeLeft: 25, score: 0, combo: 1, served: 0, order: null, patience: 4.5, maxPatience: 4.5 };
 
       this.playerName = 'Gezgin';
       this.player = {
@@ -43,7 +48,12 @@ window.YasamDunya = window.YasamDunya || {};
         swimming: false, onBike: false, inCar: false, carSpeed: 0,
         speech: '', speechTimer: 0
       };
+      this.homePlayer = {
+        x: 340, y: 350, vx: 0, vy: 0, r: 16, angle: -Math.PI / 2,
+        color: YD.JACKET_COLORS[0].hex, walkCycle: 0
+      };
       this.pet = null; // { kind: 'dog'|'cat', x, y, angle, petCd }
+      this.homePet = null;
       this.parkedCar = null;
       this.skidMarks = [];
       this.damageFlash = 0;
@@ -66,9 +76,11 @@ window.YasamDunya = window.YasamDunya || {};
       this.happiness = 90;
       this.xp = 0;
       this.level = 1;
+      this.ownsCafe = false;
+      this.cafeTotalEarned = 0;
       this.inventory = new Set();
       this.homeDecor = new Set();
-      this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0 };
+      this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0 };
       this.achievements = new Set();
       this.npcHearts = {};
 
@@ -175,6 +187,11 @@ window.YasamDunya = window.YasamDunya || {};
     clearAllKeys() {
       for (const k in this.keys) this.keys[k] = false;
       if (this.player) { this.player.vx = 0; this.player.vy = 0; this.player.carSpeed = 0; }
+      if (this.homePlayer) { this.homePlayer.vx = 0; this.homePlayer.vy = 0; }
+    }
+
+    hasOpenModal() {
+      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen;
     }
 
     bindEvents() {
@@ -182,7 +199,7 @@ window.YasamDunya = window.YasamDunya || {};
       window.addEventListener('blur', () => this.clearAllKeys());
       document.addEventListener('visibilitychange', () => { if (document.hidden) this.clearAllKeys(); });
       window.addEventListener('wheel', (e) => {
-        if (!this.started) return;
+        if (!this.started || this.scene !== 'world') return;
         this.cam.zoom = Math.max(0.62, Math.min(1.45, this.cam.zoom - Math.sign(e.deltaY) * 0.08));
       }, { passive: true });
 
@@ -195,7 +212,6 @@ window.YasamDunya = window.YasamDunya || {};
 
       window.addEventListener('keydown', (e) => {
         if (!this.started) return;
-        // Don't hijack typing inside inputs
         if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
 
         this.audio.unlock();
@@ -203,18 +219,31 @@ window.YasamDunya = window.YasamDunya || {};
         this.keys[e.code] = true;
 
         if (e.code === 'Escape') {
-          this.closeAllModals();
-          if (this.fishing.active) this.stopFishing();
+          if (this.hasOpenModal()) { this.closeAllModals(); return; }
+          if (this.fishing.active) { this.stopFishing(); return; }
+          if (this.barista.active) { this.finishBaristaShift(true); return; }
+          if (this.scene === 'home') { this.exitHome(); return; }
           return;
         }
+
+        if (this.barista.active) {
+          const match = YD.CAFE_ORDERS.find((o) => o.code === e.code || e.key === o.key);
+          if (match) this.serveBarista(match.id);
+          return;
+        }
+
         if (e.code === 'KeyC') { this.toggleBag(!this.bagOpen); return; }
         if (e.code === 'KeyG') { this.toggleQuests(!this.questOpen); return; }
-        if (e.code === 'KeyI') { this.toggleShop(!this.shopOpen); return; }
+        if (e.code === 'KeyI') {
+          if (this.scene === 'home') this.toggleHome(!this.homeOpen);
+          else this.toggleShop(!this.shopOpen);
+          return;
+        }
         if (e.code === 'KeyK') { this.toggleHelp(!this.helpOpen); return; }
         if (e.code === 'KeyM') { this.toggleMap(); return; }
         if (e.code === 'KeyN') { this.toggleMusic(); return; }
 
-        if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen) return;
+        if (this.hasOpenModal()) return;
 
         if (this.fishing.active) {
           if (e.code === 'KeyE' || e.code === 'Space') this.resolveFishingAttempt();
@@ -222,18 +251,22 @@ window.YasamDunya = window.YasamDunya || {};
         }
 
         if (e.code === 'KeyE' || e.code === 'Space') {
-          if (this.player.inCar && e.code === 'Space') {
+          if (this.scene === 'home') {
+            this.handleHomeInteract();
+          } else if (this.player.inCar && e.code === 'Space') {
             this.audio.carHorn();
             this.popup(this.player.x, this.player.y - 34, 'DÜÜT! 🚗', '#fde047');
           } else {
             this.handleInteract();
           }
         }
+        if (e.code === 'KeyP') this.petCompanion();
+        if (this.scene === 'home') return;
+
         if (e.code === 'KeyH' && this.player.inCar) {
           this.audio.carHorn();
           this.popup(this.player.x, this.player.y - 34, 'DÜÜT! 🚗', '#fde047');
         }
-        if (e.code === 'KeyP') this.petCompanion();
         if (e.code === 'KeyB') this.toggleBike();
         if (e.code === 'KeyV') this.toggleCar();
         if (e.code === 'KeyT') this.useHourglass();
@@ -251,6 +284,9 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnShop').addEventListener('click', () => { this.audio.unlock(); this.toggleShop(!this.shopOpen); });
       document.getElementById('btnCloseShop').addEventListener('click', () => this.toggleShop(false));
       document.getElementById('btnCloseHome').addEventListener('click', () => this.toggleHome(false));
+      document.getElementById('btnCloseGarden').addEventListener('click', () => this.toggleGarden(false));
+      document.getElementById('btnCloseCafe').addEventListener('click', () => this.toggleCafe(false));
+      document.getElementById('btnStopBarista').addEventListener('click', () => this.finishBaristaShift(true));
       document.getElementById('btnHomeSleep').addEventListener('click', () => { this.toggleHome(false); this.startNextDay(false); });
       document.getElementById('btnMapToggle').addEventListener('click', () => { this.audio.unlock(); this.toggleMap(); });
       document.getElementById('btnHelp').addEventListener('click', () => { this.audio.unlock(); this.toggleHelp(!this.helpOpen); });
@@ -272,9 +308,10 @@ window.YasamDunya = window.YasamDunya || {};
           ev.preventDefault(); this.audio.unlock(); this.keys[code] = true;
           if (code === 'KeyE') {
             if (this.fishing.active) this.resolveFishingAttempt();
+            else if (this.scene === 'home') this.handleHomeInteract();
             else this.handleInteract();
           }
-          if (code === 'KeyV') this.toggleCar();
+          if (code === 'KeyV' && this.scene === 'world') this.toggleCar();
         };
         const up = (ev) => { ev.preventDefault(); this.keys[code] = false; };
         btn.addEventListener('touchstart', down, { passive: false });
@@ -312,6 +349,7 @@ window.YasamDunya = window.YasamDunya || {};
       if (this.inventory.has('car')) this.unlockAchievement('ach_car');
       if (this.inventory.has('pet_dog') || this.inventory.has('pet_cat')) this.unlockAchievement('ach_pet');
       if (this.homeDecor.size >= 3) this.unlockAchievement('ach_decor');
+      if (this.ownsCafe) this.unlockAchievement('ach_barista');
     }
 
     syncPetFromInventory() {
@@ -335,8 +373,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.pet.petCd = 3.0;
       this.happiness = Math.min(100, this.happiness + 12);
       this.audio.pickup();
-      this.burst(this.pet.x, this.pet.y, '#f472b6', 14);
-      this.popup(this.pet.x, this.pet.y - 24, this.pet.kind === 'dog' ? 'HAV! ❤️ +12 Mutluluk' : 'MİYAV! ❤️ +12 Mutluluk', '#f9a8d4');
+      const pRef = (this.scene === 'home' && this.homePet) ? this.homePet : this.pet;
+      this.burst(pRef.x, pRef.y, '#f472b6', 14);
+      this.popup(pRef.x, pRef.y - 24, this.pet.kind === 'dog' ? 'HAV! ❤️ +12 Mutluluk' : 'MİYAV! ❤️ +12 Mutluluk', '#f9a8d4');
     }
 
     saveGame() {
@@ -346,6 +385,8 @@ window.YasamDunya = window.YasamDunya || {};
         dailyEventIdx: this.dailyEventIdx, timeMinutes: this.timeMinutes,
         money: this.money, health: this.health, energy: this.energy,
         hunger: this.hunger, happiness: this.happiness, xp: this.xp, level: this.level,
+        ownsCafe: this.ownsCafe, cafeTotalEarned: this.cafeTotalEarned,
+        gardenPlots: this.world.gardenPlots.map((g) => ({ crop: g.crop, growth: g.growth, watered: g.watered })),
         inventory: [...this.inventory], homeDecor: [...this.homeDecor],
         bag: this.bag, achievements: [...this.achievements], npcHearts: this.npcHearts,
         questProgress: this.questProgress, questDone: [...this.questDone],
@@ -368,9 +409,20 @@ window.YasamDunya = window.YasamDunya || {};
         this.money = d.money ?? 160; this.health = d.health ?? 100;
         this.energy = d.energy ?? 100; this.hunger = d.hunger ?? 95;
         this.happiness = d.happiness ?? 90; this.xp = d.xp || 0; this.level = d.level || 1;
+        this.ownsCafe = !!d.ownsCafe;
+        this.cafeTotalEarned = d.cafeTotalEarned || 0;
+        if (Array.isArray(d.gardenPlots)) {
+          d.gardenPlots.forEach((gp, idx) => {
+            if (this.world.gardenPlots[idx]) {
+              this.world.gardenPlots[idx].crop = gp.crop || null;
+              this.world.gardenPlots[idx].growth = gp.growth || 0;
+              this.world.gardenPlots[idx].watered = !!gp.watered;
+            }
+          });
+        }
         this.inventory = new Set(d.inventory || []);
         this.homeDecor = new Set(d.homeDecor || []);
-        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, ...(d.bag || {}) };
+        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, ...(d.bag || {}) };
         this.achievements = new Set(d.achievements || []);
         this.npcHearts = d.npcHearts || {};
         this.questProgress = d.questProgress || {};
@@ -475,17 +527,373 @@ window.YasamDunya = window.YasamDunya || {};
 
     closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = false;
-      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal'].forEach((id) => {
+      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = false;
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal'].forEach((id) => {
         document.getElementById(id).classList.add('hidden');
       });
     }
 
-    toggleShop(open)   { this.closeAllModals(); this.shopOpen = open;  document.getElementById('shopModal').classList.toggle('hidden', !open);  if (open) this.renderShop(); }
-    toggleHome(open)   { this.closeAllModals(); this.homeOpen = open;  document.getElementById('homeModal').classList.toggle('hidden', !open);  if (open) this.renderHomeModal(); }
-    toggleQuests(open) { this.closeAllModals(); this.questOpen = open; document.getElementById('questModal').classList.toggle('hidden', !open); if (open) this.renderQuests(); }
-    toggleBag(open)    { this.closeAllModals(); this.bagOpen = open;   document.getElementById('bagModal').classList.toggle('hidden', !open);   if (open) this.renderBag(); }
-    toggleHelp(open)   { this.closeAllModals(); this.helpOpen = open;  document.getElementById('helpModal').classList.toggle('hidden', !open); }
+    toggleShop(open)   { this.closeAllModals(); this.shopOpen = open;   document.getElementById('shopModal').classList.toggle('hidden', !open);   if (open) this.renderShop(); }
+    toggleHome(open)   { this.closeAllModals(); this.homeOpen = open;   document.getElementById('homeModal').classList.toggle('hidden', !open);   if (open) this.renderHomeModal(); }
+    toggleQuests(open) { this.closeAllModals(); this.questOpen = open;  document.getElementById('questModal').classList.toggle('hidden', !open);  if (open) this.renderQuests(); }
+    toggleBag(open)    { this.closeAllModals(); this.bagOpen = open;    document.getElementById('bagModal').classList.toggle('hidden', !open);    if (open) this.renderBag(); }
+    toggleHelp(open)   { this.closeAllModals(); this.helpOpen = open;   document.getElementById('helpModal').classList.toggle('hidden', !open); }
+    toggleGarden(open, plotId = null) {
+      this.closeAllModals();
+      this.gardenOpen = open;
+      this.activePlotId = plotId;
+      document.getElementById('gardenModal').classList.toggle('hidden', !open);
+      if (open) this.renderGardenModal();
+    }
+    toggleCafe(open) {
+      this.closeAllModals();
+      this.cafeOpen = open;
+      document.getElementById('cafeModal').classList.toggle('hidden', !open);
+      if (open) this.renderCafeModal();
+    }
+
+    renderGardenModal() {
+      const grid = document.getElementById('gardenSeedGrid');
+      if (!grid) return;
+      grid.innerHTML = Object.values(YD.CROPS).map((c) => `
+        <div class="shop-item">
+          <div style="font-size:24px;">${c.icon}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:800; color:#f8fafc;">${c.name} Tohumu</div>
+            <div style="font-size:11px; color:#94a3b8;">Büyüme: ~${c.growSec}sn · Satış: ₺${c.sell}${c.xp ? ` · +${c.xp} XP` : ''}</div>
+          </div>
+          <button class="shop-buy-btn" data-seed="${c.id}">EK ₺${c.seedPrice}</button>
+        </div>
+      `).join('');
+
+      grid.querySelectorAll('[data-seed]').forEach((btn) => {
+        btn.addEventListener('click', () => this.plantSeed(btn.dataset.seed));
+      });
+    }
+
+    plantSeed(cropId) {
+      const plot = this.world.gardenPlots.find((p) => p.id === this.activePlotId);
+      const c = YD.CROPS[cropId];
+      if (!plot || !c || plot.crop) return;
+      if (this.money < c.seedPrice) {
+        this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444');
+        return;
+      }
+      this.money -= c.seedPrice;
+      plot.crop = cropId;
+      plot.growth = 0.02;
+      plot.watered = (this.weatherIdx === 1 || this.weatherIdx === 2);
+      this.audio.pickup();
+      this.burst(plot.x, plot.y, '#84cc16', 14);
+      this.popup(plot.x, plot.y - 24, `🌱 ${c.name} Ekildi! ([E] Sula)`, '#bef264');
+      this.toggleGarden(false);
+      this.saveGame();
+    }
+
+    renderCafeModal() {
+      const title = document.getElementById('cafeModalTitle');
+      const banner = document.getElementById('cafeStatusBanner');
+      const grid = document.getElementById('cafeActionsGrid');
+      if (!grid) return;
+
+      if (this.ownsCafe) {
+        if (title) title.textContent = `⭐ ${this.playerName.toUpperCase()} KAFE`;
+        if (banner) banner.innerHTML = `☕ <b>Kafe Sahibi Sensin!</b> · Her sabah pasif gelir: <b>+₺95–145</b> · Toplam Kazanç: <b>₺${this.cafeTotalEarned}</b>`;
+        grid.innerHTML = `
+          <div class="shop-item">
+            <div style="font-size:24px;">🔥</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800; color:#fde047;">Barista Vardiyası (25sn Mini-Oyun)</div>
+              <div style="font-size:11px; color:#94a3b8;">[1-4] tuşlarıyla siparişleri yetiştir, kombo yap, dev bahşiş topla!</div>
+            </div>
+            <button id="btnStartBarista" class="shop-buy-btn">BAŞLAT ▶</button>
+          </div>
+          <div class="shop-item">
+            <div style="font-size:24px;">☕</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800; color:#f8fafc;">Patronun Özel Lattesi</div>
+              <div style="font-size:11px; color:#94a3b8;">Kendi kafenden ücretsiz taze kahve &amp; kruvasan! (+35 Enerji, +35 Tokluk)</div>
+            </div>
+            <button id="btnCafeDrink" class="shop-buy-btn">ÜCRETSİZ</button>
+          </div>`;
+        document.getElementById('btnStartBarista').addEventListener('click', () => {
+          this.toggleCafe(false);
+          this.startBaristaShift();
+        });
+      } else {
+        if (title) title.textContent = '☕ KAFE & FIRIN';
+        if (banner) banner.innerHTML = `☕ Sıcak kahve iç veya <b>₺${YD.CAFE_PRICE}</b> biriktirip bu kafeyi satın al!`;
+        grid.innerHTML = `
+          <div class="shop-item">
+            <div style="font-size:24px;">☕</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800; color:#f8fafc;">Latte &amp; Sıcak Simit</div>
+              <div style="font-size:11px; color:#94a3b8;">+35 Enerji · +35 Tokluk · +18 Mutluluk</div>
+            </div>
+            <button id="btnCafeDrink" class="shop-buy-btn">₺25</button>
+          </div>
+          <div class="shop-item">
+            <div style="font-size:24px;">⭐</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800; color:#fde047;">Kafeyi Satın Al &amp; Patron Ol!</div>
+              <div style="font-size:11px; color:#94a3b8;">Adın tabelaya yazılır, her gün pasif gelir + Barista Mini-Oyunu açılır!</div>
+            </div>
+            <button id="btnBuyCafe" class="shop-buy-btn">₺${YD.CAFE_PRICE}</button>
+          </div>`;
+        document.getElementById('btnBuyCafe').addEventListener('click', () => {
+          if (this.money < YD.CAFE_PRICE) {
+            this.popup(this.player.x, this.player.y - 34, `₺${YD.CAFE_PRICE} gerekiyor!`, '#ef4444');
+            return;
+          }
+          this.money -= YD.CAFE_PRICE;
+          this.ownsCafe = true;
+          this.audio.levelUp();
+          this.burst(this.player.x, this.player.y, '#fde047', 26);
+          this.showToast(`⭐ TEBRİKLER! ${this.playerName} KAFE artık senin!`);
+          this.checkAchievements();
+          this.renderCafeModal();
+          this.saveGame();
+        });
+      }
+
+      const drinkBtn = document.getElementById('btnCafeDrink');
+      if (drinkBtn) {
+        drinkBtn.addEventListener('click', () => {
+          const cost = this.ownsCafe ? 0 : 25;
+          if (this.money < cost) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
+          this.money -= cost;
+          this.energy = Math.min(100, this.energy + 35);
+          this.hunger = Math.min(100, this.hunger + 35);
+          this.happiness = Math.min(100, this.happiness + 18);
+          this.audio.pickup();
+          this.popup(this.player.x, this.player.y - 34, this.ownsCafe ? '☕ Patron İkramı! +Enerji' : '☕ Latte & Simit! +Enerji', '#fb923c');
+          this.toggleCafe(false);
+          this.saveGame();
+        });
+      }
+    }
+
+    startBaristaShift() {
+      if (this.energy < 15) {
+        this.say(this.player, 'Barista vardiyası için biraz enerji lazım! ☕', 2.2);
+        return;
+      }
+      this.clearAllKeys();
+      this.barista = { active: true, timeLeft: 25, score: 0, combo: 1, served: 0, order: null, patience: 4.5, maxPatience: 4.5 };
+      const btns = document.getElementById('baristaBtns');
+      if (btns) {
+        btns.innerHTML = YD.CAFE_ORDERS.map((o) =>
+          `<button class="barista-serve-btn" data-serve="${o.id}"><kbd>${o.key}</kbd> ${o.icon} ${o.name}</button>`
+        ).join('');
+        btns.querySelectorAll('[data-serve]').forEach((b) => {
+          b.addEventListener('click', () => this.serveBarista(b.dataset.serve));
+        });
+      }
+      this.nextBaristaOrder();
+      document.getElementById('baristaWrap').classList.remove('hidden');
+      this.audio.pickup();
+    }
+
+    nextBaristaOrder() {
+      const pick = YD.CAFE_ORDERS[Math.floor(Math.random() * YD.CAFE_ORDERS.length)];
+      this.barista.order = pick;
+      this.barista.maxPatience = Math.max(2.3, 4.4 - this.barista.served * 0.12);
+      this.barista.patience = this.barista.maxPatience;
+      document.getElementById('baristaOrderIcon').textContent = pick.icon;
+      document.getElementById('baristaOrderName').textContent = `[${pick.key}] ${pick.name}`;
+      this.updateBaristaUI();
+    }
+
+    serveBarista(id) {
+      if (!this.barista.active || !this.barista.order) return;
+      if (id === this.barista.order.id) {
+        const gain = 20 * Math.min(4, this.barista.combo);
+        this.barista.score += gain;
+        this.barista.served++;
+        this.barista.combo = Math.min(4, this.barista.combo + 1);
+        this.audio.coin();
+        this.nextBaristaOrder();
+      } else {
+        this.barista.combo = 1;
+        this.audio.miss();
+        this.updateBaristaUI();
+      }
+    }
+
+    updateBaristaUI() {
+      document.getElementById('baristaTimer').textContent = `${Math.ceil(this.barista.timeLeft)}s`;
+      document.getElementById('baristaScore').textContent = `₺${this.barista.score}`;
+      document.getElementById('baristaCombo').textContent = `x${this.barista.combo}${this.barista.combo >= 3 ? ' 🔥' : ''}`;
+      const pct = Math.max(0, (this.barista.patience / this.barista.maxPatience) * 100);
+      document.getElementById('baristaPatienceFill').style.width = `${pct}%`;
+    }
+
+    finishBaristaShift(early = false) {
+      if (!this.barista.active) return;
+      this.barista.active = false;
+      document.getElementById('baristaWrap').classList.add('hidden');
+      const earned = this.barista.score;
+      const served = this.barista.served;
+      this.energy = Math.max(0, this.energy - 14);
+      this.timeMinutes += 60;
+      if (earned > 0) {
+        this.money += earned;
+        this.cafeTotalEarned += earned;
+        this.happiness = Math.min(100, this.happiness + 16);
+        this.addXp(20 + served * 4);
+        this.audio.levelUp();
+        this.burst(this.player.x, this.player.y, '#fde047', 22);
+        this.showToast(`☕ Barista Vardiyası Bitti! ${served} sipariş · +₺${earned}!`);
+        this.advanceQuest('q_cafe', 1);
+      } else if (!early) {
+        this.showToast('☕ Vardiya bitti — bir dahaki sefere daha hızlı servis et!');
+      }
+      this.checkAchievements();
+      this.saveGame();
+    }
+
+    // --- WALKABLE COZY HOME INTERIOR ---
+    enterHome() {
+      this.clearAllKeys();
+      this.player.onBike = false;
+      if (this.player.inCar) {
+        this.player.inCar = false;
+        this.parkedCar = { x: 2062, y: 1560, angle: 0 };
+      }
+      this.scene = 'home';
+      this.homePlayer.x = 340;
+      this.homePlayer.y = 355;
+      this.homePlayer.angle = -Math.PI / 2;
+      this.homePlayer.color = this.player.color;
+      this.homePet = this.pet ? { kind: this.pet.kind, x: 300, y: 360, angle: -Math.PI / 2 } : null;
+      this.audio.pickup();
+      this.showToast('🏠 Evine Hoş Geldin! Odada gez, [E] ile eşyaları kullan veya [ESC] ile çık.');
+    }
+
+    exitHome() {
+      this.clearAllKeys();
+      this.closeAllModals();
+      this.scene = 'world';
+      this.player.x = 2062;
+      this.player.y = 1525;
+      this.player.angle = Math.PI / 2;
+      this.audio.pickup();
+    }
+
+    findNearestHomeInteraction() {
+      const hp = this.homePlayer;
+      let best = null, bestD = 76;
+      for (const sp of YD.HOME_ROOM.spots) {
+        const d = Math.hypot(hp.x - sp.x, hp.y - sp.y);
+        if (d < bestD) {
+          bestD = d;
+          const unlocked = !sp.decor || this.homeDecor.has(sp.decor);
+          best = {
+            spot: sp,
+            unlocked,
+            text: unlocked ? `[E] ${sp.icon} ${sp.label}` : `[E] 🔒 ${sp.icon} Katalogdan Satın Al`
+          };
+        }
+      }
+      return best;
+    }
+
+    handleHomeInteract() {
+      const hit = this.findNearestHomeInteraction();
+      if (!hit) return;
+      const hp = this.homePlayer;
+      if (!hit.unlocked) {
+        this.toggleHome(true);
+        return;
+      }
+      const k = hit.spot.kind;
+      if (k === 'exit') {
+        this.exitHome();
+      } else if (k === 'catalog') {
+        this.toggleHome(true);
+      } else if (k === 'bed') {
+        this.startNextDay(false);
+      } else if (k === 'espresso') {
+        this.energy = Math.min(100, this.energy + 25);
+        this.happiness = Math.min(100, this.happiness + 10);
+        this.audio.pickup();
+        this.burst(hp.x, hp.y, '#fb923c', 12);
+        this.popup(hp.x, hp.y - 26, '☕ Taze Ev Espressosu! +25 Enerji', '#fb923c');
+      } else if (k === 'plants') {
+        this.health = Math.min(100, this.health + 12);
+        this.happiness = Math.min(100, this.happiness + 10);
+        this.audio.pickup();
+        this.burst(hp.x, hp.y, '#4ade80', 12);
+        this.popup(hp.x, hp.y - 26, '🪴 Bitkilerle Huzur! +12 Sağlık', '#4ade80');
+      } else if (k === 'pc') {
+        if (this.energy < 18) { this.popup(hp.x, hp.y - 26, 'Çok yorgunsun, yatağa git! 🛏️', '#ef4444'); return; }
+        this.energy -= 18; this.money += 95; this.addXp(22); this.timeMinutes += 75;
+        this.audio.coin(); this.burst(hp.x, hp.y, '#38bdf8', 14);
+        this.popup(hp.x, hp.y - 26, '🖥️ Remote İş Tamam! +₺95', '#4ade80');
+        this.advanceQuest('q_work', 1);
+      } else if (k === 'sofa') {
+        this.happiness = Math.min(100, this.happiness + 35);
+        this.energy = Math.min(100, this.energy + 15);
+        this.timeMinutes += 45; this.audio.pickup();
+        this.popup(hp.x, hp.y - 26, '🛋️ Süper Film Molası! +35 Mutluluk', '#38bdf8');
+      } else if (k === 'guitar') {
+        this.happiness = Math.min(100, this.happiness + 25);
+        this.addXp(10); this.audio.guitar();
+        this.burst(hp.x, hp.y, '#fde047', 12);
+        this.popup(hp.x, hp.y - 26, '🎸 Akustik Ritim! +25 Mutluluk', '#fde047');
+      }
+      this.checkAchievements();
+      this.saveGame();
+    }
+
+    updateHome(dt) {
+      const hp = this.homePlayer;
+      hp.color = this.player.color;
+
+      let ix = 0, iy = 0;
+      if (this.keys['KeyW'] || this.keys['ArrowUp']) iy -= 1;
+      if (this.keys['KeyS'] || this.keys['ArrowDown']) iy += 1;
+      if (this.keys['KeyA'] || this.keys['ArrowLeft']) ix -= 1;
+      if (this.keys['KeyD'] || this.keys['ArrowRight']) ix += 1;
+      const len = Math.hypot(ix, iy);
+      if (len === 0) {
+        hp.vx = 0; hp.vy = 0;
+      } else {
+        ix /= len; iy /= len;
+        const spd = 215;
+        hp.vx = ix * spd; hp.vy = iy * spd;
+        hp.angle = Math.atan2(iy, ix);
+        hp.walkCycle += dt * 11;
+      }
+      hp.x = Math.max(28, Math.min(YD.HOME_ROOM.w - 28, hp.x + hp.vx * dt));
+      hp.y = Math.max(80, Math.min(YD.HOME_ROOM.h - 22, hp.y + hp.vy * dt));
+
+      if (this.pet && this.homePet) {
+        this.pet.petCd = Math.max(0, this.pet.petCd - dt);
+        const dx = hp.x - this.homePet.x, dy = hp.y - this.homePet.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 42) {
+          const ang = Math.atan2(dy, dx);
+          this.homePet.angle = ang;
+          this.homePet.x += Math.cos(ang) * Math.min(260, d * 4) * dt;
+          this.homePet.y += Math.sin(ang) * Math.min(260, d * 4) * dt;
+        }
+      }
+
+      // Keep world crops growing while you relax inside!
+      this.world.update(dt, this.player, null, YD.WEATHERS[this.weatherIdx].id);
+
+      for (let i = this.particles.length - 1; i >= 0; i--) {
+        const pt = this.particles[i]; pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt;
+        if (pt.life <= 0) this.particles.splice(i, 1);
+      }
+      for (let i = this.popups.length - 1; i >= 0; i--) {
+        const pp = this.popups[i]; pp.y -= 36 * dt; pp.life -= dt;
+        if (pp.life <= 0) this.popups.splice(i, 1);
+      }
+
+      this.updateHUD('home');
+    }
 
     handleCarHitPlayer(car) {
       if (this.carHitInvuln > 0) return;
@@ -756,6 +1164,16 @@ window.YasamDunya = window.YasamDunya || {};
 
     findNearestInteraction() {
       const p = this.player;
+      for (const plot of this.world.gardenPlots) {
+        if (Math.hypot(p.x - plot.x, p.y - plot.y) < 46) {
+          if (!plot.crop) return { kind: 'garden', ref: plot, text: '[E] 🌱 Tohum Ek (Bahçen)' };
+          const info = YD.CROPS[plot.crop];
+          if (plot.growth >= 1) return { kind: 'garden', ref: plot, text: `[E] 🧺 ${info.icon} ${info.name} Hasat Et!` };
+          const pct = Math.floor(plot.growth * 100);
+          if (!plot.watered) return { kind: 'garden', ref: plot, text: `[E] 💧 ${info.name} Sula (2x Hız — %${pct})` };
+          return { kind: 'garden', ref: plot, text: `🌿 ${info.icon} ${info.name} Büyüyor (%${pct})` };
+        }
+      }
       for (const fg of this.world.forageables) {
         if (!fg.collected && Math.hypot(p.x - fg.x, p.y - fg.y) < 52) {
           const lbl = fg.kind === 'crystal' ? '💎 Zirve Kristali Topla' : (fg.kind === 'berry' ? '🍓 Böğürtlen Topla' : '🍄 Mantar Topla');
@@ -770,6 +1188,8 @@ window.YasamDunya = window.YasamDunya || {};
       }
       for (const it of this.world.interactables) {
         if (Math.hypot(p.x - it.x, p.y - it.y) < it.r + 24) {
+          if (it.kind === 'home') return { kind: 'home', ref: it, text: '[E] 🏠 EVİNİN İÇİNE GİR' };
+          if (it.kind === 'cafe') return { kind: 'cafe', ref: it, text: this.ownsCafe ? `[E] ⭐ ${this.playerName} KAFE (Barista & İkram)` : '[E] ☕ KAFE & FIRIN (İç / Satın Al)' };
           return { kind: it.kind, ref: it, text: `[E] ${it.label}` };
         }
       }
@@ -777,13 +1197,38 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     handleInteract() {
-      if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen) return;
+      if (this.hasOpenModal()) return;
       const target = this.findNearestInteraction();
       if (!target) return;
       const p = this.player;
       const bonusMult = this.inventory.has('sisyphus') ? 1.4 : 1.0;
 
-      if (target.kind === 'forage') {
+      if (target.kind === 'garden') {
+        const plot = target.ref;
+        if (!plot.crop) {
+          this.toggleGarden(true, plot.id);
+          return;
+        }
+        const info = YD.CROPS[plot.crop];
+        if (plot.growth >= 1) {
+          this.bag[plot.crop] = (this.bag[plot.crop] || 0) + 1;
+          this.addXp(info.xp || 20);
+          this.happiness = Math.min(100, this.happiness + (info.happy || 10));
+          plot.crop = null; plot.growth = 0; plot.watered = false;
+          this.audio.levelUp();
+          this.burst(plot.x, plot.y, '#fde047', 18);
+          this.popup(plot.x, plot.y - 26, `🧺 ${info.icon} ${info.name} Çantada! [C]`, '#fde047');
+          this.unlockAchievement('ach_farmer');
+          this.advanceQuest('q_garden', 1);
+        } else if (!plot.watered) {
+          plot.watered = true;
+          this.audio.splash();
+          this.burst(plot.x, plot.y, '#38bdf8', 14);
+          this.popup(plot.x, plot.y - 24, '💧 Sulandı! 2x Hızlı Büyüyecek!', '#38bdf8');
+        } else {
+          this.popup(plot.x, plot.y - 24, `🌿 Büyüyor (%${Math.floor(plot.growth * 100)})`, '#4ade80');
+        }
+      } else if (target.kind === 'forage') {
         target.ref.collected = true;
         target.ref.respawnTimer = 42;
         const k = target.ref.kind;
@@ -813,7 +1258,8 @@ window.YasamDunya = window.YasamDunya || {};
         this.audio.levelUp();
         this.popup(p.x, p.y - 34, '🏥 %100 SAĞLIK! (-₺30)', '#4ade80');
       } else if (target.kind === 'home') {
-        this.toggleHome(true);
+        this.enterHome();
+        return;
       } else if (target.kind === 'lodge' || target.kind === 'hotspring') {
         this.health = 100; this.energy = Math.min(100, this.energy + 45);
         this.happiness = Math.min(100, this.happiness + 30); this.timeMinutes += 40;
@@ -839,11 +1285,8 @@ window.YasamDunya = window.YasamDunya || {};
         this.popup(p.x, p.y - 34, `+₺${pay} (${career.title}) 💼`, '#facc15');
         this.advanceQuest('q_work', 1);
       } else if (target.kind === 'cafe') {
-        if (this.money < 25) { this.say(p, 'Kahve için ₺25 gerekiyor!', 2.0); return; }
-        this.money -= 25; this.energy = Math.min(100, this.energy + 35);
-        this.hunger = Math.min(100, this.hunger + 35); this.happiness = Math.min(100, this.happiness + 18);
-        this.audio.pickup();
-        this.popup(p.x, p.y - 34, '☕ Latte & Simit! +Enerji +Tokluk', '#fb923c');
+        this.toggleCafe(true);
+        return;
       } else if (target.kind === 'study') {
         if (this.energy < 18) { this.say(p, 'Kafam almıyor, dinlenmeliyim!', 2.0); return; }
         this.energy -= 18; this.timeMinutes += 90;
@@ -900,6 +1343,15 @@ window.YasamDunya = window.YasamDunya || {};
       this.hunger = Math.max(45, this.hunger - 12);
       this.audio.sleep();
 
+      // Passive Daily Cafe Profit if player owns the cafe!
+      let cafeMsg = '';
+      if (this.ownsCafe) {
+        const profit = 95 + Math.floor(Math.random() * 51);
+        this.money += profit;
+        this.cafeTotalEarned += profit;
+        cafeMsg = ` • ☕ Kafe Geliri +₺${profit}`;
+      }
+
       const r = Math.random();
       this.weatherIdx = this.seasonIdx === 3 ? (r < 0.6 ? 3 : 0) : (r < 0.58 ? 0 : (r < 0.85 ? 1 : 2));
       this.dailyEventIdx = Math.floor(Math.random() * YD.DAILY_EVENTS.length);
@@ -910,10 +1362,12 @@ window.YasamDunya = window.YasamDunya || {};
         this.pastEcho = { x: this.yesterdayPath[0].x, y: this.yesterdayPath[0].y, idx: 0, claimed: false };
       }
 
+      this.scene = 'world';
       this.player.x = 2062; this.player.y = 1525;
       this.player.onBike = false; this.player.inCar = false;
       const s = YD.SEASONS[this.seasonIdx], ev = YD.DAILY_EVENTS[this.dailyEventIdx];
-      this.showToast(`☀️ Gün ${this.day} (${s.icon} ${s.name}) • ${ev.icon} ${ev.name}`);
+      this.showToast(`☀️ Gün ${this.day} (${s.icon} ${s.name}) • ${ev.icon} ${ev.name}${cafeMsg}`);
+      this.checkAchievements();
       this.saveGame();
     }
 
@@ -923,19 +1377,37 @@ window.YasamDunya = window.YasamDunya || {};
 
       // Live scenic world pan behind Title Screen!
       if (!this.started) {
-        this.world.update(dt, this.player, null);
+        this.world.update(dt, this.player, null, YD.WEATHERS[this.weatherIdx].id);
         this.cam.x = 2300 + Math.sin(performance.now() * 0.00018) * 750;
         this.cam.y = 1750 + Math.cos(performance.now() * 0.00015) * 650;
         return;
       }
 
-      if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen) return;
+      if (this.hasOpenModal()) return;
+
+      if (this.barista.active) {
+        this.barista.timeLeft -= dt;
+        this.barista.patience -= dt;
+        if (this.barista.patience <= 0) {
+          this.barista.combo = 1;
+          this.audio.miss();
+          this.nextBaristaOrder();
+        }
+        this.updateBaristaUI();
+        if (this.barista.timeLeft <= 0) this.finishBaristaShift(false);
+        return;
+      }
 
       if (this.fishing.active) {
         this.fishing.pos += this.fishing.dir * this.fishing.speed * dt;
         if (this.fishing.pos >= 1) { this.fishing.pos = 1; this.fishing.dir = -1; }
         if (this.fishing.pos <= 0) { this.fishing.pos = 0; this.fishing.dir = 1; }
         document.getElementById('fishCursor').style.left = `${this.fishing.pos * 100}%`;
+        return;
+      }
+
+      if (this.scene === 'home') {
+        this.updateHome(dt);
         return;
       }
 
@@ -1069,7 +1541,7 @@ window.YasamDunya = window.YasamDunya || {};
         } else npc.angle += Math.PI;
       }
 
-      this.world.update(dt, p, (car) => this.handleCarHitPlayer(car));
+      this.world.update(dt, p, (car) => this.handleCarHitPlayer(car), YD.WEATHERS[this.weatherIdx].id);
 
       for (let i = this.skidMarks.length - 1; i >= 0; i--) {
         this.skidMarks[i].alpha -= dt * 0.08;
@@ -1118,11 +1590,11 @@ window.YasamDunya = window.YasamDunya || {};
       const mins = Math.floor(this.timeMinutes % 60);
       const s = YD.SEASONS[this.seasonIdx], w = YD.WEATHERS[this.weatherIdx];
       document.getElementById('clockBadge').textContent = `${s.icon} GÜN ${this.day} • YAŞ ${this.age} • ${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')} • ${w.icon}`;
-      document.getElementById('biomeBadge').textContent = this.world.getBiomeLabel(biome);
+      document.getElementById('biomeBadge').textContent = biome === 'home' ? '🏠 EVİNİN İÇİ' : this.world.getBiomeLabel(biome);
 
-      const prompt = this.findNearestInteraction();
+      const prompt = this.scene === 'home' ? this.findNearestHomeInteraction() : this.findNearestInteraction();
       const promptEl = document.getElementById('interactPrompt');
-      if (prompt && !this.fishing.active) {
+      if (prompt && !this.fishing.active && !this.barista.active) {
         promptEl.textContent = prompt.text;
         promptEl.classList.remove('hidden');
       } else {

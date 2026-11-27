@@ -34,6 +34,24 @@ window.YasamDunya = window.YasamDunya || {};
       this.altar = { x: 520, y: 920, r: 34 };
       this.lighthouse = { x: 4220, y: 2830, r: 38, beamAngle: 0 };
 
+      // Personal 6-Plot Organic Garden right beside your Home!
+      this.gardenBounds = { x: 2215, y: 1345, w: 310, h: 150 };
+      this.gardenPlots = [];
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 3; col++) {
+          this.gardenPlots.push({
+            id: row * 3 + col,
+            x: 2272 + col * 98,
+            y: 1388 + row * 64,
+            w: 76,
+            h: 46,
+            crop: null,
+            growth: 0,
+            watered: false
+          });
+        }
+      }
+
       this.buildWorld();
     }
 
@@ -327,8 +345,21 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
-    update(dt, player, onCarHitPlayer) {
+    update(dt, player, onCarHitPlayer, weatherId) {
       this.lighthouse.beamAngle += dt * 0.9;
+
+      // Grow organic garden crops (2x speed when watered; rain auto-waters!)
+      const raining = weatherId === 'rain' || weatherId === 'storm';
+      for (const plot of this.gardenPlots) {
+        if (!plot.crop) continue;
+        if (raining) plot.watered = true;
+        if (plot.growth < 1) {
+          const info = YD.CROPS[plot.crop];
+          const rate = (plot.watered ? 2.0 : 1.0) / (info ? info.growSec : 40);
+          plot.growth = Math.min(1, plot.growth + dt * rate);
+        }
+      }
+
       for (const fg of this.forageables) {
         if (fg.collected) {
           fg.respawnTimer -= dt;

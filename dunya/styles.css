@@ -299,3 +299,48 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
   background: rgba(250, 204, 21, 0.14); border-color: rgba(250, 204, 21, 0.5);
   color: #fef08a;
 }
+
+/* v5 ADDITIONS: BARISTA RUSH MINI-GAME OVERLAY */
+.barista-wrap {
+  position: fixed; left: 50%; top: 52%; transform: translate(-50%, -50%);
+  width: min(370px, 92vw); padding: 14px 16px; pointer-events: auto;
+  border-color: rgba(250, 204, 21, 0.7); text-align: center;
+  z-index: 25;
+}
+.barista-top {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; font-weight: 900; margin-bottom: 10px;
+}
+.barista-order-box {
+  background: rgba(30, 41, 59, 0.9); border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px; padding: 12px; margin-bottom: 10px;
+}
+.barista-order-icon {
+  font-size: 46px; line-height: 1.1; margin: 4px 0;
+}
+.barista-order-name {
+  font-size: 15px; font-weight: 900; color: #fde047; margin-bottom: 8px;
+}
+.barista-patience-track {
+  height: 7px; border-radius: 99px; background: rgba(255,255,255,0.12); overflow: hidden;
+}
+.barista-patience-fill {
+  height: 100%; width: 100%; background: linear-gradient(90deg, #ef4444, #facc15, #4ade80);
+  transition: width 0.08s linear;
+}
+.barista-btns {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+}
+.barista-serve-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 8px; border-radius: 10px; border: 1.5px solid rgba(255,255,255,0.22);
+  background: rgba(15, 23, 42, 0.88); color: #f8fafc; font-weight: 900; font-size: 13px;
+  cursor: pointer; transition: transform 0.08s, border-color 0.12s;
+}
+.barista-serve-btn:hover { border-color: #fde047; transform: translateY(-1px); }
+.barista-serve-btn:active { transform: scale(0.96); }
+.barista-serve-btn kbd {
+  padding: 2px 5px; border-radius: 4px; background: rgba(250, 204, 21, 0.2);
+  color: #fde047; font-size: 11px; font-family: monospace;
+}
+
