@@ -1,0 +1,22 @@
+{
+  "name": "Yaşam Maratonu: Büyük Dünya",
+  "short_name": "Yaşam Maratonu",
+  "description": "60 FPS Açık Dünya Yaşam Simülatörü — Karlı Zirve, Orman, Şehir, Yeşil Park, Altın Sahil & Deniz!",
+  "start_url": "./dunya.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./index.icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./index.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

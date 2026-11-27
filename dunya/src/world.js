@@ -1,11 +1,7 @@
 /**
- * Yaşam Maratonu: Büyük Dünya v2 — 5-Biome Open World Generator (4600 x 3600)
- * Biomes:
- *  - Karlı Zirve & Dağ Yaylası (North: Hot Spring, Summit Crystals, Ski Lodge, Sisyphus Summit Rock)
- *  - Kuzey Ormanı (West: Pine/Oak Forest, Campfire, Deer/Rabbits, Berries/Mushrooms, Ancient 4D Altar)
- *  - Şehir Merkezi (Center: Home + Garage, Office, Cafe, University, Market/Antique Shop, Roads & Traffic)
- *  - Yeşil Park & Gölet (East: Park Pond, Ducks, Jogging Track, Gym Zone, Benches, Blossom Trees)
- *  - Altın Sahil & Turkuaz Deniz (South: Beach, Palms, Umbrellas, Swimmable Sea, Fishing Pier, Lighthouse, Sailboats)
+ * Yaşam Maratonu: Büyük Dünya v3 — 5-Biome Open World with Closed City Ring-Road Traffic!
+ * Cars continuously loop around the 4-sided City Ring Avenue (turning corners smoothly,
+ * NEVER disappearing at road ends!) and can collide with careless pedestrians.
  */
 window.YasamDunya = window.YasamDunya || {};
 
@@ -26,10 +22,13 @@ window.YasamDunya = window.YasamDunya || {};
       this.umbrellas = [];
       this.streetlamps = [];
 
-      // Iconic Natural Landmarks across all 5 Biomes!
-      this.hotSpring = { x: 2560, y: 390, rx: 115, ry: 72 }; // Steaming Mountain Hot Spring!
-      this.summitRock = { x: 2040, y: 240, r: 40 };          // Sisyphus Summit Boulder!
-      this.pond = { x: 3860, y: 1420, rx: 195, ry: 135 };
+      // Closed 4-Sided City Ring Road Coordinates
+      this.ring = { left: 1800, right: 3200, top: 1140, mid: 1720, bottom: 2220 };
+
+      // Iconic Natural Landmarks across all 5 Biomes
+      this.hotSpring = { x: 2560, y: 390, rx: 115, ry: 72 };
+      this.summitRock = { x: 2040, y: 240, r: 40 };
+      this.pond = { x: 3880, y: 1420, rx: 195, ry: 135 };
       this.pier = { x: 2240, y: 2860, w: 124, h: 360 };
       this.campfire = { x: 890, y: 1240, r: 22 };
       this.altar = { x: 520, y: 920, r: 34 };
@@ -51,49 +50,47 @@ window.YasamDunya = window.YasamDunya || {};
         }
       };
 
-      // --- MOUNTAIN LODGE (North Snowy Peak) ---
-      addBldg('lodge', 1520, 290, 210, 130, '#78350f', '#e2e8f0', '🏔️ DAĞ KULÜBESİ (Şömine)', 'lodge', 1625, 445);
+      // Mountain Lodge
+      addBldg('lodge', 1520, 290, 210, 130, '#78350f', '#e2e8f0', '🏔️ DAĞ KULÜBESİ', 'lodge', 1625, 445);
 
-      // --- CITY BUILDINGS (Center x: 1760..3260, y: 1050..2420) ---
-      addBldg('home',   1940, 1420, 230, 150, '#b45309', '#f59e0b', '🏠 EVİN (Uyu / Dekore Et)', 'home',  2055, 1595);
-      addBldg('office', 2600, 1340, 290, 180, '#1d4ed8', '#38bdf8', '🏢 İŞ MERKEZİ',             'work',  2745, 1545);
-      addBldg('cafe',   1940, 1840, 230, 150, '#be123c', '#fb7185', '☕ KAFE & FIRIN',            'cafe',  2055, 2015);
-      addBldg('uni',    2600, 1840, 290, 165, '#0f766e', '#2dd4bf', '🎓 ÜNİVERSİTE',              'study', 2745, 2030);
-      addBldg('shop',   2280, 1060, 260, 145, '#6b21a8', '#c084fc', '🛍️ MARKET & OTO GALERİ',    'shop',  2410, 1230);
+      // City Buildings positioned cleanly INSIDE the closed Ring Road blocks!
+      addBldg('home',   1950, 1340, 225, 145, '#b45309', '#f59e0b', '🏠 EVİN', 'home',  2062, 1510);
+      addBldg('office', 2620, 1310, 285, 175, '#1d4ed8', '#38bdf8', '🏢 İŞ MERKEZİ', 'work',  2762, 1510);
+      addBldg('cafe',   1950, 1875, 225, 145, '#be123c', '#fb7185', '☕ KAFE & FIRIN', 'cafe', 2062, 2045);
+      addBldg('uni',    2620, 1875, 285, 160, '#0f766e', '#2dd4bf', '🎓 ÜNİVERSİTE', 'study', 2762, 2060);
+      addBldg('shop',   2450, 880,  265, 145, '#6b21a8', '#c084fc', '🛍️ MARKET & GALERİ', 'shop', 2582, 1050);
 
-      // --- FOREST CABIN ---
+      // Forest Cabin
       addBldg('cabin', 1100, 1120, 180, 125, '#78350f', '#b45309', '🪵 ORMAN KULÜBESİ', 'campfire', 1190, 1270);
 
-      // Interactive World Spots across Mountain, Forest, Park & Sea!
       this.interactables.push(
         { id: 'hotspring',  kind: 'hotspring',  label: '♨️ SICAK KAPLICA (+Sağlık & Enerji)', x: this.hotSpring.x, y: this.hotSpring.y + 88, r: 72 },
         { id: 'summit',     kind: 'summit',     label: '🪨 SİSYPHOS ZİRVE KAYASI (+50 XP)',   x: this.summitRock.x, y: this.summitRock.y + 44, r: 64 },
         { id: 'camp',       kind: 'campfire',   label: '🔥 KAMP ATEŞİ (Dinlen)',              x: this.campfire.x, y: this.campfire.y, r: 58 },
         { id: 'altar',      kind: 'altar',      label: '⏳ ANTİK 4D SUNAK (İlham Al)',         x: this.altar.x, y: this.altar.y, r: 62 },
-        { id: 'park_gym',   kind: 'workout',    label: '🏃 PARK SPOR ALANI (+Sağlık)',         x: 3620, y: 1850, r: 66 },
-        { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI (+Mutluluk)',           x: 3860, y: 1605, r: 58 },
-        { id: 'pier_fish',  kind: 'fish',       label: '🎣 İSKELE — BALIK TUT (MİNİ-OYUN)',   x: this.pier.x + this.pier.w / 2, y: this.pier.y + this.pier.h - 24, r: 68 },
+        { id: 'park_gym',   kind: 'workout',    label: '🏃 PARK SPOR ALANI (+Sağlık)',         x: 3640, y: 1860, r: 66 },
+        { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI (+Mutluluk)',           x: 3880, y: 1605, r: 58 },
+        { id: 'pier_fish',  kind: 'fish',       label: '🎣 İSKELE — BALIK TUT',               x: this.pier.x + this.pier.w / 2, y: this.pier.y + this.pier.h - 24, r: 68 },
         { id: 'lighthouse', kind: 'lighthouse', label: '🗼 DENİZ FENERİ (Manzara)',            x: this.lighthouse.x, y: this.lighthouse.y + 44, r: 58 }
       );
 
-      // Streetlamps
       const lampSpots = [
-        [1860, 1720], [2220, 1720], [2540, 1720], [2920, 1720],
-        [1860, 2220], [2220, 2220], [2540, 2220], [2920, 2220],
+        [1880, 1190], [2280, 1190], [2780, 1190], [3120, 1190],
+        [1880, 1660], [2280, 1660], [2780, 1660], [3120, 1660],
+        [1880, 2160], [2280, 2160], [2780, 2160], [3120, 2160],
         [1600, 2540], [2120, 2540], [2640, 2540], [3220, 2540],
-        [3540, 1420], [4160, 1420], [2330, 620]
+        [3560, 1420], [4180, 1420], [2330, 620]
       ];
       for (const [lx, ly] of lampSpots) this.streetlamps.push({ x: lx, y: ly });
 
       this.benches = [
-        { x: 3860, y: 1595, angle: 0 },
-        { x: 3630, y: 1420, angle: Math.PI / 2 },
-        { x: 4090, y: 1420, angle: Math.PI / 2 },
+        { x: 3880, y: 1595, angle: 0 },
+        { x: 3650, y: 1420, angle: Math.PI / 2 },
+        { x: 4110, y: 1420, angle: Math.PI / 2 },
         { x: 2120, y: 2555, angle: 0 },
         { x: 2720, y: 2555, angle: 0 }
       ];
 
-      // Beach Umbrellas
       const umbColors = ['#ef4444', '#38bdf8', '#facc15', '#ec4899', '#22c55e', '#f97316'];
       for (let i = 0; i < 16; i++) {
         const ux = 280 + i * 265 + (i % 2) * 30;
@@ -104,19 +101,19 @@ window.YasamDunya = window.YasamDunya || {};
       let seed = 2026;
       const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
 
-      // --- SNOWY MOUNTAIN PINES (y: 80..700) ---
+      // Snowy Mountain Pines
       for (let i = 0; i < 75; i++) {
         const tx = 100 + rand() * (YD.WORLD_W - 200);
         const ty = 85 + rand() * 590;
         if (Math.hypot(tx - this.hotSpring.x, ty - this.hotSpring.y) < 165) continue;
         if (Math.hypot(tx - this.summitRock.x, ty - this.summitRock.y) < 110) continue;
-        if (Math.abs(tx - 2330) < 95) continue; // North-South mountain highway pass
+        if (Math.abs(tx - 2330) < 95) continue;
         if (this.isInsideBuilding(tx, ty, 52)) continue;
         this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: 'snow_pine' });
       }
 
-      // --- FOREST TREES (West x: 80..1680, y: 760..2460) ---
-      for (let i = 0; i < 125; i++) {
+      // Forest Trees (keep West Ring Road x=1800 clear!)
+      for (let i = 0; i < 120; i++) {
         const tx = 90 + rand() * 1580;
         const ty = 780 + rand() * 1640;
         if (Math.hypot(tx - this.campfire.x, ty - this.campfire.y) < 135) continue;
@@ -126,27 +123,25 @@ window.YasamDunya = window.YasamDunya || {};
         this.trees.push({ x: tx, y: ty, r: 24 + rand() * 14, kind: rand() < 0.65 ? 'pine' : 'oak' });
       }
 
-      // --- PARK TREES (East x: 3320..4500, y: 780..2440) ---
-      for (let i = 0; i < 68; i++) {
-        const tx = 3320 + rand() * 1160;
+      // Park Trees (keep East Ring Road x=3200 clear!)
+      for (let i = 0; i < 66; i++) {
+        const tx = 3340 + rand() * 1140;
         const ty = 780 + rand() * 1620;
         if (this.isInPond(tx, ty, 68)) continue;
-        if (Math.hypot(tx - 3620, ty - 1850) < 115) continue;
-        if (Math.hypot(tx - 3860, ty - 1605) < 85) continue;
+        if (Math.hypot(tx - 3640, ty - 1860) < 115) continue;
+        if (Math.hypot(tx - 3880, ty - 1605) < 85) continue;
         this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: rand() < 0.45 ? 'blossom' : 'oak' });
       }
 
-      // --- BEACH PALMS ---
+      // Beach Palms
       for (let i = 0; i < 22; i++) {
         const px = 140 + i * 205;
         if (Math.abs(px - 2300) < 150) continue;
         this.trees.push({ x: px, y: 2605 + (i % 2) * 35, r: 24, kind: 'palm' });
       }
 
-      // Forageables (Berries, Mushrooms + Snowy Mountain Crystals!)
       this.spawnForageables();
 
-      // Wildlife (Forest Deer/Rabbits + Park Ducks + Sea Sailboats + City Cars)
       for (let i = 0; i < 10; i++) {
         this.wildlife.push({
           kind: i < 4 ? 'deer' : 'rabbit',
@@ -168,16 +163,58 @@ window.YasamDunya = window.YasamDunya || {};
           sailColor: ['#ffffff', '#fde047', '#fb7185', '#38bdf8', '#a7f3d0'][i]
         });
       }
-      const carCols = ['#ef4444', '#facc15', '#3b82f6', '#22c55e', '#f97316'];
-      for (let i = 0; i < 6; i++) {
-        const roadY = i % 2 === 0 ? 1720 : 2220;
-        const dir = i < 3 ? 1 : -1;
-        this.cars.push({
-          x: 1780 + (i * 250) % 1420,
-          y: roadY + (dir === 1 ? 22 : -22),
-          dir, speed: 120 + (i % 3) * 25, color: carCols[i % carCols.length]
-        });
-      }
+
+      // --- CONTINUOUS CLOSED-LOOP CITY TRAFFIC (NEVER DISAPPEARS!) ---
+      const R = this.ring;
+      // Outer Clockwise Loop (Right-hand lane offset +22px)
+      const cwOuter = [
+        { x: R.left + 22,  y: R.top + 22 },
+        { x: R.right - 22, y: R.top + 22 },
+        { x: R.right - 22, y: R.bottom - 22 },
+        { x: R.left + 22,  y: R.bottom - 22 }
+      ];
+      // Inner Counter-Clockwise Loop (Opposite lane offset -22px)
+      const ccwInner = [
+        { x: R.left - 22,  y: R.bottom + 22 },
+        { x: R.right + 22, y: R.bottom + 22 },
+        { x: R.right + 22, y: R.top - 22 },
+        { x: R.left - 22,  y: R.top - 22 }
+      ];
+      // Mid-City Figure Loop (uses Middle Blvd y=1720!)
+      const midLoop = [
+        { x: R.left + 22,  y: R.mid + 20 },
+        { x: R.right - 22, y: R.mid + 20 },
+        { x: R.right - 22, y: R.bottom - 22 },
+        { x: R.left + 22,  y: R.bottom - 22 }
+      ];
+
+      const carConfigs = [
+        { route: cwOuter,  wp: 0, t: 0.2, color: '#ef4444', speed: 165, isTaxi: false },
+        { route: cwOuter,  wp: 1, t: 0.5, color: '#facc15', speed: 185, isTaxi: true  },
+        { route: cwOuter,  wp: 2, t: 0.3, color: '#3b82f6', speed: 155, isTaxi: false },
+        { route: ccwInner, wp: 0, t: 0.4, color: '#22c55e', speed: 170, isTaxi: false },
+        { route: ccwInner, wp: 2, t: 0.6, color: '#f97316', speed: 160, isTaxi: false },
+        { route: midLoop,  wp: 0, t: 0.5, color: '#facc15', speed: 175, isTaxi: true  },
+        { route: midLoop,  wp: 2, t: 0.2, color: '#a855f7', speed: 150, isTaxi: false }
+      ];
+
+      this.cars = carConfigs.map((cfg) => {
+        const a = cfg.route[cfg.wp];
+        const b = cfg.route[(cfg.wp + 1) % cfg.route.length];
+        return {
+          route: cfg.route,
+          wpIdx: (cfg.wp + 1) % cfg.route.length,
+          x: a.x + (b.x - a.x) * cfg.t,
+          y: a.y + (b.y - a.y) * cfg.t,
+          angle: Math.atan2(b.y - a.y, b.x - a.x),
+          speed: cfg.speed,
+          curSpeed: cfg.speed,
+          color: cfg.color,
+          isTaxi: cfg.isTaxi,
+          brakeTimer: 0,
+          hitCd: 0
+        };
+      });
     }
 
     spawnForageables() {
@@ -186,8 +223,7 @@ window.YasamDunya = window.YasamDunya || {};
         [340, 1020, 'berry'], [520, 1380, 'mushroom'], [720, 960, 'berry'],
         [980, 1580, 'mushroom'], [1320, 960, 'berry'], [1460, 1480, 'mushroom'],
         [660, 1980, 'berry'], [1220, 2080, 'mushroom'], [420, 1590, 'berry'],
-        [1500, 1920, 'berry'], [3520, 1020, 'berry'], [4020, 2020, 'berry'],
-        // High-Value Snowy Mountain Crystals!
+        [1500, 1920, 'berry'], [3520, 1020, 'berry'], [4040, 2020, 'berry'],
         [1240, 380, 'crystal'], [2880, 320, 'crystal'], [3440, 420, 'crystal'], [1840, 210, 'crystal']
       ];
       for (const [x, y, kind] of spots) {
@@ -274,12 +310,10 @@ window.YasamDunya = window.YasamDunya || {};
         }
       }
 
-      // Cars cannot enter pond or hot spring
       if (isCar && (this.isInPond(ent.x, ent.y, 18) || this.isInHotSpring(ent.x, ent.y))) {
         ent.y += 16;
       }
 
-      // Lighthouse & Summit Boulder
       for (const solid of [this.lighthouse, this.summitRock]) {
         const dx = ent.x - solid.x, dy = ent.y - solid.y;
         const minR = ent.r + solid.r;
@@ -292,7 +326,7 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
-    update(dt, player) {
+    update(dt, player, onCarHitPlayer) {
       this.lighthouse.beamAngle += dt * 0.9;
       for (const fg of this.forageables) {
         if (fg.collected) {
@@ -320,11 +354,50 @@ window.YasamDunya = window.YasamDunya || {};
         if (bt.x > YD.WORLD_W + 140) bt.x = -140;
         if (bt.x < -140) bt.x = YD.WORLD_W + 140;
       }
+
+      // --- CONTINUOUS RING-ROAD TRAFFIC + PLAYER COLLISION DAMAGE! ---
       for (const c of this.cars) {
-        if (Math.hypot(player.x - (c.x + c.dir * 48), player.y - c.y) >= 44) {
-          c.x += c.dir * c.speed * dt;
-          if (c.x > YD.CITY_X2 + 40) c.x = YD.CITY_X1 - 40;
-          if (c.x < YD.CITY_X1 - 40) c.x = YD.CITY_X2 + 40;
+        c.brakeTimer = Math.max(0, c.brakeTimer - dt);
+        c.hitCd = Math.max(0, c.hitCd - dt);
+
+        const target = c.route[c.wpIdx];
+        const dx = target.x - c.x;
+        const dy = target.y - c.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < 26) {
+          c.wpIdx = (c.wpIdx + 1) % c.route.length;
+        } else {
+          // Smooth corner turning angle interpolation!
+          const desiredAngle = Math.atan2(dy, dx);
+          let diff = desiredAngle - c.angle;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          c.angle += diff * Math.min(1, dt * 8);
+        }
+
+        // Check if another car is directly ahead to prevent overlapping
+        let blockedByCar = false;
+        const frontX = c.x + Math.cos(c.angle) * 64;
+        const frontY = c.y + Math.sin(c.angle) * 64;
+        for (const other of this.cars) {
+          if (other !== c && Math.hypot(other.x - frontX, other.y - frontY) < 42) {
+            blockedByCar = true; break;
+          }
+        }
+
+        const wantSpeed = (c.brakeTimer > 0 || blockedByCar) ? 0 : c.speed;
+        c.curSpeed += (wantSpeed - c.curSpeed) * Math.min(1, dt * 7);
+
+        c.x += Math.cos(c.angle) * c.curSpeed * dt;
+        c.y += Math.sin(c.angle) * c.curSpeed * dt;
+
+        // Player Collision Check (Car hits player if player steps into moving traffic!)
+        const hitDist = player.inCar ? 48 : 36;
+        if (c.hitCd <= 0 && c.curSpeed > 45 && Math.hypot(player.x - c.x, player.y - c.y) < hitDist) {
+          c.hitCd = 1.4;
+          c.brakeTimer = 0.85; // Car slams brakes & flashes hazards after hitting you!
+          if (onCarHitPlayer) onCarHitPlayer(c);
         }
       }
     }

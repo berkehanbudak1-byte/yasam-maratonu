@@ -154,6 +154,10 @@ window.YasamDunya = window.YasamDunya || {};
         ctx.fillStyle = `rgba(255, 255, 255, ${game.lightningFlash * 0.72})`;
         ctx.fillRect(0, 0, vw, vh);
       }
+      if (game.damageFlash > 0) {
+        ctx.fillStyle = `rgba(220, 38, 38, ${game.damageFlash * 0.45})`;
+        ctx.fillRect(0, 0, vw, vh);
+      }
 
       // Subtle cinematic warm vignette framing
       const vig = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.38, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
@@ -322,42 +326,50 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     drawRoadsAndPaths(ctx, world) {
-      // North Mountain Highway Pass
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(2280, 440, 100, YD.BEACH_Y - 440);
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(2276, 440, 4, YD.BEACH_Y - 440);
-      ctx.fillRect(2380, 440, 4, YD.BEACH_Y - 440);
+      const R = world.ring;
+      const rw = 100, hrw = rw / 2;
 
-      // Forest Warm Dirt Trail with pebbled border
+      // North Mountain Highway Pass (connects City Center directly up to Mountain & down to Beach)
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(2280, 440, 100, YD.BEACH_Y - 440);
+
+      // Forest Warm Dirt Trail
       ctx.strokeStyle = '#78350f'; ctx.lineWidth = 54; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(520, 920); ctx.lineTo(890, 1240); ctx.lineTo(1190, 1270); ctx.lineTo(1760, 1720); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(520, 920); ctx.lineTo(890, 1240); ctx.lineTo(1190, 1270); ctx.lineTo(R.left, R.mid); ctx.stroke();
       ctx.strokeStyle = '#b45309'; ctx.lineWidth = 44;
       ctx.stroke();
 
-      // City Asphalt Boulevards with curbs
+      // COMPLETE 4-SIDED CLOSED CITY RING ROAD (Top, Mid, Bottom + Left & Right Avenues!)
       ctx.fillStyle = '#334155';
-      ctx.fillRect(YD.CITY_X1, 1670, YD.CITY_X2 - YD.CITY_X1, 100);
-      ctx.fillRect(YD.CITY_X1, 2170, YD.CITY_X2 - YD.CITY_X1, 100);
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(YD.CITY_X1, 1666, YD.CITY_X2 - YD.CITY_X1, 4);
-      ctx.fillRect(YD.CITY_X1, 1770, YD.CITY_X2 - YD.CITY_X1, 4);
-      ctx.fillRect(YD.CITY_X1, 2166, YD.CITY_X2 - YD.CITY_X1, 4);
-      ctx.fillRect(YD.CITY_X1, 2270, YD.CITY_X2 - YD.CITY_X1, 4);
+      // Horizontal boulevards
+      ctx.fillRect(R.left - hrw, R.top - hrw,    (R.right - R.left) + rw, rw);
+      ctx.fillRect(R.left - hrw, R.mid - hrw,    (R.right - R.left) + rw, rw);
+      ctx.fillRect(R.left - hrw, R.bottom - hrw, (R.right - R.left) + rw, rw);
+      // Vertical West & East Ring Streets connecting all corners seamlessly!
+      ctx.fillRect(R.left - hrw,  R.top - hrw, rw, (R.bottom - R.top) + rw);
+      ctx.fillRect(R.right - hrw, R.top - hrw, rw, (R.bottom - R.top) + rw);
 
-      // Crosswalk zebra stripes at city center intersection!
+      // Crisp Road Curbs along outer Ring boundary
+      ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 5;
+      ctx.strokeRect(R.left - hrw, R.top - hrw, (R.right - R.left) + rw, (R.bottom - R.top) + rw);
+
+      // Dashed Yellow Center Lane Markings around the entire closed ring!
+      ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3; ctx.setLineDash([22, 16]);
+      ctx.beginPath();
+      ctx.moveTo(R.left, R.top);    ctx.lineTo(R.right, R.top);
+      ctx.moveTo(R.left, R.mid);    ctx.lineTo(R.right, R.mid);
+      ctx.moveTo(R.left, R.bottom); ctx.lineTo(R.right, R.bottom);
+      ctx.moveTo(R.left, R.top);    ctx.lineTo(R.left, R.bottom);
+      ctx.moveTo(R.right, R.top);   ctx.lineTo(R.right, R.bottom);
+      ctx.moveTo(2330, 460);        ctx.lineTo(2330, YD.BEACH_Y);
+      ctx.stroke(); ctx.setLineDash([]);
+
+      // Zebra Crosswalks at key intersections!
       ctx.fillStyle = '#f8fafc';
-      for (let s = 1678; s < 1765; s += 16) {
+      for (let s = R.mid - 42; s < R.mid + 42; s += 16) {
         ctx.fillRect(2262, s, 14, 9);
         ctx.fillRect(2384, s, 14, 9);
       }
-
-      ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3; ctx.setLineDash([22, 16]);
-      ctx.beginPath();
-      ctx.moveTo(YD.CITY_X1, 1720); ctx.lineTo(YD.CITY_X2, 1720);
-      ctx.moveTo(YD.CITY_X1, 2220); ctx.lineTo(YD.CITY_X2, 2220);
-      ctx.moveTo(2330, 460); ctx.lineTo(2330, YD.BEACH_Y);
-      ctx.stroke(); ctx.setLineDash([]);
 
       // Beachfront Wooden Boardwalk
       ctx.fillStyle = '#b45309';
@@ -617,20 +629,47 @@ window.YasamDunya = window.YasamDunya || {};
 
     drawCars(ctx, world, headlights) {
       for (const c of world.cars) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.angle || 0);
+
         if (headlights) {
-          ctx.fillStyle = 'rgba(254, 240, 138, 0.25)';
+          const beam = ctx.createLinearGradient(28, 0, 140, 0);
+          beam.addColorStop(0, 'rgba(254, 240, 138, 0.34)');
+          beam.addColorStop(1, 'rgba(254, 240, 138, 0)');
+          ctx.fillStyle = beam;
           ctx.beginPath();
-          ctx.moveTo(c.x + c.dir * 30, c.y - 10); ctx.lineTo(c.x + c.dir * 110, c.y - 28);
-          ctx.lineTo(c.x + c.dir * 110, c.y + 28); ctx.lineTo(c.x + c.dir * 30, c.y + 10);
+          ctx.moveTo(28, -10); ctx.lineTo(140, -34); ctx.lineTo(140, 34); ctx.lineTo(28, 10);
           ctx.closePath(); ctx.fill();
         }
-        ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(c.x - 24, c.y - 11, 56, 30);
+
+        ctx.fillStyle = 'rgba(0,0,0,0.24)';
+        ctx.fillRect(-25, -12, 58, 30);
+
         ctx.fillStyle = c.color; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(c.x - 28, c.y - 15, 56, 30, 6);
-        else ctx.rect(c.x - 28, c.y - 15, 56, 30);
+        if (ctx.roundRect) ctx.roundRect(-29, -15, 58, 30, 7);
+        else ctx.rect(-29, -15, 58, 30);
         ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#1e293b'; ctx.fillRect(c.x - 14, c.y - 11, 28, 22);
+
+        // Roof & Windshield
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-14, -11, 28, 22);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(6, -9, 6, 18);
+
+        if (c.isTaxi) {
+          ctx.fillStyle = '#111'; ctx.fillRect(-4, -5, 8, 10);
+          ctx.fillStyle = '#fef08a'; ctx.fillRect(-2, -3, 4, 6);
+        }
+
+        // Headlights & glowing brake/hazard lights when braking!
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(25, -12, 4, 6); ctx.fillRect(25, 6, 4, 6);
+        ctx.fillStyle = c.brakeTimer > 0 ? '#ff0000' : '#991b1b';
+        ctx.fillRect(-29, -12, 4, 6); ctx.fillRect(-29, 6, 4, 6);
+
+        ctx.restore();
       }
     }
 

@@ -3,36 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Yaşam Maratonu: Büyük Dünya v2 (60 FPS — Dağ, Orman, Şehir, Park, Deniz)</title>
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="index.icon.png" />
+  <title>Yaşam Maratonu: Büyük Dünya — 60 FPS Açık Dünya Yaşam Simülatörü</title>
   <link rel="stylesheet" href="dunya/styles.css" />
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
 
+  <!-- =========================================================================
+       ULTRA-CLEAN MINIMAL HUD (90%+ unobstructed open world!)
+       All panels open via hotkeys: [G] Görevler | [I] Market | [M] Harita | [K] Tuşlar
+       ========================================================================= -->
   <div id="hud">
-    <!-- TOP ROW -->
     <div class="hud-top">
-      <div class="glass-panel stats-card">
-        <div class="stat-row"><span>❤️</span><div class="stat-bar"><div id="statHealthFill" class="stat-fill" style="width:100%; background:#ef4444;"></div></div></div>
-        <div class="stat-row"><span>⚡</span><div class="stat-bar"><div id="statEnergyFill" class="stat-fill" style="width:100%; background:#facc15;"></div></div></div>
-        <div class="stat-row"><span>🍔</span><div class="stat-bar"><div id="statHungerFill" class="stat-fill" style="width:95%; background:#fb923c;"></div></div></div>
-        <div class="stat-row"><span>😊</span><div class="stat-bar"><div id="statHappyFill" class="stat-fill" style="width:90%; background:#38bdf8;"></div></div></div>
+
+      <!-- TOP-LEFT: SLIM COMPACT NEEDS & WALLET BAR -->
+      <div class="glass-panel compact-stats">
+        <div class="mini-stat" title="Sağlık"><span>❤️</span><div class="mini-bar"><div id="statHealthFill" class="stat-fill" style="width:100%; background:#ef4444;"></div></div></div>
+        <div class="mini-stat" title="Enerji"><span>⚡</span><div class="mini-bar"><div id="statEnergyFill" class="stat-fill" style="width:100%; background:#facc15;"></div></div></div>
+        <div class="mini-stat" title="Tokluk"><span>🍔</span><div class="mini-bar"><div id="statHungerFill" class="stat-fill" style="width:95%; background:#fb923c;"></div></div></div>
+        <div class="mini-stat" title="Mutluluk"><span>😊</span><div class="mini-bar"><div id="statHappyFill" class="stat-fill" style="width:90%; background:#38bdf8;"></div></div></div>
+        <div class="stat-divider"></div>
+        <span id="moneyBadge" class="money-text">₺160</span>
+        <span id="levelBadge" class="level-text">LV 1</span>
       </div>
 
-      <div class="top-center">
-        <div id="clockBadge" class="glass-panel pill-badge">🌸 GÜN 1 • YAŞ 20 • 08:00 • ☀️ Güneşli</div>
-        <div id="biomeBadge" class="glass-panel biome-pill">🏙️ ŞEHİR MERKEZİ</div>
+      <!-- TOP-CENTER: SINGLE SLEEK TIME + WEATHER + BIOME PILL -->
+      <div class="glass-panel center-pill">
+        <span id="clockBadge">🌸 GÜN 1 • YAŞ 20 • 08:00 • ☀️</span>
+        <span class="pill-sep">|</span>
+        <span id="biomeBadge" style="color:#38bdf8;">🏙️ ŞEHİR MERKEZİ</span>
       </div>
 
-      <div class="top-right">
-        <div class="glass-panel wallet-card">
-          <span id="moneyBadge" class="money-text">₺160</span>
-          <span id="levelBadge" class="level-text">LV 1 • 0/100 XP</span>
-        </div>
-        <div class="glass-panel quest-card">
-          <div class="quest-title">📋 YAŞAM GÖREVLERİ</div>
-          <div id="questList"></div>
-        </div>
+      <!-- TOP-RIGHT: CLEAN HOTKEY ICON PILLS (NO SCREEN CLUTTER!) -->
+      <div class="hotkey-bar">
+        <button id="btnQuests" class="icon-pill" title="Görevler [G]">📋 <b>[G]</b></button>
+        <button id="btnShop" class="icon-pill gold" title="Market & Galeri [I]">🛍️ <b>[I]</b></button>
+        <button id="btnMapToggle" class="icon-pill" title="Harita Göster/Gizle [M]">🗺️ <b>[M]</b></button>
+        <button id="btnHelp" class="icon-pill" title="Kontroller & Araçlar [K]">⌨️ <b>[K]</b></button>
       </div>
     </div>
 
@@ -50,33 +61,19 @@
     <!-- CONTEXTUAL INTERACTION PROMPT -->
     <div id="interactPrompt" class="interact-prompt hidden">[E] Etkileşim</div>
 
-    <!-- BOTTOM ROW -->
+    <!-- BOTTOM: ONLY TINY QUICK VEHICLE/AUDIO DOCK + TOGGLEABLE MINIMAP -->
     <div class="hud-bottom">
-      <div class="action-col">
-        <div class="btn-row">
-          <button id="btnShop" class="hud-btn gold">🛍️ MARKET &amp; OTO GALERİ</button>
-          <button id="btnCar" class="hud-btn">🚗 ARABA [V]</button>
-          <button id="btnBike" class="hud-btn">🚲 BİSİKLET [B]</button>
-          <button id="btnWeather" class="hud-btn">⛈️ HAVA [Y]</button>
-          <button id="btnSeason" class="hud-btn">⏳ MEVSİM [T]</button>
-          <button id="btnMusic" class="hud-btn">🎵 MÜZİK: AÇIK</button>
-          <button id="btnResetSave" class="hud-btn">↺ SIFIRLA</button>
-          <a href="oyna.html" class="hud-btn" style="text-decoration:none;">🧊 3D</a>
-        </div>
-        <div class="glass-panel controls-bar">
-          <span><b>WASD</b> Gez / Sür / Yüz</span>
-          <span><b>E</b> Etkileşim (Ev, İş, Balık, Kaplıca)</span>
-          <span><b>V</b> Araba</span>
-          <span><b>B</b> Bisiklet</span>
-          <span><b>H/Space</b> Korna</span>
-          <span><b>Y</b> Hava</span>
-          <span><b>T</b> Mevsim</span>
-        </div>
+      <div class="quick-dock">
+        <button id="btnCar" class="dock-btn" title="Araba [V]">🚗<span>V</span></button>
+        <button id="btnBike" class="dock-btn" title="Bisiklet [B]">🚲<span>B</span></button>
+        <button id="btnWeather" class="dock-btn" title="Hava Durumu [Y]">⛈️<span>Y</span></button>
+        <button id="btnSeason" class="dock-btn" title="4D Mevsim [T]">⏳<span>T</span></button>
+        <button id="btnMusic" class="dock-btn" title="Müzik Aç/Kapa [N]">🎵<span>N</span></button>
       </div>
 
-      <div class="glass-panel minimap-box">
-        <canvas id="minimapCanvas" width="210" height="164"></canvas>
-        <div class="minimap-lbl">BÜYÜK DÜNYA (5 BİYOM)</div>
+      <div id="minimapBox" class="glass-panel minimap-box">
+        <canvas id="minimapCanvas" width="190" height="148"></canvas>
+        <div class="minimap-lbl">HARİTA [M]</div>
         <div class="minimap-legend">
           <span>🏔️Dağ</span><span>🌲Orman</span><span>🏙️Şehir</span><span>🌳Park</span><span>🌊Deniz</span>
         </div>
@@ -84,7 +81,18 @@
     </div>
   </div>
 
-  <!-- SHOP & AUTO GALLERY MODAL -->
+  <!-- QUESTS MODAL (OPENS WITH [G]) -->
+  <div id="questModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fde047; font-size:20px;">📋 YAŞAM GÖREVLERİ</h2>
+        <button id="btnCloseQuests" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div id="questList" class="quest-modal-list"></div>
+    </div>
+  </div>
+
+  <!-- SHOP & AUTO GALLERY MODAL (OPENS WITH [I]) -->
   <div id="shopModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
       <div class="shop-header">
@@ -95,7 +103,7 @@
     </div>
   </div>
 
-  <!-- HOME INTERIOR & DECORATION MODAL -->
+  <!-- HOME INTERIOR & DECORATION MODAL (OPENS WITH [E] AT HOME) -->
   <div id="homeModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
       <div class="shop-header">
@@ -112,6 +120,35 @@
     </div>
   </div>
 
+  <!-- CONTROLS & SYSTEM MODAL (OPENS WITH [K]) -->
+  <div id="helpModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fde047; font-size:20px;">⌨️ KONTROLLER &amp; AYARLAR</h2>
+        <button id="btnCloseHelp" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div class="help-grid">
+        <div><b>WASD / Oklar</b><span>Yürü / Yüz / Araba Sür</span></div>
+        <div><b>Shift</b><span>Koş (Sprint)</span></div>
+        <div><b>E / Space</b><span>Etkileşim (Ev, İş, Balık, Kaplıca)</span></div>
+        <div><b>G</b><span>Görevler Penceresi</span></div>
+        <div><b>I</b><span>Market &amp; Oto Galeri</span></div>
+        <div><b>M</b><span>Haritayı Göster / Gizle</span></div>
+        <div><b>V</b><span>Elektrikli Arabaya Bin / İn</span></div>
+        <div><b>B</b><span>Bisiklete Bin / İn</span></div>
+        <div><b>H / Space</b><span>Araba Kornası</span></div>
+        <div><b>Y</b><span>Hava Durumu (Güneş/Yağmur/Fırtına/Kar)</span></div>
+        <div><b>T</b><span>4D Kum Saati (Mevsim Değiştir)</span></div>
+        <div><b>N</b><span>Müziği Aç / Kapat</span></div>
+        <div><b>Scroll / +/-</b><span>Kamera Yakınlaştır / Uzaklaştır</span></div>
+      </div>
+      <div class="btn-row" style="margin-top:14px; justify-content:space-between;">
+        <button id="btnResetSave" class="hud-btn" style="border-color:#ef4444; color:#fca5a5;">↺ Kaydı Sıfırla</button>
+        <a href="oyna.html" class="hud-btn" style="text-decoration:none;">🧊 Klasik 3D Godot Sürümü</a>
+      </div>
+    </div>
+  </div>
+
   <!-- MOBILE TOUCH CONTROLS -->
   <div id="touchControls">
     <div class="touch-pad">
@@ -120,7 +157,7 @@
     </div>
     <div style="display:flex; gap:8px;">
       <button data-key="KeyV" class="touch-btn" style="padding:0 14px; background:#06b6d4; color:#111;">🚗</button>
-      <button data-key="KeyE" class="touch-btn" style="padding:0 18px; background:#facc15; color:#111;">ETKİLEŞİM</button>
+      <button data-key="KeyE" class="touch-btn" style="padding:0 18px; background:#facc15; color:#111;">E</button>
     </div>
   </div>
 

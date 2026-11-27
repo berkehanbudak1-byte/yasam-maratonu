@@ -22,18 +22,23 @@ window.YasamDunya = window.YasamDunya || {};
       this.keys = {};
       this.shopOpen = false;
       this.homeOpen = false;
+      this.questOpen = false;
+      this.helpOpen = false;
+      this.minimapVisible = true;
 
       // Interactive Fishing Timing Mini-Game State
       this.fishing = { active: false, pos: 0.5, dir: 1, speed: 1.55 };
 
       this.player = {
-        x: 2055, y: 1625, vx: 0, vy: 0, r: 16, angle: Math.PI / 2,
+        x: 2062, y: 1525, vx: 0, vy: 0, r: 16, angle: Math.PI / 2,
         color: '#38bdf8', walkCycle: 0,
         swimming: false, onBike: false, inCar: false, carSpeed: 0,
         speech: '', speechTimer: 0
       };
       this.parkedCar = null;
       this.skidMarks = [];
+      this.damageFlash = 0;
+      this.carHitInvuln = 0;
 
       // Life Stats
       this.day = 1;
@@ -134,11 +139,18 @@ window.YasamDunya = window.YasamDunya || {};
         this.keys[e.code] = true;
 
         if (e.code === 'Escape') {
-          if (this.shopOpen) this.toggleShop(false);
-          if (this.homeOpen) this.toggleHome(false);
-          if (this.fishing.active) this.stopFishing(false);
+          this.closeAllModals();
+          if (this.fishing.active) this.stopFishing();
           return;
         }
+
+        if (e.code === 'KeyG') { this.toggleQuests(!this.questOpen); return; }
+        if (e.code === 'KeyI') { this.toggleShop(!this.shopOpen); return; }
+        if (e.code === 'KeyK') { this.toggleHelp(!this.helpOpen); return; }
+        if (e.code === 'KeyM') { this.toggleMap(); return; }
+        if (e.code === 'KeyN') { this.toggleMusic(); return; }
+
+        if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen) return;
 
         if (this.fishing.active) {
           if (e.code === 'KeyE' || e.code === 'Space') this.resolveFishingAttempt();
@@ -161,7 +173,6 @@ window.YasamDunya = window.YasamDunya || {};
         if (e.code === 'KeyV') this.toggleCar();
         if (e.code === 'KeyT') this.useHourglass();
         if (e.code === 'KeyY') this.cycleWeather();
-        if (e.code === 'KeyM') this.toggleMusic();
         if (e.code === 'Equal' || e.code === 'NumpadAdd') this.cam.zoom = Math.min(1.45, this.cam.zoom + 0.1);
         if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.cam.zoom = Math.max(0.62, this.cam.zoom - 0.1);
       });
@@ -170,10 +181,15 @@ window.YasamDunya = window.YasamDunya || {};
         this.keys[e.code] = false;
       });
 
+      document.getElementById('btnQuests').addEventListener('click', () => { this.audio.unlock(); this.toggleQuests(!this.questOpen); });
+      document.getElementById('btnCloseQuests').addEventListener('click', () => this.toggleQuests(false));
       document.getElementById('btnShop').addEventListener('click', () => { this.audio.unlock(); this.toggleShop(!this.shopOpen); });
       document.getElementById('btnCloseShop').addEventListener('click', () => this.toggleShop(false));
       document.getElementById('btnCloseHome').addEventListener('click', () => this.toggleHome(false));
       document.getElementById('btnHomeSleep').addEventListener('click', () => { this.toggleHome(false); this.startNextDay(false); });
+      document.getElementById('btnMapToggle').addEventListener('click', () => { this.audio.unlock(); this.toggleMap(); });
+      document.getElementById('btnHelp').addEventListener('click', () => { this.audio.unlock(); this.toggleHelp(!this.helpOpen); });
+      document.getElementById('btnCloseHelp').addEventListener('click', () => this.toggleHelp(false));
       document.getElementById('btnBike').addEventListener('click', () => { this.audio.unlock(); this.toggleBike(); });
       document.getElementById('btnCar').addEventListener('click', () => { this.audio.unlock(); this.toggleCar(); });
       document.getElementById('btnWeather').addEventListener('click', () => { this.audio.unlock(); this.cycleWeather(); });
@@ -276,7 +292,12 @@ window.YasamDunya = window.YasamDunya || {};
 
     toggleMusic() {
       this.audio.musicOn = !this.audio.musicOn;
-      document.getElementById('btnMusic').textContent = this.audio.musicOn ? '🎵 MÜZİK: AÇIK' : '🎵 MÜZİK: KAPALI';
+      document.getElementById('btnMusic').innerHTML = this.audio.musicOn ? '🎵<span>N</span>' : '🔇<span>N</span>';
+    }
+
+    toggleMap() {
+      this.minimapVisible = !this.minimapVisible;
+      document.getElementById('minimapBox').classList.toggle('hidden', !this.minimapVisible);
     }
 
     cycleWeather() {
@@ -288,7 +309,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     toggleBike() {
       if (!this.inventory.has('bike')) {
-        this.say(this.player, 'Önce Marketten Bisiklet (₺160) almalısın! 🚲', 2.4); return;
+        this.say(this.player, 'Önce Marketten [I] Bisiklet (₺160) almalısın! 🚲', 2.4); return;
       }
       if (this.player.swimming) { this.say(this.player, 'Suda bisiklet sürülmez! 😅', 1.8); return; }
       if (this.player.inCar) this.toggleCar();
@@ -299,7 +320,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     toggleCar() {
       if (!this.inventory.has('car')) {
-        this.say(this.player, 'Oto Galeriden Elektrikli Araba (₺340) al! 🚗', 2.5); return;
+        this.say(this.player, 'Marketten [I] Elektrikli Araba (₺340) al! 🚗', 2.5); return;
       }
       if (this.player.swimming) { this.say(this.player, 'Denizden karaya çıkınca arabaya binebilirsin!', 2.2); return; }
       this.player.onBike = false;
@@ -320,7 +341,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     useHourglass() {
       if (!this.inventory.has('hourglass')) {
-        this.say(this.player, '4D Kum Saati için Antikacıya uğra! ⏳', 2.4); return;
+        this.say(this.player, '4D Kum Saati için Marketten [I] al! ⏳', 2.4); return;
       }
       this.seasonIdx = (this.seasonIdx + 1) % YD.SEASONS.length;
       this.audio.timeWarp();
@@ -330,22 +351,80 @@ window.YasamDunya = window.YasamDunya || {};
       this.saveGame();
     }
 
-    toggleShop(open) {
+    closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = open;
-      if (open) this.homeOpen = false;
+      this.shopOpen = false;
+      this.homeOpen = false;
+      this.questOpen = false;
+      this.helpOpen = false;
+      document.getElementById('shopModal').classList.add('hidden');
       document.getElementById('homeModal').classList.add('hidden');
+      document.getElementById('questModal').classList.add('hidden');
+      document.getElementById('helpModal').classList.add('hidden');
+    }
+
+    toggleShop(open) {
+      this.closeAllModals();
+      this.shopOpen = open;
       document.getElementById('shopModal').classList.toggle('hidden', !open);
       if (open) this.renderShop();
     }
 
     toggleHome(open) {
-      this.clearAllKeys();
+      this.closeAllModals();
       this.homeOpen = open;
-      if (open) this.shopOpen = false;
-      document.getElementById('shopModal').classList.add('hidden');
       document.getElementById('homeModal').classList.toggle('hidden', !open);
       if (open) this.renderHomeModal();
+    }
+
+    toggleQuests(open) {
+      this.closeAllModals();
+      this.questOpen = open;
+      document.getElementById('questModal').classList.toggle('hidden', !open);
+      if (open) this.renderQuests();
+    }
+
+    toggleHelp(open) {
+      this.closeAllModals();
+      this.helpOpen = open;
+      document.getElementById('helpModal').classList.toggle('hidden', !open);
+    }
+
+    handleCarHitPlayer(car) {
+      if (this.carHitInvuln > 0) return;
+      this.carHitInvuln = 1.25;
+      this.damageFlash = 0.85;
+      this.audio.carHorn();
+      this.audio.miss();
+
+      const p = this.player;
+      const dmg = p.inCar ? 6 : 18;
+      this.health = Math.max(0, this.health - dmg);
+      this.happiness = Math.max(0, this.happiness - 6);
+
+      // Push player safely sideways out of the car's bumper path!
+      const pushAng = Math.atan2(p.y - car.y, p.x - car.x);
+      p.x += Math.cos(pushAng) * 44;
+      p.y += Math.sin(pushAng) * 44;
+      if (p.inCar) p.carSpeed = -120;
+      this.world.resolveCollisions(p, p.inCar);
+
+      this.burst(p.x, p.y, '#ef4444', 14);
+      this.popup(p.x, p.y - 36, p.inCar ? `-${dmg} ❤️ ÇARPIŞMA!` : `-${dmg} ❤️ ARABA ÇARPTI!!`, '#ef4444');
+      this.say(p, 'AHH!! Trafiğe dikkat etmeliyim! 🚗💥', 2.4);
+
+      // If Health hits 0 -> Emergency Hospital Recovery at Home!
+      if (this.health <= 0) {
+        const fee = Math.min(this.money, 40);
+        this.money -= fee;
+        this.health = 80;
+        this.energy = Math.max(50, this.energy);
+        p.inCar = false;
+        p.onBike = false;
+        p.x = 2062; p.y = 1525;
+        this.say(p, `🏥 Acil servisten taburcu oldun! (-₺${fee})`, 3.6);
+      }
+      this.saveGame();
     }
 
     renderShop() {
@@ -678,7 +757,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.pastEcho = { x: this.yesterdayPath[0].x, y: this.yesterdayPath[0].y, idx: 0, claimed: false };
       }
 
-      this.player.x = 2055; this.player.y = 1625;
+      this.player.x = 2062; this.player.y = 1525;
       this.player.onBike = false; this.player.inCar = false;
       const s = YD.SEASONS[this.seasonIdx], w = YD.WEATHERS[this.weatherIdx];
       this.say(
@@ -692,7 +771,10 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     update(dt) {
-      if (this.shopOpen || this.homeOpen) return;
+      this.damageFlash = Math.max(0, this.damageFlash - dt * 2.2);
+      this.carHitInvuln = Math.max(0, this.carHitInvuln - dt);
+
+      if (this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen) return;
 
       // Update Fishing Timing Bar if active
       if (this.fishing.active) {
@@ -837,7 +919,7 @@ window.YasamDunya = window.YasamDunya || {};
         } else npc.angle += Math.PI;
       }
 
-      this.world.update(dt, p);
+      this.world.update(dt, p, (car) => this.handleCarHitPlayer(car));
 
       for (let i = this.skidMarks.length - 1; i >= 0; i--) {
         this.skidMarks[i].alpha -= dt * 0.08;
@@ -882,12 +964,12 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('statHappyFill').style.width = `${this.happiness}%`;
 
       document.getElementById('moneyBadge').textContent = `₺${Math.floor(this.money).toLocaleString()}`;
-      document.getElementById('levelBadge').textContent = `LV ${this.level} • ${this.xp}/${this.level * 100} XP`;
+      document.getElementById('levelBadge').textContent = `LV ${this.level}`;
 
       const hrs = Math.floor(this.timeMinutes / 60) % 24;
       const mins = Math.floor(this.timeMinutes % 60);
       const s = YD.SEASONS[this.seasonIdx], w = YD.WEATHERS[this.weatherIdx];
-      document.getElementById('clockBadge').textContent = `${s.icon} GÜN ${this.day} • YAŞ ${this.age} • ${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')} • ${w.icon} ${w.name}`;
+      document.getElementById('clockBadge').textContent = `${s.icon} GÜN ${this.day} • YAŞ ${this.age} • ${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')} • ${w.icon}`;
       document.getElementById('biomeBadge').textContent = this.world.getBiomeLabel(biome);
 
       const prompt = this.findNearestInteraction();
