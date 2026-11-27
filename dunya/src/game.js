@@ -204,6 +204,11 @@ window.YasamDunya = window.YasamDunya || {};
     switchLanguage(lang) {
       if (!YD.I18N) return;
       YD.I18N.setLang(lang);
+      if (lang === 'en' && this.playerName === 'Gezgin') this.playerName = 'Traveler';
+      else if (lang === 'tr' && this.playerName === 'Traveler') this.playerName = 'Gezgin';
+      if (this.player && this.player.speechTimer > 0 && this.player.speech && this.player.speech.includes('Büyük Dünya')) {
+        this.player.speech = `Merhaba ${this.playerName}! Büyük Dünya seni bekliyor! ✨`;
+      }
       this.renderTitleScreen();
       if (this.started) {
         if (this.shopOpen) this.renderShop();
@@ -439,12 +444,13 @@ window.YasamDunya = window.YasamDunya || {};
         this.audio.unlock();
         this.skipActiveStarterTask();
       });
-      document.getElementById('btnBag').addEventListener('click', () => { this.audio.unlock(); this.toggleBag(!this.bagOpen); });
+      const miniBusy = () => this.fishing.active || this.barista.active;
+      document.getElementById('btnBag').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleBag(!this.bagOpen); });
       document.getElementById('btnCloseBag').addEventListener('click', () => this.toggleBag(false));
       document.getElementById('btnOpenCookFromBag').addEventListener('click', () => { this.audio.unlock(); this.toggleCook(true); });
-      document.getElementById('btnQuests').addEventListener('click', () => { this.audio.unlock(); this.toggleQuests(!this.questOpen); });
+      document.getElementById('btnQuests').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleQuests(!this.questOpen); });
       document.getElementById('btnCloseQuests').addEventListener('click', () => this.toggleQuests(false));
-      document.getElementById('btnShop').addEventListener('click', () => { this.audio.unlock(); this.toggleShop(!this.shopOpen); });
+      document.getElementById('btnShop').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleShop(!this.shopOpen); });
       document.getElementById('btnCloseShop').addEventListener('click', () => this.toggleShop(false));
       document.getElementById('btnCloseHome').addEventListener('click', () => this.toggleHome(false));
       document.getElementById('btnCloseGarden').addEventListener('click', () => this.toggleGarden(false));
@@ -459,7 +465,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnStopBarista').addEventListener('click', () => this.finishBaristaShift(true));
       document.getElementById('btnHomeSleep').addEventListener('click', () => { this.toggleHome(false); this.startNextDay(false); });
       document.getElementById('btnMapToggle').addEventListener('click', () => { this.audio.unlock(); this.toggleMap(); });
-      document.getElementById('btnHelp').addEventListener('click', () => { this.audio.unlock(); this.toggleHelp(!this.helpOpen); });
+      document.getElementById('btnHelp').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleHelp(!this.helpOpen); });
       document.getElementById('btnCloseHelp').addEventListener('click', () => this.toggleHelp(false));
       document.getElementById('btnLangHud')?.addEventListener('click', () => {
         this.audio.unlock();
@@ -474,7 +480,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCamera').addEventListener('click', () => { this.audio.unlock(); this.snapPhoto(); });
       document.getElementById('btnWeather').addEventListener('click', () => { this.audio.unlock(); this.cycleWeather(); });
       document.getElementById('btnSeason').addEventListener('click', () => { this.audio.unlock(); this.useHourglass(); });
-      document.getElementById('btnMusic').addEventListener('click', () => { this.audio.unlock(); this.toggleMusicModal(!this.musicOpen); });
+      document.getElementById('btnMusic').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleMusicModal(!this.musicOpen); });
       document.getElementById('btnToggleMusicPlay').addEventListener('click', () => { this.audio.unlock(); this.toggleMusic(); });
       document.getElementById('btnToggleMuteAll').addEventListener('click', () => {
         this.audio.unlock();
@@ -499,7 +505,10 @@ window.YasamDunya = window.YasamDunya || {};
       });
       document.getElementById('btnFishCatch').addEventListener('click', () => { this.audio.unlock(); this.resolveFishingAttempt(); });
       document.getElementById('btnResetSave').addEventListener('click', () => {
-        if (confirm('Kayıt sıfırlansın mı?')) {
+        const msg = (YD.I18N && YD.I18N.getLang() === 'en')
+          ? 'Reset your saved game and start fresh?'
+          : 'Kayıt sıfırlansın mı?';
+        if (confirm(msg)) {
           SEC.removeStorageKeySafe(SEC.getSafeStorage(), SAVE_KEY);
           location.reload();
         }
@@ -2715,6 +2724,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.activeQuizIdx = null;
       this.world.island.chestOpened = false;
       if (this.delivery.active) this.cancelDelivery('');
+      if (this.fishing.active) this.stopFishing();
+      if (this.barista.active) this.finishBaristaShift(true);
+      if (this.hasOpenModal()) this.closeAllModals();
       this.audio.sleep();
 
       // Passive Daily Cafe Profit if player owns the cafe!

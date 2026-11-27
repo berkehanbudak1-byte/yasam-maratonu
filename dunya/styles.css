@@ -91,6 +91,21 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
   display: flex; flex-direction: column; gap: 8px; align-items: stretch;
   pointer-events: none;
 }
+.hud-sub-area {
+  display: flex; align-items: flex-start; gap: 10px;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+.hud-left-stack {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  pointer-events: none;
+}
+.hud-center-stack {
+  flex: 1 1 260px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none;
+  min-width: 0;
+}
 .guide-card {
   align-self: flex-start;
   width: 266px;
@@ -354,11 +369,10 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
 .title-hint { margin-top: 12px; font-size: 10px; color: #94a3b8; }
 
 .event-toast {
-  position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
   padding: 7px 16px; z-index: 24;
   font-size: 13px; font-weight: 900; color: #fde047;
   border-color: rgba(250, 204, 21, 0.55);
-  white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: min(560px, 100%); overflow: hidden; text-overflow: ellipsis;
 }
 
 .career-banner {
@@ -426,7 +440,6 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
 
 /* v6 ADDITIONS: EXPRESS DELIVERY BANNER */
 .delivery-banner {
-  position: fixed; top: 96px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px; pointer-events: auto;
   padding: 6px 14px; font-size: 12px; font-weight: 900; color: #f8fafc;
   border-color: rgba(250, 204, 21, 0.65); z-index: 23;
@@ -504,11 +517,10 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
 .icon-pill.swarm-active b { color: #4ade80; }
 
 .swarm-banner {
-  position: fixed; top: 54px; left: 12px;
   display: flex; align-items: center; gap: 8px; pointer-events: auto;
   padding: 5px 11px; font-size: 11px; font-weight: 800; color: #f8fafc;
   border-color: rgba(74, 222, 128, 0.62); z-index: 22;
-  max-width: min(520px, 94vw);
+  max-width: min(500px, calc(100vw - 24px));
 }
 .swarm-dot {
   width: 8px; height: 8px; border-radius: 50%;

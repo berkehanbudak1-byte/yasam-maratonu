@@ -480,6 +480,10 @@ window.YasamDunya = window.YasamDunya || {};
     [' noktasına teslimat yapılıyor (', ' — delivering ('],
     ['sn)...', 's)...'],
     [' topluyor...', ' foraging...'],
+    ['Gün ', 'Day '],
+    ['☕ Kafe +', '☕ Cafe +'],
+    ['🏦 Faiz +', '🏦 Interest +'],
+    ['💡 Fatura -', '💡 Bill -'],
     [' EVİ', '\'S HOME'],
     [' KAFE', ' CAFE'],
     ['₺', '$']
