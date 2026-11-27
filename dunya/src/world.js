@@ -36,6 +36,8 @@ window.YasamDunya = window.YasamDunya || {};
       this.island = { x: 920, y: 3395, rx: 140, ry: 85, chestX: 920, chestY: 3378, chestOpened: false };
       this.atm = { x: 2965, y: 1455 };
       this.evCharger = { x: 2880, y: 1015 };
+      this.fountain = { x: 2490, y: 1955, r: 34 };
+      this.icecream = { x: 2045, y: 2542 };
       this.strays = [];
       this.birds = [];
 
@@ -90,15 +92,17 @@ window.YasamDunya = window.YasamDunya || {};
       this.interactables.push(
         { id: 'hotspring',  kind: 'hotspring',  label: '♨️ SICAK KAPLICA (+Sağlık & Enerji)', x: this.hotSpring.x, y: this.hotSpring.y + 88, r: 72 },
         { id: 'summit',     kind: 'summit',     label: '🪨 SİSYPHOS ZİRVE KAYASI (+50 XP)',   x: this.summitRock.x, y: this.summitRock.y + 44, r: 64 },
-        { id: 'camp',       kind: 'campfire',   label: '🔥 KAMP ATEŞİ (Dinlen)',              x: this.campfire.x, y: this.campfire.y, r: 58 },
+        { id: 'camp',       kind: 'campfire',   label: '🔥 KAMP ATEŞİ (Dinlen & Yemek Pişir)', x: this.campfire.x, y: this.campfire.y, r: 58 },
         { id: 'altar',      kind: 'altar',      label: '⏳ ANTİK 4D SUNAK (İlham Al)',         x: this.altar.x, y: this.altar.y, r: 62 },
         { id: 'park_gym',   kind: 'workout',    label: '🏃 PARK SPOR ALANI (+Sağlık)',         x: 3640, y: 1860, r: 66 },
         { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI — Ördekleri Besle',     x: 3880, y: 1605, r: 58 },
         { id: 'pier_fish',  kind: 'fish',       label: '🎣 İSKELE — BALIK TUT',               x: this.pier.x + this.pier.w / 2, y: this.pier.y + this.pier.h - 24, r: 68 },
         { id: 'lighthouse', kind: 'lighthouse', label: '🗼 DENİZ FENERİ (Manzara)',            x: this.lighthouse.x, y: this.lighthouse.y + 44, r: 58 },
         { id: 'treasure',   kind: 'treasure',   label: '🪙 ANTİK HAZİNE SANDIĞI',              x: this.island.chestX, y: this.island.chestY, r: 58 },
-        { id: 'bank_atm',   kind: 'bank',       label: '🏦 BANKA / ATM (Yatır, Çek & %8 Faiz)', x: this.atm.x, y: this.atm.y, r: 52 },
-        { id: 'ev_charge',  kind: 'evcharge',   label: '⚡ EV ŞARJ İSTASYONU (₺20 — %100 Batarya)', x: this.evCharger.x, y: this.evCharger.y, r: 54 }
+        { id: 'bank_atm',   kind: 'bank',       label: '🏦 BANKA / ATM (Yatır, Çek & Faiz)',   x: this.atm.x, y: this.atm.y, r: 52 },
+        { id: 'ev_charge',  kind: 'evcharge',   label: '⚡ EV ŞARJ İSTASYONU (₺20 — %100 Batarya)', x: this.evCharger.x, y: this.evCharger.y, r: 54 },
+        { id: 'fountain',   kind: 'fountain',   label: '⛲ ŞEHİR DİLEK ÇEŞMESİ (₺10 Dilek Tut)', x: this.fountain.x, y: this.fountain.y + 32, r: 58 },
+        { id: 'icecream',   kind: 'icecream',   label: '🍦 SAHİL DONDURMA & LİMONATA (₺15)',   x: this.icecream.x, y: this.icecream.y, r: 54 }
       );
       for (const bs of YD.BUS_STOPS) {
         this.interactables.push({ id: bs.id, kind: 'bus', label: `🚏 OTOBÜS DURAĞI (${bs.name})`, x: bs.x, y: bs.y, r: 52 });
@@ -462,7 +466,8 @@ window.YasamDunya = window.YasamDunya || {};
         ent.y += 16;
       }
 
-      for (const solid of [this.lighthouse, this.summitRock]) {
+      for (const solid of [this.lighthouse, this.summitRock, this.fountain]) {
+        if (!solid) continue;
         const dx = ent.x - solid.x, dy = ent.y - solid.y;
         const minR = (ent.r || 16) + solid.r;
         const d2 = dx * dx + dy * dy;
@@ -474,17 +479,17 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
-    update(dt, player, onCarHitPlayer, weatherId, onCarHonk, playerCalm = true) {
+    update(dt, player, onCarHitPlayer, weatherId, onCarHonk, playerCalm = true, agriMult = 1.0) {
       this.lighthouse.beamAngle += dt * 0.9;
 
-      // Grow organic garden crops (2x speed when watered; rain auto-waters!)
+      // Grow organic garden crops (2x speed when watered; rain auto-waters; +40% with Ziraat Diploması!)
       const raining = weatherId === 'rain' || weatherId === 'storm';
       for (const plot of this.gardenPlots) {
         if (!plot.crop) continue;
         if (raining) plot.watered = true;
         if (plot.growth < 1) {
           const info = YD.CROPS[plot.crop];
-          const rate = (plot.watered ? 2.0 : 1.0) / (info ? info.growSec : 40);
+          const rate = ((plot.watered ? 2.0 : 1.0) * agriMult) / (info ? info.growSec : 40);
           plot.growth = Math.min(1, plot.growth + dt * rate);
         }
       }

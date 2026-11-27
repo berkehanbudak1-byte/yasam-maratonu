@@ -1218,6 +1218,23 @@ window.YasamDunya = window.YasamDunya || {};
       this.tone(1046.5, 1046.5, 0.07, 'triangle', 0.11);
       this.tone(1318.5, 1568.0, 0.15, 'triangle', 0.11, 0.065);
     }
+    cameraShutter() {
+      this.noise(0.045, 0.13, 3200);
+      this.tone(1800, 720, 0.04, 'triangle', 0.10);
+      this.tone(1250, 2400, 0.09, 'sine', 0.08, 0.045);
+    }
+    cookSizzle() {
+      this.noise(0.34, 0.09, 2600);
+      this.tone(880, 1174.7, 0.10, 'triangle', 0.11, 0.12);
+      this.tone(1174.7, 1760, 0.16, 'triangle', 0.10, 0.21);
+    }
+    fountainSplash() {
+      this.noise(0.18, 0.07, 1600);
+      [72, 76, 79, 84].forEach((m, i) => this.tone(midiToFreq(m), midiToFreq(m) * 1.02, 0.16, 'sine', 0.08, i * 0.055));
+    }
+    iceCreamChime() {
+      [76, 79, 84, 79, 84].forEach((m, i) => this.tone(midiToFreq(m), midiToFreq(m), 0.13, 'triangle', 0.09, i * 0.075));
+    }
     carStart(){ this.tone(85, 220, 0.24, 'sawtooth', 0.075); this.noise(0.16, 0.05, 500); }
     guitar()  {
       if (!this.ctx) return;

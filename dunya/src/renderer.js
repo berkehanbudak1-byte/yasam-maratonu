@@ -211,6 +211,9 @@ window.YasamDunya = window.YasamDunya || {};
         ctx.fillStyle = `rgba(220, 38, 38, ${game.damageFlash * 0.45})`;
         ctx.fillRect(0, 0, vw, vh);
       }
+      if (game.cameraFlash > 0) {
+        this.drawCameraFlashOverlay(ctx, game, vw, vh);
+      }
 
       // Subtle cinematic warm vignette framing
       const vig = ctx.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.38, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
@@ -220,6 +223,41 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.fillRect(0, 0, vw, vh);
 
       this.drawMinimap(game, season);
+    }
+
+    drawCameraFlashOverlay(ctx, game, vw, vh) {
+      const f = Math.min(1, game.cameraFlash);
+      ctx.save();
+      if (f > 0.45) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${(f - 0.45) * 1.35})`;
+        ctx.fillRect(0, 0, vw, vh);
+      }
+      // Sleek Polaroid Viewfinder Corner Brackets & Caption Pill
+      ctx.strokeStyle = `rgba(255, 255, 255, ${f * 0.92})`;
+      ctx.lineWidth = 3.5;
+      const mx = Math.max(44, vw * 0.14), my = Math.max(54, vh * 0.14);
+      const x1 = mx, y1 = my, x2 = vw - mx, y2 = vh - my, cl = 28;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1 + cl); ctx.lineTo(x1, y1); ctx.lineTo(x1 + cl, y1);
+      ctx.moveTo(x2 - cl, y1); ctx.lineTo(x2, y1); ctx.lineTo(x2, y1 + cl);
+      ctx.moveTo(x1, y2 - cl); ctx.lineTo(x1, y2); ctx.lineTo(x1 + cl, y2);
+      ctx.moveTo(x2 - cl, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - cl);
+      ctx.stroke();
+
+      if (game.lastPhotoLabel) {
+        ctx.fillStyle = `rgba(15, 23, 42, ${f * 0.88})`;
+        ctx.strokeStyle = `rgba(253, 224, 71, ${f * 0.95})`;
+        ctx.lineWidth = 2;
+        const pw = 290, ph = 32, px = vw / 2 - pw / 2, py = y2 - 48;
+        ctx.fillRect(px, py, pw, ph);
+        ctx.strokeRect(px, py, pw, ph);
+        ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = `rgba(254, 240, 138, ${f})`;
+        ctx.fillText(`📸 ${game.lastPhotoLabel}`, vw / 2, py + 21);
+        ctx.textAlign = 'left';
+      }
+      ctx.restore();
     }
 
     getNightAlpha(timeMinutes) {
@@ -708,6 +746,69 @@ window.YasamDunya = window.YasamDunya || {};
         ctx.fillStyle = '#bbf7d0'; ctx.fillText('⚡ EV ŞARJ', ex, ey - 28);
         ctx.restore();
       }
+      // 3) Grand Marble City Wishing Fountain in University & Cafe Courtyard!
+      if (world.fountain) {
+        const fx = world.fountain.x, fy = world.fountain.y, fr = world.fountain.r;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath(); ctx.arc(fx + 5, fy + 6, fr + 4, 0, Math.PI * 2); ctx.fill();
+        // Carved stone outer rim
+        ctx.fillStyle = '#e2e8f0'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(fx, fy, fr + 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        // Turquoise shimmering water pool
+        const fg = ctx.createRadialGradient(fx - 6, fy - 6, 4, fx, fy, fr - 2);
+        fg.addColorStop(0, '#a5f3fc'); fg.addColorStop(1, '#0284c7');
+        ctx.fillStyle = fg;
+        ctx.beginPath(); ctx.arc(fx, fy, fr - 3, 0, Math.PI * 2); ctx.fill();
+        // Glinting golden wish coins at the bottom
+        ctx.fillStyle = '#fde047';
+        for (const [cx, cy] of [[-13, -10], [14, -8], [-11, 13], [12, 12], [2, -16]]) {
+          ctx.beginPath(); ctx.arc(fx + cx, fy + cy, 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+        // Animated water ripple rings + center sculpture + water jets
+        ctx.strokeStyle = 'rgba(255,255,255,0.62)'; ctx.lineWidth = 1.6;
+        const rip = 12 + ((now * 16) % 16);
+        ctx.beginPath(); ctx.arc(fx, fy, rip, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(fx, fy, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath(); ctx.arc(fx, fy, 4 + Math.sin(now * 8) * 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.font = 'bold 9px "Courier New", monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText('⛲ DİLEK ÇEŞMESİ', fx, fy - fr - 10);
+        ctx.restore();
+      }
+      // 4) Colorful Beachfront Ice-Cream & Lemonade Cart on Boardwalk!
+      if (world.icecream) {
+        const ix = world.icecream.x, iy = world.icecream.y;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fillRect(ix - 22, iy - 10, 50, 30);
+        // Cart wheels
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath(); ctx.arc(ix - 14, iy + 16, 6, 0, Math.PI * 2); ctx.arc(ix + 14, iy + 16, 6, 0, Math.PI * 2); ctx.fill();
+        // Pastel cream & strawberry cart body
+        ctx.fillStyle = '#fff1f2'; ctx.strokeStyle = '#be123c'; ctx.lineWidth = 2.2;
+        ctx.fillRect(ix - 22, iy - 12, 44, 26); ctx.strokeRect(ix - 22, iy - 12, 44, 26);
+        ctx.fillStyle = '#fb7185';
+        ctx.fillRect(ix - 22, iy + 3, 44, 11);
+        // 3 Ice cream tubs inside glass display
+        [['#f472b6', -11], ['#fde047', 0], ['#4ade80', 11]].forEach(([col, ox]) => {
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.arc(ix + ox, iy - 4, 4.2, 0, Math.PI * 2); ctx.fill();
+        });
+        // Striped umbrella canopy overhang
+        for (let s = 0; s < 4; s++) {
+          ctx.fillStyle = s % 2 === 0 ? '#f43f5e' : '#ffffff';
+          ctx.fillRect(ix - 24 + s * 12, iy - 22, 12, 9);
+        }
+        ctx.strokeStyle = '#881337'; ctx.lineWidth = 1.6;
+        ctx.strokeRect(ix - 24, iy - 22, 48, 9);
+        ctx.font = 'bold 9px "Courier New", monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#fef08a';
+        ctx.fillText('🍦 DONDURMA', ix, iy - 27);
+        ctx.restore();
+      }
     }
 
     drawWildlife(ctx, world, now) {
@@ -1142,6 +1243,7 @@ window.YasamDunya = window.YasamDunya || {};
       };
       glow(game.world.campfire.x, game.world.campfire.y, 175, `rgba(251, 146, 60, ${nightAlpha * 1.1})`);
       glow(game.world.hotSpring.x, game.world.hotSpring.y, 155, `rgba(45, 212, 191, ${nightAlpha * 0.85})`);
+      if (game.world.fountain) glow(game.world.fountain.x, game.world.fountain.y, 130, `rgba(56, 189, 248, ${nightAlpha * 0.85})`);
       for (const lm of game.world.streetlamps) glow(lm.x, lm.y, 115, `rgba(254, 240, 138, ${nightAlpha * 0.9})`);
       const lanternR = game.inventory.has('lantern') ? 240 : 95;
       glow(game.player.x, game.player.y, lanternR, `rgba(253, 224, 71, ${nightAlpha * 0.85})`);
@@ -1478,6 +1580,40 @@ window.YasamDunya = window.YasamDunya || {};
           for (const [px, py] of [[sx + 4, sy + 4], [sx + sp.w - 4, sy + 4], [sx + 4, sy + sp.h - 4], [sx + sp.w - 4, sy + sp.h - 4]]) {
             ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
           }
+        } else if (sp.kind === 'kitchen') {
+          // Warm oak kitchen counter + 2-burner stove + simmering copper pot + cutting board
+          ctx.fillStyle = '#6b3a1c'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 2;
+          rrect(sx, sy, sp.w, sp.h, 6); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#d6b48c';
+          rrect(sx + 4, sy + 4, sp.w - 8, sp.h - 8, 4); ctx.fill();
+          // Dark glass 2-burner stove plate on top half
+          ctx.fillStyle = '#1e293b';
+          rrect(sx + 8, sy + 7, sp.w - 16, 26, 3); ctx.fill();
+          // Glowing burner + simmering copper saucepan
+          ctx.strokeStyle = '#fb923c'; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.arc(sx + 22, sy + 20, 7, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#451a03'; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.arc(sx + 45, sy + 20, 8.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#fde047';
+          ctx.beginPath(); ctx.arc(sx + 45, sy + 20, 5.5, 0, Math.PI * 2); ctx.fill();
+          // Pot handle & rising steam
+          ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.2;
+          ctx.beginPath(); ctx.moveTo(sx + 53, sy + 20); ctx.lineTo(sx + 61, sy + 20); ctx.stroke();
+          const st = (now * 13) % 9;
+          ctx.strokeStyle = `rgba(255,255,255,${0.55 - st * 0.05})`; ctx.lineWidth = 1.3;
+          ctx.beginPath(); ctx.moveTo(sx + 43, sy + 14 - st); ctx.quadraticCurveTo(sx + 47, sy + 10 - st, ctx.lineTo ? sx + 44 : sx + 44, sy + 6 - st); ctx.stroke();
+          // Wooden cutting board with fresh tomato & basil on bottom half
+          ctx.fillStyle = '#b45309';
+          rrect(sx + 10, sy + 37, 30, 18, 3); ctx.fill();
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath(); ctx.arc(sx + 19, sy + 46, 4.2, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath(); ctx.arc(sx + 29, sy + 45, 3.2, 0, Math.PI * 2); ctx.fill();
+          // Stainless steel mini-sink on bottom-right
+          ctx.fillStyle = '#94a3b8';
+          rrect(sx + 44, sy + 37, 16, 18, 3); ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          rrect(sx + 46, sy + 39, 12, 14, 2); ctx.fill();
         } else if (sp.kind === 'espresso') {
           // Warm walnut coffee bar counter
           ctx.fillStyle = '#6b3a1c'; ctx.strokeStyle = '#2b1307'; ctx.lineWidth = 2;
@@ -1657,6 +1793,10 @@ window.YasamDunya = window.YasamDunya || {};
       this.drawParticles(ctx, game.particles);
       this.drawPopups(ctx, game.popups);
       ctx.restore();
+
+      if (game.cameraFlash > 0) {
+        this.drawCameraFlashOverlay(ctx, game, vw, vh);
+      }
     }
 
     drawIsland(ctx, world, now) {

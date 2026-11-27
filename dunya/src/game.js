@@ -39,8 +39,13 @@ window.YasamDunya = window.YasamDunya || {};
       this.busOpen = false;
       this.busMode = 'bus';
       this.bankOpen = false;
+      this.cookOpen = false;
+      this.uniOpen = false;
       this.musicOpen = false;
       this.activePlotId = null;
+      this.activeQuizIdx = null;
+      this.quizDoneToday = false;
+      this.fountainWishedToday = false;
       this.minimapVisible = true;
       this.audio.onTrackChange = (track) => {
         if (this.musicOpen) this.renderMusicModal();
@@ -73,6 +78,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.skidMarks = [];
       this.damageFlash = 0;
       this.carHitInvuln = 0;
+      this.cameraFlash = 0;
+      this.cameraCd = 0;
+      this.lastPhotoLabel = '';
 
       // Life Stats
       this.day = 1;
@@ -98,7 +106,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.cafeTotalEarned = 0;
       this.inventory = new Set();
       this.homeDecor = new Set();
-      this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, petfood: 2 };
+      this.uniCerts = new Set();
+      this.photosTaken = new Set();
+      this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, soup: 0, pie: 0, feast: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, petfood: 2 };
       this.achievements = new Set();
       this.animalFriends = new Set();
       this.npcHearts = {};
@@ -211,7 +221,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     hasOpenModal() {
-      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.bankOpen || this.musicOpen;
+      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.bankOpen || this.cookOpen || this.uniOpen || this.musicOpen;
     }
 
     bindEvents() {
@@ -285,6 +295,7 @@ window.YasamDunya = window.YasamDunya || {};
           }
         }
         if (e.code === 'KeyP') this.petCompanion();
+        if (e.code === 'KeyF') this.snapPhoto();
         if (this.scene === 'home') return;
 
         if (e.code === 'KeyH' && this.player.inCar) {
@@ -303,6 +314,7 @@ window.YasamDunya = window.YasamDunya || {};
 
       document.getElementById('btnBag').addEventListener('click', () => { this.audio.unlock(); this.toggleBag(!this.bagOpen); });
       document.getElementById('btnCloseBag').addEventListener('click', () => this.toggleBag(false));
+      document.getElementById('btnOpenCookFromBag').addEventListener('click', () => { this.audio.unlock(); this.toggleCook(true); });
       document.getElementById('btnQuests').addEventListener('click', () => { this.audio.unlock(); this.toggleQuests(!this.questOpen); });
       document.getElementById('btnCloseQuests').addEventListener('click', () => this.toggleQuests(false));
       document.getElementById('btnShop').addEventListener('click', () => { this.audio.unlock(); this.toggleShop(!this.shopOpen); });
@@ -313,6 +325,8 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCloseOffice').addEventListener('click', () => this.toggleOffice(false));
       document.getElementById('btnCloseBus').addEventListener('click', () => this.toggleBus(false));
       document.getElementById('btnCloseBank').addEventListener('click', () => this.toggleBank(false));
+      document.getElementById('btnCloseCook').addEventListener('click', () => this.toggleCook(false));
+      document.getElementById('btnCloseUni').addEventListener('click', () => this.toggleUni(false));
       document.getElementById('btnCloseMusic').addEventListener('click', () => this.toggleMusicModal(false));
       document.getElementById('btnCancelDelivery').addEventListener('click', () => this.cancelDelivery('Teslimat iptal edildi.'));
       document.getElementById('btnStopBarista').addEventListener('click', () => this.finishBaristaShift(true));
@@ -324,6 +338,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCar').addEventListener('click', () => { this.audio.unlock(); this.toggleCar(); });
       document.getElementById('btnBoat').addEventListener('click', () => { this.audio.unlock(); this.toggleBoat(); });
       document.getElementById('btnPetAction').addEventListener('click', () => { this.audio.unlock(); this.petCompanion(); });
+      document.getElementById('btnCamera').addEventListener('click', () => { this.audio.unlock(); this.snapPhoto(); });
       document.getElementById('btnWeather').addEventListener('click', () => { this.audio.unlock(); this.cycleWeather(); });
       document.getElementById('btnSeason').addEventListener('click', () => { this.audio.unlock(); this.useHourglass(); });
       document.getElementById('btnMusic').addEventListener('click', () => { this.audio.unlock(); this.toggleMusicModal(!this.musicOpen); });
@@ -403,6 +418,8 @@ window.YasamDunya = window.YasamDunya || {};
       if (this.homeDecor.size >= 3) this.unlockAchievement('ach_decor');
       if (this.ownsCafe) this.unlockAchievement('ach_barista');
       if (this.animalFriends.size >= 3) this.unlockAchievement('ach_animals');
+      if (this.photosTaken.size >= 3) this.unlockAchievement('ach_photo');
+      if (this.uniCerts.size >= 1) this.unlockAchievement('ach_grad');
     }
 
     syncPetFromInventory() {
@@ -443,6 +460,7 @@ window.YasamDunya = window.YasamDunya || {};
         ownsCafe: this.ownsCafe, cafeTotalEarned: this.cafeTotalEarned,
         gardenPlots: this.world.gardenPlots.map((g) => ({ crop: g.crop, growth: g.growth, watered: g.watered })),
         inventory: [...this.inventory], homeDecor: [...this.homeDecor],
+        uniCerts: [...this.uniCerts], photosTaken: [...this.photosTaken],
         bag: this.bag, achievements: [...this.achievements], animalFriends: [...this.animalFriends],
         npcHearts: this.npcHearts,
         questProgress: this.questProgress, questDone: [...this.questDone],
@@ -481,7 +499,9 @@ window.YasamDunya = window.YasamDunya || {};
         }
         this.inventory = new Set(d.inventory || []);
         this.homeDecor = new Set(d.homeDecor || []);
-        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, petfood: 2, ...(d.bag || {}) };
+        this.uniCerts = new Set(d.uniCerts || []);
+        this.photosTaken = new Set(d.photosTaken || []);
+        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, soup: 0, pie: 0, feast: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, petfood: 2, ...(d.bag || {}) };
         this.achievements = new Set(d.achievements || []);
         this.animalFriends = new Set(d.animalFriends || []);
         this.npcHearts = d.npcHearts || {};
@@ -633,8 +653,8 @@ window.YasamDunya = window.YasamDunya || {};
 
     closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = this.bankOpen = this.musicOpen = false;
-      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'bankModal', 'musicModal', 'interactPrompt'].forEach((id) => {
+      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = this.bankOpen = this.cookOpen = this.uniOpen = this.musicOpen = false;
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'bankModal', 'cookModal', 'uniModal', 'musicModal', 'interactPrompt'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
@@ -676,6 +696,19 @@ window.YasamDunya = window.YasamDunya || {};
       this.bankOpen = open;
       document.getElementById('bankModal').classList.toggle('hidden', !open);
       if (open) this.renderBankModal();
+    }
+    toggleCook(open) {
+      this.closeAllModals();
+      this.cookOpen = open;
+      document.getElementById('cookModal').classList.toggle('hidden', !open);
+      if (open) this.renderCookModal();
+    }
+    toggleUni(open) {
+      this.closeAllModals();
+      this.uniOpen = open;
+      if (!open) this.activeQuizIdx = null;
+      document.getElementById('uniModal').classList.toggle('hidden', !open);
+      if (open) this.renderUniModal();
     }
     toggleMusicModal(open) {
       this.closeAllModals();
@@ -764,11 +797,11 @@ window.YasamDunya = window.YasamDunya || {};
 
     renderOfficeModal() {
       const career = YD.getCareer(this.level);
-      const bonusMult = this.inventory.has('sisyphus') ? 1.4 : 1.0;
+      const bonusMult = (this.inventory.has('sisyphus') ? 1.4 : 1.0) * (this.uniCerts.has('cert_fin') ? 1.25 : 1.0);
       const evMult = this.dailyEventIdx === 2 ? 1.5 : 1.0;
       const shiftPay = Math.round((80 + this.level * 18) * career.bonus * bonusMult * evMult);
       const cb = document.getElementById('officeCareerBanner');
-      if (cb) cb.innerHTML = `💼 Unvan: <b>${career.title}</b> (Maaş x${career.bonus})${this.dailyEventIdx === 2 ? ' · 🔥 +%50 Bonus Günü!' : ''}`;
+      if (cb) cb.innerHTML = `💼 Unvan: <b>${career.title}</b> (Maaş x${career.bonus})${this.uniCerts.has('cert_fin') ? ' · 📈 Finans Diploması (+%25)' : ''}${this.dailyEventIdx === 2 ? ' · 🔥 +%50 Bonus Günü!' : ''}`;
       const grid = document.getElementById('officeActionsGrid');
       if (!grid) return;
       grid.innerHTML = `
@@ -805,7 +838,7 @@ window.YasamDunya = window.YasamDunya || {};
       const p = this.player;
       if (this.energy < 22) { this.say(p, 'Çok yorgunum, önce uyu veya kahve iç! 😴', 2.2); return; }
       const career = YD.getCareer(this.level);
-      const bonusMult = this.inventory.has('sisyphus') ? 1.4 : 1.0;
+      const bonusMult = (this.inventory.has('sisyphus') ? 1.4 : 1.0) * (this.uniCerts.has('cert_fin') ? 1.25 : 1.0);
       const evMult = this.dailyEventIdx === 2 ? 1.5 : 1.0;
       const pay = Math.round((80 + this.level * 18) * career.bonus * bonusMult * evMult);
       this.energy -= 22; this.hunger = Math.max(0, this.hunger - 14);
@@ -837,7 +870,8 @@ window.YasamDunya = window.YasamDunya || {};
     completeDelivery() {
       const tgt = this.delivery.target;
       const speedBonus = Math.round(this.delivery.timeLeft * 2);
-      const total = tgt.reward + speedBonus;
+      const finMult = this.uniCerts.has('cert_fin') ? 1.25 : 1.0;
+      const total = Math.round((tgt.reward + speedBonus) * finMult);
       this.delivery = { active: false, target: null, timeLeft: 0 };
       document.getElementById('deliveryBanner').classList.add('hidden');
       this.money += total;
@@ -906,15 +940,17 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     renderBankModal() {
+      const rate = this.uniCerts.has('cert_fin') ? 0.12 : 0.08;
+      const pctTxt = this.uniCerts.has('cert_fin') ? '%12' : '%8';
       const banner = document.getElementById('bankBalanceBanner');
       if (banner) {
-        const estInterest = Math.floor(this.bankBalance * 0.08);
-        banner.innerHTML = `💵 Cüzdan: <b>₺${Math.floor(this.money).toLocaleString()}</b> · 🏦 Banka: <b style="color:#4ade80;">₺${Math.floor(this.bankBalance).toLocaleString()}</b> <span style="color:#fde047;">(+₺${estInterest}/gün %8 faiz)</span>`;
+        const estInterest = Math.floor(this.bankBalance * rate);
+        banner.innerHTML = `💵 Cüzdan: <b>₺${Math.floor(this.money).toLocaleString()}</b> · 🏦 Banka: <b style="color:#4ade80;">₺${Math.floor(this.bankBalance).toLocaleString()}</b> <span style="color:#fde047;">(+₺${estInterest}/gün ${pctTxt} faiz)</span>`;
       }
       const grid = document.getElementById('bankActionsGrid');
       if (!grid) return;
       const acts = [
-        { id: 'dep_50',  ico: '📥', title: '₺50 Yatır',        sub: 'Birikimine günlük %8 faiz işler',       dis: this.money < 50 },
+        { id: 'dep_50',  ico: '📥', title: '₺50 Yatır',        sub: `Birikimine günlük ${pctTxt} faiz işler`, dis: this.money < 50 },
         { id: 'dep_200', ico: '💰', title: '₺200 Yatır',       sub: 'Hızlı tasarruf + yüksek günlük faiz',   dis: this.money < 200 },
         { id: 'dep_all', ico: '🏦', title: 'Tüm Nakti Yatır',  sub: `₺${Math.floor(this.money)} hesaba aktar`, dis: this.money < 10 },
         { id: 'wdr_50',  ico: '📤', title: '₺50 Çek',          sub: 'Cüzdanına anında nakit al',             dis: this.bankBalance < 50 },
@@ -943,6 +979,266 @@ window.YasamDunya = window.YasamDunya || {};
           this.saveGame();
         });
       });
+    }
+
+    renderCookModal() {
+      const banner = document.getElementById('cookStatusBanner');
+      const culBonus = this.uniCerts.has('cert_culinary');
+      if (banner) {
+        banner.innerHTML = `🧺 Malzemelerin: 🐟 <b>${this.bag.fish || 0}</b> · 🍅 <b>${this.bag.tomato || 0}</b> · 🍄 <b>${this.bag.mushroom || 0}</b> · 🍓Böğürtlen <b>${this.bag.berry || 0}</b> · 🍓Çilek <b>${this.bag.strawberry || 0}</b>${culBonus ? ' · 👨‍🍳 +35% Şef Bonusu' : ''}`;
+      }
+      const grid = document.getElementById('cookRecipesGrid');
+      if (!grid) return;
+      grid.innerHTML = YD.RECIPES.map((r) => {
+        const canCook = Object.entries(r.ingredients).every(([k, need]) => (this.bag[k] || 0) >= need);
+        const haveQty = this.bag[r.id] || 0;
+        const sellVal = Math.round(r.sell * (culBonus ? 1.35 : 1.0));
+        return `
+          <div class="shop-item">
+            <div style="font-size:24px;">${r.icon}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800; color:#f8fafc;">${r.name} ${haveQty > 0 ? `<span style="color:#fde047;">(Çantada: x${haveQty})</span>` : ''}</div>
+              <div style="font-size:11px; color:#cbd5e1;">Gereken: <b>${r.ingText}</b></div>
+              <div style="font-size:11px; color:#94a3b8;">+${r.hunger} Tokluk · +${r.energy} Enerji · +${r.health} Sağlık · Satış: ₺${sellVal}</div>
+            </div>
+            <div class="btn-row">
+              ${haveQty > 0 ? `<button class="hud-btn" data-cook-eat="${r.id}">YE 🍽️</button>` : ''}
+              <button class="shop-buy-btn" data-cook="${r.id}" ${!canCook ? 'disabled style="opacity:0.38; cursor:not-allowed; filter:grayscale(0.7);"' : ''}>PİŞİR 🍳</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      grid.querySelectorAll('[data-cook]:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const r = YD.RECIPES.find((x) => x.id === btn.dataset.cook);
+          if (!r) return;
+          for (const [k, need] of Object.entries(r.ingredients)) {
+            if ((this.bag[k] || 0) < need) return;
+          }
+          for (const [k, need] of Object.entries(r.ingredients)) {
+            this.bag[k] -= need;
+          }
+          this.bag[r.id] = (this.bag[r.id] || 0) + 1;
+          this.happiness = Math.min(100, this.happiness + 12);
+          this.addXp(r.xp);
+          this.audio.cookSizzle();
+          this.showToast(`🍳 ${r.icon} ${r.name} pişti! (+${r.xp} XP — Çantana eklendi)`);
+          this.unlockAchievement('ach_chef');
+          this.advanceQuest('q_cook', 1);
+          this.checkAchievements();
+          this.renderCookModal();
+          this.saveGame();
+        });
+      });
+
+      grid.querySelectorAll('[data-cook-eat]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const k = btn.dataset.cookEat;
+          const info = YD.BAG_ITEMS[k];
+          if (!info || !this.bag[k]) return;
+          this.bag[k]--;
+          this.hunger = Math.min(100, this.hunger + info.hunger);
+          this.energy = Math.min(100, this.energy + info.energy);
+          this.health = Math.min(100, this.health + info.health);
+          this.happiness = Math.min(100, this.happiness + 18);
+          this.audio.pickup();
+          this.showToast(`🍽️ ${info.icon} ${info.name} afiyetle yendi! (+${info.hunger} Tokluk, +${info.energy} Enerji)`);
+          this.renderCookModal();
+          this.saveGame();
+        });
+      });
+    }
+
+    renderUniModal() {
+      const banner = document.getElementById('uniStatusBanner');
+      if (banner) {
+        banner.innerHTML = `🎓 Akademik Diplomalar: <b>${this.uniCerts.size}/${YD.UNI_CERTS.length}</b> · 🧠 Günlük Burs Sınavı: <b>${this.quizDoneToday ? 'Tamamlandı ✓' : 'Hazır (+₺150 Burs!)'}</b>`;
+      }
+      const qBox = document.getElementById('uniQuizBox');
+      if (qBox) {
+        if (this.activeQuizIdx !== null && YD.UNI_QUIZ[this.activeQuizIdx]) {
+          const q = YD.UNI_QUIZ[this.activeQuizIdx];
+          qBox.classList.remove('hidden');
+          qBox.innerHTML = `
+            <div style="font-size:12px; color:#fde047; margin-bottom:8px;">🧠 <b>BURS SINAVI SORUSU:</b> ${q.q}</div>
+            <div class="shop-grid">
+              ${q.opts.map((opt, idx) => `<button class="hud-btn" style="text-align:left;" data-quiz-ans="${idx}"><b>${['A', 'B', 'C'][idx]})</b> ${opt}</button>`).join('')}
+            </div>`;
+          qBox.querySelectorAll('[data-quiz-ans]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const picked = Number(btn.dataset.quizAns);
+              if (picked === q.ans) {
+                this.quizDoneToday = true;
+                this.activeQuizIdx = null;
+                this.money += 150;
+                this.addXp(55);
+                this.happiness = Math.min(100, this.happiness + 18);
+                this.audio.levelUp();
+                this.showToast('🎓 TEBRİKLER! Doğru cevap — +₺150 Akademik Burs & +55 XP kazandın!');
+                this.advanceQuest('q_uni', 1);
+                this.checkAchievements();
+                this.renderUniModal();
+                this.saveGame();
+              } else {
+                this.audio.miss();
+                this.activeQuizIdx = (this.activeQuizIdx + 1) % YD.UNI_QUIZ.length;
+                this.showToast('❌ Yanlış cevap! Yeni soruyu dikkatlice oku.');
+                this.renderUniModal();
+              }
+            });
+          });
+        } else {
+          qBox.classList.add('hidden');
+        }
+      }
+
+      const grid = document.getElementById('uniActionsGrid');
+      if (!grid) return;
+      const bonusMult = this.inventory.has('sisyphus') ? 1.4 : 1.0;
+      const studyXp = Math.round(50 * bonusMult);
+      let html = `
+        <div class="shop-item">
+          <div style="font-size:24px;">📚</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:800; color:#f8fafc;">Akademik Ders &amp; Araştırma</div>
+            <div style="font-size:11px; color:#94a3b8;">+${studyXp} XP · +12 Mutluluk · -18 Enerji</div>
+          </div>
+          <button id="btnUniStudy" class="shop-buy-btn">ÇALIŞ</button>
+        </div>
+        <div class="shop-item">
+          <div style="font-size:24px;">🧠</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:800; color:#fde047;">Günlük Akademik Burs Sınavı</div>
+            <div style="font-size:11px; color:#94a3b8;">Soruyu doğru bil, anında +₺150 Burs ve +55 XP kazan!</div>
+          </div>
+          <button id="btnUniQuiz" class="shop-buy-btn ${this.quizDoneToday ? 'owned' : ''}" ${this.quizDoneToday ? 'disabled' : ''}>${this.quizDoneToday ? 'GEÇİLDİ ✓' : 'SINAVA GİR ▶'}</button>
+        </div>`;
+
+      for (const c of YD.UNI_CERTS) {
+        const owned = this.uniCerts.has(c.id);
+        html += `
+          <div class="shop-item">
+            <div style="font-size:24px;">${c.icon}</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800; color:#f8fafc;">${c.name}</div>
+              <div style="font-size:11px; color:#94a3b8;">${c.desc}</div>
+            </div>
+            <button class="shop-buy-btn ${owned ? 'owned' : ''}" data-cert="${c.id}" ${owned ? 'disabled' : ''}>
+              ${owned ? 'ALINDI ✓' : `₺${c.price}`}
+            </button>
+          </div>`;
+      }
+      grid.innerHTML = html;
+
+      document.getElementById('btnUniStudy').addEventListener('click', () => {
+        if (this.energy < 18) { this.popup(this.player.x, this.player.y - 34, 'Çok yorgunsun, dinlen!', '#ef4444'); return; }
+        this.energy -= 18;
+        this.timeMinutes += 90;
+        this.happiness = Math.min(100, this.happiness + 12);
+        this.addXp(studyXp);
+        this.audio.pickup();
+        this.popup(this.player.x, this.player.y - 34, `🎓 +${studyXp} BİLGİ XP!`, '#38bdf8');
+        this.toggleUni(false);
+        this.saveGame();
+      });
+
+      const qBtn = document.getElementById('btnUniQuiz');
+      if (qBtn && !this.quizDoneToday) {
+        qBtn.addEventListener('click', () => {
+          this.activeQuizIdx = Math.floor(Math.random() * YD.UNI_QUIZ.length);
+          this.audio.uiClick();
+          this.renderUniModal();
+        });
+      }
+
+      grid.querySelectorAll('[data-cert]:not(.owned)').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const cert = YD.UNI_CERTS.find((x) => x.id === btn.dataset.cert);
+          if (!cert) return;
+          if (this.money < cert.price) { this.popup(this.player.x, this.player.y - 34, `₺${cert.price} gerekiyor!`, '#ef4444'); return; }
+          this.money -= cert.price;
+          this.uniCerts.add(cert.id);
+          this.addXp(45);
+          this.audio.levelUp();
+          this.showToast(`🎓 DİPLOMA ALINDI: ${cert.icon} ${cert.name}!`);
+          this.advanceQuest('q_uni', 1);
+          this.checkAchievements();
+          this.renderUniModal();
+          this.saveGame();
+        });
+      });
+    }
+
+    snapPhoto() {
+      if (!this.started || this.hasOpenModal() || this.cameraCd > 0) return;
+      this.cameraCd = 1.4;
+      this.cameraFlash = 1.0;
+      this.audio.cameraShutter();
+
+      if (this.scene === 'home') {
+        const hp = this.homePlayer;
+        this.lastPhotoLabel = `🏠 ${this.playerName} Evi Hatırası`;
+        this.happiness = Math.min(100, this.happiness + 10);
+        this.addXp(8);
+        this.popup(hp.x, hp.y - 28, '📸 EV HATIRASI! +8 XP', '#fde047');
+        return;
+      }
+
+      const p = this.player;
+      // 1) Check if near one of the 8 iconic PHOTO_SPOTS
+      for (const sp of YD.PHOTO_SPOTS) {
+        if (Math.hypot(p.x - sp.x, p.y - sp.y) <= sp.r) {
+          const isNew = !this.photosTaken.has(sp.id);
+          this.photosTaken.add(sp.id);
+          this.lastPhotoLabel = `${sp.name} (${this.photosTaken.size}/${YD.PHOTO_SPOTS.length})`;
+          if (isNew) {
+            this.money += sp.reward;
+            this.addXp(sp.xp);
+            this.happiness = Math.min(100, this.happiness + 18);
+            this.burst(p.x, p.y, '#fde047', 18);
+            this.popup(p.x, p.y - 38, `📸 YENİ MANZARA! +₺${sp.reward} Telif & +${sp.xp} XP`, '#fde047');
+            this.showToast(`📸 Manzara Albümü (${this.photosTaken.size}/${YD.PHOTO_SPOTS.length}): ${sp.name} (+₺${sp.reward})`);
+            this.advanceQuest('q_photo', 1);
+            this.checkAchievements();
+            this.saveGame();
+          } else {
+            this.happiness = Math.min(100, this.happiness + 10);
+            this.addXp(10);
+            this.popup(p.x, p.y - 36, `📸 ${sp.name} (+10 XP)`, '#38bdf8');
+          }
+          return;
+        }
+      }
+
+      // 2) Check if photographing a cute stray cat/dog or forest deer/rabbit!
+      for (const st of [...(this.world.strays || []), ...(this.world.wildlife || [])]) {
+        if (Math.hypot(p.x - st.x, p.y - st.y) < 130) {
+          const animalPhotoId = `ph_${st.id}`;
+          const isNew = !this.photosTaken.has(animalPhotoId);
+          this.photosTaken.add(animalPhotoId);
+          this.lastPhotoLabel = `🐾 ${st.name} Portresi`;
+          if (isNew) {
+            this.money += 35;
+            this.addXp(22);
+            this.happiness = Math.min(100, this.happiness + 15);
+            this.popup(p.x, p.y - 36, `📸 ${st.name.toUpperCase()} FOTOĞRAFI! +₺35 & +22 XP`, '#f472b6');
+            this.advanceQuest('q_photo', 1);
+            this.checkAchievements();
+            this.saveGame();
+          } else {
+            this.addXp(8);
+            this.popup(p.x, p.y - 34, `📸 Tatlı ${st.name}! +8 XP`, '#f9a8d4');
+          }
+          return;
+        }
+      }
+
+      // 3) General open-world snapshot
+      const biome = this.world.getBiome(p.x, p.y);
+      this.lastPhotoLabel = `${this.world.getBiomeLabel(biome)} (Albüm: ${this.photosTaken.size}/${YD.PHOTO_SPOTS.length})`;
+      this.happiness = Math.min(100, this.happiness + 8);
+      this.addXp(8);
+      this.popup(p.x, p.y - 34, '📸 FOTOĞRAF ÇEKİLDİ! +8 XP', '#fde047');
     }
 
     honkPlayerHorn() {
@@ -1128,7 +1424,8 @@ window.YasamDunya = window.YasamDunya || {};
     nextBaristaOrder() {
       const pick = YD.CAFE_ORDERS[Math.floor(Math.random() * YD.CAFE_ORDERS.length)];
       this.barista.order = pick;
-      this.barista.maxPatience = Math.max(2.3, 4.4 - this.barista.served * 0.12);
+      const culMult = this.uniCerts.has('cert_culinary') ? 1.25 : 1.0;
+      this.barista.maxPatience = Math.max(2.3, 4.4 - this.barista.served * 0.12) * culMult;
       this.barista.patience = this.barista.maxPatience;
       document.getElementById('baristaOrderIcon').textContent = pick.icon;
       document.getElementById('baristaOrderName').textContent = `[${pick.key}] ${pick.name}`;
@@ -1187,6 +1484,8 @@ window.YasamDunya = window.YasamDunya || {};
     enterHome() {
       this.clearAllKeys();
       this.player.onBike = false;
+      this.player.swimming = false;
+      this.player.inBoat = false;
       if (this.player.inCar) {
         this.player.inCar = false;
         this.parkedCar = { x: 2062, y: 1560, angle: 0 };
@@ -1198,7 +1497,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.homePlayer.color = this.player.color;
       this.homePet = this.pet ? { kind: this.pet.kind, x: 300, y: 360, angle: -Math.PI / 2 } : null;
       this.audio.pickup();
-      this.showToast('🏠 Evine Hoş Geldin! Odada gez, [E] ile eşyaları kullan veya [ESC] ile çık.');
+      this.showToast('🏠 Evine Hoş Geldin! Odada gez, [E] ile mutfak/eşyaları kullan veya [ESC] ile çık.');
     }
 
     exitHome() {
@@ -1242,6 +1541,9 @@ window.YasamDunya = window.YasamDunya || {};
         this.exitHome();
       } else if (k === 'catalog') {
         this.toggleHome(true);
+      } else if (k === 'kitchen') {
+        this.toggleCook(true);
+        return;
       } else if (k === 'bed') {
         this.startNextDay(false);
       } else if (k === 'espresso') {
@@ -1312,7 +1614,8 @@ window.YasamDunya = window.YasamDunya || {};
       }
 
       // Keep world crops growing while you relax inside!
-      this.world.update(dt, this.player, null, YD.WEATHERS[this.weatherIdx].id);
+      const agriMult = this.uniCerts.has('cert_agri') ? 1.4 : 1.0;
+      this.world.update(dt, this.player, null, YD.WEATHERS[this.weatherIdx].id, null, true, agriMult);
 
       for (let i = this.particles.length - 1; i >= 0; i--) {
         const pt = this.particles[i]; pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt;
@@ -1359,20 +1662,29 @@ window.YasamDunya = window.YasamDunya || {};
       this.saveGame();
     }
 
+    getBagSellValue(k) {
+      const info = YD.BAG_ITEMS[k];
+      if (!info) return 0;
+      let mult = 1.0;
+      if (k === 'crystal' && this.dailyEventIdx === 3) mult *= 1.6;
+      if (['tomato', 'strawberry', 'sunflower', 'berry', 'mushroom'].includes(k) && this.uniCerts.has('cert_agri')) mult *= 1.35;
+      if (['grilled', 'soup', 'pie', 'feast'].includes(k) && this.uniCerts.has('cert_culinary')) mult *= 1.35;
+      return Math.round(info.sell * mult);
+    }
+
     renderBag() {
       const grid = document.getElementById('bagGrid');
       if (!grid) return;
       const nearFire = Math.hypot(this.player.x - this.world.campfire.x, this.player.y - this.world.campfire.y) < 110;
       const keys = Object.keys(YD.BAG_ITEMS).filter((k) => (this.bag[k] || 0) > 0);
       if (keys.length === 0) {
-        grid.innerHTML = `<div class="shop-item" style="justify-content:center; color:#94a3b8;">Çantan boş! Ormandan böğürtlen, dağdan kristal veya iskeleden balık topla!</div>`;
+        grid.innerHTML = `<div class="shop-item" style="justify-content:center; color:#94a3b8;">Çantan boş! Ormandan böğürtlen, dağdan kristal, bahçenden ürün veya iskeleden balık topla!</div>`;
         return;
       }
-      const crystalMult = this.dailyEventIdx === 3 ? 1.6 : 1.0;
       grid.innerHTML = keys.map((k) => {
         const info = YD.BAG_ITEMS[k];
         const qty = this.bag[k];
-        const sellVal = Math.round(info.sell * (k === 'crystal' ? crystalMult : 1));
+        const sellVal = this.getBagSellValue(k);
         return `
           <div class="shop-item">
             <div style="font-size:24px;">${info.icon}</div>
@@ -1401,13 +1713,15 @@ window.YasamDunya = window.YasamDunya || {};
       grid.querySelectorAll('[data-grill]').forEach((b) => b.addEventListener('click', () => {
         if (!this.bag.fish) return;
         this.bag.fish--; this.bag.grilled = (this.bag.grilled || 0) + 1;
-        this.audio.pickup(); this.showToast('🔥 Izgara Balık pişti! (+65 Tokluk)');
+        this.audio.cookSizzle(); this.showToast('🔥 Izgara Balık pişti! (+65 Tokluk)');
+        this.unlockAchievement('ach_chef');
+        this.advanceQuest('q_cook', 1);
         this.renderBag(); this.saveGame();
       }));
       grid.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', () => {
-        const k = b.dataset.sell, info = YD.BAG_ITEMS[k];
+        const k = b.dataset.sell;
         if (!this.bag[k]) return;
-        const sellVal = Math.round(info.sell * (k === 'crystal' && this.dailyEventIdx === 3 ? 1.6 : 1));
+        const sellVal = this.getBagSellValue(k);
         this.bag[k]--; this.money += sellVal;
         this.audio.coin(); this.checkAchievements();
         this.renderBag(); this.saveGame();
@@ -1767,11 +2081,8 @@ window.YasamDunya = window.YasamDunya || {};
         this.toggleCafe(true);
         return;
       } else if (target.kind === 'study') {
-        if (this.energy < 18) { this.say(p, 'Kafam almıyor, dinlenmeliyim!', 2.0); return; }
-        this.energy -= 18; this.timeMinutes += 90;
-        this.addXp(Math.round(48 * bonusMult));
-        this.audio.pickup();
-        this.popup(p.x, p.y - 34, `🎓 +${Math.round(48 * bonusMult)} BİLGİ XP!`, '#38bdf8');
+        this.toggleUni(true);
+        return;
       } else if (target.kind === 'shop') {
         this.toggleShop(true);
       } else if (target.kind === 'campfire') {
@@ -1780,7 +2091,48 @@ window.YasamDunya = window.YasamDunya || {};
         this.health = Math.min(100, this.health + 15);
         this.timeMinutes += 45; this.audio.pickup();
         this.burst(this.world.campfire.x, this.world.campfire.y, '#fb923c', 16);
-        this.popup(p.x, p.y - 34, '🔥 Kamp Ateşi Huzuru! ([C] Balık Pişir)', '#fb923c');
+        this.popup(p.x, p.y - 34, '🔥 Kamp Ateşi Huzuru! +30 Enerji', '#fb923c');
+        const hasRawFood = (this.bag.fish || 0) > 0 || (this.bag.tomato || 0) > 0 || (this.bag.mushroom || 0) > 0 || (this.bag.berry || 0) > 0;
+        if (hasRawFood) {
+          this.toggleCook(true);
+          return;
+        }
+      } else if (target.kind === 'fountain') {
+        if (this.money < 10) {
+          this.popup(p.x, p.y - 34, 'Dilek parası ₺10!', '#ef4444');
+          return;
+        }
+        this.money -= 10;
+        this.audio.fountainSplash();
+        this.burst(this.world.fountain.x, this.world.fountain.y, '#38bdf8', 18);
+        this.happiness = Math.min(100, this.happiness + 22);
+        this.addXp(20);
+        if (!this.fountainWishedToday) {
+          this.fountainWishedToday = true;
+          this.energy = Math.min(100, this.energy + 25);
+          this.health = Math.min(100, this.health + 20);
+          if (Math.random() < 0.45) {
+            this.money += 45;
+            this.popup(p.x, p.y - 36, '⛲ 4D ŞANS DİLEĞİ KABUL OLDU! +₺45 & +Enerji', '#fde047');
+          } else {
+            this.popup(p.x, p.y - 36, '⛲ DİLEK BEREKETİ! +25 Enerji & +22 Mutluluk', '#38bdf8');
+          }
+        } else {
+          this.popup(p.x, p.y - 34, '⛲ Dilek Tutuldu! +22 Mutluluk & +20 XP', '#38bdf8');
+        }
+      } else if (target.kind === 'icecream') {
+        if (this.money < 15) {
+          this.popup(p.x, p.y - 34, 'Dondurma & Limonata ₺15!', '#ef4444');
+          return;
+        }
+        this.money -= 15;
+        this.energy = Math.min(100, this.energy + 32);
+        this.happiness = Math.min(100, this.happiness + 28);
+        this.hunger = Math.min(100, this.hunger + 22);
+        this.addXp(14);
+        this.audio.iceCreamChime();
+        this.burst(this.world.icecream.x, this.world.icecream.y, '#f472b6', 18);
+        this.popup(p.x, p.y - 36, '🍦 Soğuk Dondurma & Limonata! +32 Enerji', '#f472b6');
       } else if (target.kind === 'altar') {
         this.addXp(35); this.happiness = Math.min(100, this.happiness + 20);
         this.audio.timeWarp();
@@ -1906,6 +2258,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.happiness = Math.min(100, this.happiness + (this.homeDecor.has('espresso_m') ? 15 : 0));
       this.hunger = Math.max(45, this.hunger - 12);
       this.carBattery = 100; // Home overnight EV charging!
+      this.fountainWishedToday = false;
+      this.quizDoneToday = false;
+      this.activeQuizIdx = null;
       this.world.island.chestOpened = false;
       if (this.delivery.active) this.cancelDelivery('');
       this.audio.sleep();
@@ -1918,9 +2273,10 @@ window.YasamDunya = window.YasamDunya || {};
         this.cafeTotalEarned += profit;
         extraMsg += ` • ☕ Kafe +₺${profit}`;
       }
-      // Daily 8% Bank Interest!
+      // Daily Bank Interest (8% base, 12% with Ekonomi & Finans Diploması)!
       if (this.bankBalance >= 15) {
-        const interest = Math.max(1, Math.floor(this.bankBalance * 0.08));
+        const rate = this.uniCerts.has('cert_fin') ? 0.12 : 0.08;
+        const interest = Math.max(1, Math.floor(this.bankBalance * rate));
         this.bankBalance += interest;
         extraMsg += ` • 🏦 Faiz +₺${interest}`;
       }
@@ -1945,7 +2301,7 @@ window.YasamDunya = window.YasamDunya || {};
 
       this.scene = 'world';
       this.player.x = 2062; this.player.y = 1525;
-      this.player.onBike = false; this.player.inCar = false; this.player.inBoat = false;
+      this.player.onBike = false; this.player.inCar = false; this.player.inBoat = false; this.player.swimming = false;
       const s = YD.SEASONS[this.seasonIdx], ev = YD.DAILY_EVENTS[this.dailyEventIdx];
       this.showToast(`☀️ Gün ${this.day} (${s.icon} ${s.name}) • ${ev.icon} ${ev.name}${extraMsg}`);
       this.checkAchievements();
@@ -1965,6 +2321,8 @@ window.YasamDunya = window.YasamDunya || {};
     update(dt) {
       this.damageFlash = Math.max(0, this.damageFlash - dt * 2.2);
       this.carHitInvuln = Math.max(0, this.carHitInvuln - dt);
+      this.cameraFlash = Math.max(0, this.cameraFlash - dt * 1.45);
+      this.cameraCd = Math.max(0, this.cameraCd - dt);
       this.tickAudio(dt);
 
       // Live scenic world pan behind Title Screen!
@@ -2195,12 +2553,14 @@ window.YasamDunya = window.YasamDunya || {};
       }
 
       const playerCalm = !p.inCar && !p.inBoat && !(this.keys['ShiftLeft'] || this.keys['ShiftRight']);
+      const agriMult = this.uniCerts.has('cert_agri') ? 1.4 : 1.0;
       this.world.update(
         dt, p,
         (car) => this.handleCarHitPlayer(car),
         weatherId,
         (car, reason, dist) => this.handleCarHonk(car, reason, dist),
-        playerCalm
+        playerCalm,
+        agriMult
       );
 
       for (let i = this.skidMarks.length - 1; i >= 0; i--) {

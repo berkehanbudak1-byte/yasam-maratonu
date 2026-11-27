@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="index.icon.png" />
   <title>Yaşam Maratonu: Büyük Dünya — 60 FPS Açık Dünya Yaşam Simülatörü</title>
-  <link rel="stylesheet" href="dunya/styles.css?v=7.0" />
+  <link rel="stylesheet" href="dunya/styles.css?v=9.0" />
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
@@ -124,6 +124,7 @@
         <button id="btnBike" class="dock-btn" title="Bisiklet [B]">🚲<span>B</span></button>
         <button id="btnBoat" class="dock-btn" title="Sürat Teknesi [U]">🚤<span>U</span></button>
         <button id="btnPetAction" class="dock-btn" title="Evcil Hayvanı Sev [P]">🐾<span>P</span></button>
+        <button id="btnCamera" class="dock-btn" title="Manzara Fotoğrafı Çek [F]">📷<span>F</span></button>
         <button id="btnWeather" class="dock-btn" title="Hava Durumu [Y]">⛈️<span>Y</span></button>
         <button id="btnSeason" class="dock-btn" title="4D Mevsim [T]">⏳<span>T</span></button>
         <button id="btnMusic" class="dock-btn" title="Müzik &amp; Radyo Stüdyosu [N]">🎵<span>N</span></button>
@@ -175,6 +176,31 @@
     </div>
   </div>
 
+  <!-- GOURMET KITCHEN & CAMPFIRE COOKING MODAL ([E] AT HOME KITCHEN OR FROM BACKPACK [C]) -->
+  <div id="cookModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal" style="max-width:500px;">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fb923c; font-size:19px;">🍳 ŞEF MUTFAĞI &amp; YEMEK PİŞİR</h2>
+        <button id="btnCloseCook" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div id="cookStatusBanner" class="career-banner" style="margin-bottom:10px;"></div>
+      <div id="cookRecipesGrid" class="shop-grid"></div>
+    </div>
+  </div>
+
+  <!-- UNIVERSITY, CERTIFICATES & SCHOLARSHIP QUIZ MODAL ([E] AT UNIVERSITY) -->
+  <div id="uniModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal" style="max-width:520px;">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#2dd4bf; font-size:19px;">🎓 ŞEHİR ÜNİVERSİTESİ &amp; AKADEMİ</h2>
+        <button id="btnCloseUni" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div id="uniStatusBanner" class="career-banner" style="margin-bottom:10px;"></div>
+      <div id="uniQuizBox" class="career-banner hidden" style="margin-bottom:10px; border-color:#fde047;"></div>
+      <div id="uniActionsGrid" class="shop-grid"></div>
+    </div>
+  </div>
+
   <!-- ORGANIC GARDEN SEED PICKER MODAL ([E] ON EMPTY PLOT) -->
   <div id="gardenModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal" style="max-width:460px;">
@@ -204,7 +230,10 @@
     <div class="glass-panel shop-modal">
       <div class="shop-header">
         <h2 style="margin:0; color:#fde047; font-size:20px;">🎒 ÇANTAN — YE, PİŞİR VEYA SAT</h2>
-        <button id="btnCloseBag" class="hud-btn">KAPAT [ESC]</button>
+        <div class="btn-row">
+          <button id="btnOpenCookFromBag" class="hud-btn gold">🍳 ŞEF MUTFAĞI</button>
+          <button id="btnCloseBag" class="hud-btn">KAPAT [ESC]</button>
+        </div>
       </div>
       <div id="bagGrid" class="shop-grid"></div>
     </div>
@@ -309,12 +338,12 @@
       <div class="help-grid">
         <div><b>WASD / Oklar</b><span>Yürü / Ev İçi / Yüz / Araba Sür</span></div>
         <div><b>Shift</b><span>Koş (Sprint)</span></div>
-        <div><b>E / Space</b><span>Etkileşim (Ev, Bahçe, Kafe, Balık)</span></div>
+        <div><b>E / Space</b><span>Etkileşim (Ev, Mutfak, Bahçe, Balık)</span></div>
         <div><b>1 / 2 / 3 / 4</b><span>Barista Sipariş Servis Tuşları</span></div>
-        <div><b>C</b><span>Çanta (Ye / Sat / Izgara)</span></div>
+        <div><b>C</b><span>Çanta &amp; Şef Mutfağı (Ye / Pişir / Sat)</span></div>
         <div><b>G</b><span>Görevler, Kariyer &amp; Başarımlar</span></div>
         <div><b>I</b><span>Market, Galeri &amp; Evcil Hayvan</span></div>
-        <div><b>P</b><span>Evcil Hayvanı Sev (+Mutluluk)</span></div>
+        <div><b>P / F</b><span>Hayvanı Sev [P] · Manzara Fotoğrafı [F]</span></div>
         <div><b>M</b><span>Haritayı Göster / Gizle</span></div>
         <div><b>V / B / U</b><span>Araba / Bisiklet / Sürat Teknesi</span></div>
         <div><b>H / Space</b><span>Araba Kornası</span></div>
@@ -339,10 +368,10 @@
     </div>
   </div>
 
-  <script defer src="dunya/src/config.js?v=8.0"></script>
-  <script defer src="dunya/src/audio.js?v=8.0"></script>
-  <script defer src="dunya/src/world.js?v=8.0"></script>
-  <script defer src="dunya/src/renderer.js?v=8.0"></script>
-  <script defer src="dunya/src/game.js?v=8.0"></script>
+  <script defer src="dunya/src/config.js?v=9.0"></script>
+  <script defer src="dunya/src/audio.js?v=9.0"></script>
+  <script defer src="dunya/src/world.js?v=9.0"></script>
+  <script defer src="dunya/src/renderer.js?v=9.0"></script>
+  <script defer src="dunya/src/game.js?v=9.0"></script>
 </body>
 </html>
