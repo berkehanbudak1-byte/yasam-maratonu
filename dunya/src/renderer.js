@@ -1023,9 +1023,9 @@ window.YasamDunya = window.YasamDunya || {};
       const gb = world.gardenBounds;
       if (!gb) return;
 
-      // Soft warm grass clearing & wooden picket fence (open southern entrance!)
+      // Lush green garden yard pad & wooden picket fence (open southern entrance!)
       ctx.save();
-      ctx.fillStyle = 'rgba(132, 204, 22, 0.25)';
+      ctx.fillStyle = '#5ea83a';
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(gb.x, gb.y, gb.w, gb.h, 14);
       else ctx.rect(gb.x, gb.y, gb.w, gb.h);
@@ -1035,27 +1035,27 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.lineWidth = 4;
       ctx.beginPath();
       // Left, Top, Right fence + two short bottom wings leaving wide south entrance
-      ctx.moveTo(gb.x + 115, gb.y + gb.h);
+      ctx.moveTo(gb.x + 56, gb.y + gb.h);
       ctx.lineTo(gb.x, gb.y + gb.h);
       ctx.lineTo(gb.x, gb.y);
       ctx.lineTo(gb.x + gb.w, gb.y);
       ctx.lineTo(gb.x + gb.w, gb.y + gb.h);
-      ctx.lineTo(gb.x + gb.w - 115, gb.y + gb.h);
+      ctx.lineTo(gb.x + gb.w - 56, gb.y + gb.h);
       ctx.stroke();
 
       // Cute wooden fence posts
       ctx.fillStyle = '#d97706';
-      for (let fx = gb.x; fx <= gb.x + gb.w; fx += 31) {
+      for (let fx = gb.x; fx <= gb.x + gb.w; fx += 26) {
         ctx.fillRect(fx - 3, gb.y - 4, 6, 8);
       }
 
       // Signboard above garden
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
-      ctx.fillRect(gb.x + gb.w / 2 - 58, gb.y - 22, 116, 18);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+      ctx.fillRect(gb.x + gb.w / 2 - 62, gb.y - 24, 124, 19);
       ctx.font = 'bold 11px "Courier New", monospace';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#bef264';
-      ctx.fillText('🌱 ORGANİK BAHÇEN', gb.x + gb.w / 2, gb.y - 9);
+      ctx.fillText('🌱 ORGANİK BAHÇEN', gb.x + gb.w / 2, gb.y - 10);
 
       // Draw each of the 6 soil beds + crop stage!
       for (const plot of world.gardenPlots) {

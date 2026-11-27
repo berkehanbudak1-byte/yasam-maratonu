@@ -34,17 +34,17 @@ window.YasamDunya = window.YasamDunya || {};
       this.altar = { x: 520, y: 920, r: 34 };
       this.lighthouse = { x: 4220, y: 2830, r: 38, beamAngle: 0 };
 
-      // Personal 6-Plot Organic Garden right beside your Home!
-      this.gardenBounds = { x: 2215, y: 1345, w: 310, h: 150 };
+      // Personal 6-Plot Organic Garden (Dedicated sunny yard between Center Hwy x=2380 and Office x=2620!)
+      this.gardenBounds = { x: 2404, y: 1278, w: 184, h: 256 };
       this.gardenPlots = [];
-      for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 3; col++) {
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 2; col++) {
           this.gardenPlots.push({
-            id: row * 3 + col,
-            x: 2272 + col * 98,
-            y: 1388 + row * 64,
-            w: 76,
-            h: 46,
+            id: row * 2 + col,
+            x: 2452 + col * 88,
+            y: 1326 + row * 78,
+            w: 68,
+            h: 50,
             crop: null,
             growth: 0,
             watered: false
@@ -183,57 +183,92 @@ window.YasamDunya = window.YasamDunya || {};
         });
       }
 
-      // --- CONTINUOUS CLOSED-LOOP CITY TRAFFIC (NEVER DISAPPEARS!) ---
+      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP CITY TRAFFIC (12 CARS, NEVER DISAPPEAR OR BUNCH!) ---
       const R = this.ring;
-      // Outer Clockwise Loop (Right-hand lane offset +22px)
-      const cwOuter = [
+      const cx = 2330; // Center Main Highway centerline (asphalt 2280..2380)
+
+      const makeTrack = (pts) => {
+        const segs = [];
+        let total = 0;
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length];
+          const len = Math.hypot(b.x - a.x, b.y - a.y);
+          const angle = Math.atan2(b.y - a.y, b.x - a.x);
+          segs.push({ ax: a.x, ay: a.y, bx: b.x, by: b.y, len, start: total, angle });
+          total += len;
+        }
+        return { segs, total };
+      };
+
+      const sampleTrack = (track, dist) => {
+        const d = ((dist % track.total) + track.total) % track.total;
+        for (const s of track.segs) {
+          if (d <= s.start + s.len) {
+            const t = (d - s.start) / (s.len || 1);
+            return { x: s.ax + (s.bx - s.ax) * t, y: s.ay + (s.by - s.ay) * t, angle: s.angle };
+          }
+        }
+        const first = track.segs[0];
+        return { x: first.ax, y: first.ay, angle: first.angle };
+      };
+      this.sampleTrack = sampleTrack;
+
+      // 1) Outer Clockwise Ring Loop
+      const cwOuter = makeTrack([
         { x: R.left + 22,  y: R.top + 22 },
         { x: R.right - 22, y: R.top + 22 },
         { x: R.right - 22, y: R.bottom - 22 },
         { x: R.left + 22,  y: R.bottom - 22 }
-      ];
-      // Inner Counter-Clockwise Loop (Opposite lane offset -22px)
-      const ccwInner = [
+      ]);
+      // 2) Outer Counter-Clockwise Ring Loop (opposite lane)
+      const ccwOuter = makeTrack([
         { x: R.left - 22,  y: R.bottom + 22 },
         { x: R.right + 22, y: R.bottom + 22 },
         { x: R.right + 22, y: R.top - 22 },
         { x: R.left - 22,  y: R.top - 22 }
-      ];
-      // Mid-City Figure Loop (uses Middle Blvd y=1720!)
-      const midLoop = [
-        { x: R.left + 22,  y: R.mid + 20 },
-        { x: R.right - 22, y: R.mid + 20 },
+      ]);
+      // 3) Upper-West City Loop (Home, Hospital, Center Hwy & Mid Blvd!)
+      const nwLoop = makeTrack([
+        { x: R.left + 22, y: R.top + 22 },
+        { x: cx - 22,     y: R.top + 22 },
+        { x: cx - 22,     y: R.mid - 22 },
+        { x: R.left + 22, y: R.mid - 22 }
+      ]);
+      // 4) Lower-East City Loop (Mid Blvd, Office, University & Center Hwy!)
+      const seLoop = makeTrack([
+        { x: cx + 22,      y: R.mid + 22 },
+        { x: R.right - 22, y: R.mid + 22 },
         { x: R.right - 22, y: R.bottom - 22 },
-        { x: R.left + 22,  y: R.bottom - 22 }
+        { x: cx + 22,      y: R.bottom - 22 }
+      ]);
+
+      const loopSpecs = [
+        { track: cwOuter,  speed: 165, cars: [['#ef4444', false], ['#facc15', true],  ['#3b82f6', false]] },
+        { track: ccwOuter, speed: 165, cars: [['#22c55e', false], ['#f97316', false], ['#ec4899', false]] },
+        { track: nwLoop,   speed: 150, cars: [['#facc15', true],  ['#06b6d4', false], ['#a855f7', false]] },
+        { track: seLoop,   speed: 150, cars: [['#ef4444', false], ['#facc15', true],  ['#10b981', false]] }
       ];
 
-      const carConfigs = [
-        { route: cwOuter,  wp: 0, t: 0.2, color: '#ef4444', speed: 165, isTaxi: false },
-        { route: cwOuter,  wp: 1, t: 0.5, color: '#facc15', speed: 185, isTaxi: true  },
-        { route: cwOuter,  wp: 2, t: 0.3, color: '#3b82f6', speed: 155, isTaxi: false },
-        { route: ccwInner, wp: 0, t: 0.4, color: '#22c55e', speed: 170, isTaxi: false },
-        { route: ccwInner, wp: 2, t: 0.6, color: '#f97316', speed: 160, isTaxi: false },
-        { route: midLoop,  wp: 0, t: 0.5, color: '#facc15', speed: 175, isTaxi: true  },
-        { route: midLoop,  wp: 2, t: 0.2, color: '#a855f7', speed: 150, isTaxi: false }
-      ];
-
-      this.cars = carConfigs.map((cfg) => {
-        const a = cfg.route[cfg.wp];
-        const b = cfg.route[(cfg.wp + 1) % cfg.route.length];
-        return {
-          route: cfg.route,
-          wpIdx: (cfg.wp + 1) % cfg.route.length,
-          x: a.x + (b.x - a.x) * cfg.t,
-          y: a.y + (b.y - a.y) * cfg.t,
-          angle: Math.atan2(b.y - a.y, b.x - a.x),
-          speed: cfg.speed,
-          curSpeed: cfg.speed,
-          color: cfg.color,
-          isTaxi: cfg.isTaxi,
-          brakeTimer: 0,
-          hitCd: 0
-        };
-      });
+      this.cars = [];
+      for (const spec of loopSpecs) {
+        spec.cars.forEach(([color, isTaxi], i) => {
+          const loopDist = (i / spec.cars.length) * spec.track.total;
+          const pos = sampleTrack(spec.track, loopDist);
+          this.cars.push({
+            track: spec.track,
+            loopDist,
+            x: pos.x,
+            y: pos.y,
+            angle: pos.angle,
+            speed: spec.speed,
+            curSpeed: spec.speed,
+            color,
+            isTaxi,
+            brakeTimer: 0,
+            hitCd: 0
+          });
+        });
+      }
     }
 
     spawnForageables() {
@@ -387,42 +422,24 @@ window.YasamDunya = window.YasamDunya || {};
         if (bt.x < -140) bt.x = YD.WORLD_W + 140;
       }
 
-      // --- CONTINUOUS RING-ROAD TRAFFIC + PLAYER COLLISION DAMAGE! ---
+      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP TRAFFIC + PLAYER COLLISION DAMAGE! ---
       for (const c of this.cars) {
         c.brakeTimer = Math.max(0, c.brakeTimer - dt);
         c.hitCd = Math.max(0, c.hitCd - dt);
 
-        const target = c.route[c.wpIdx];
-        const dx = target.x - c.x;
-        const dy = target.y - c.y;
-        const dist = Math.hypot(dx, dy);
+        const wantSpeed = c.brakeTimer > 0 ? 0 : c.speed;
+        c.curSpeed += (wantSpeed - c.curSpeed) * Math.min(1, dt * 8);
 
-        if (dist < 26) {
-          c.wpIdx = (c.wpIdx + 1) % c.route.length;
-        } else {
-          // Smooth corner turning angle interpolation!
-          const desiredAngle = Math.atan2(dy, dx);
-          let diff = desiredAngle - c.angle;
-          while (diff > Math.PI) diff -= Math.PI * 2;
-          while (diff < -Math.PI) diff += Math.PI * 2;
-          c.angle += diff * Math.min(1, dt * 8);
-        }
+        c.loopDist = (c.loopDist + c.curSpeed * dt) % c.track.total;
+        const pos = this.sampleTrack(c.track, c.loopDist);
+        c.x = pos.x;
+        c.y = pos.y;
 
-        // Check if another car is directly ahead to prevent overlapping
-        let blockedByCar = false;
-        const frontX = c.x + Math.cos(c.angle) * 64;
-        const frontY = c.y + Math.sin(c.angle) * 64;
-        for (const other of this.cars) {
-          if (other !== c && Math.hypot(other.x - frontX, other.y - frontY) < 42) {
-            blockedByCar = true; break;
-          }
-        }
-
-        const wantSpeed = (c.brakeTimer > 0 || blockedByCar) ? 0 : c.speed;
-        c.curSpeed += (wantSpeed - c.curSpeed) * Math.min(1, dt * 7);
-
-        c.x += Math.cos(c.angle) * c.curSpeed * dt;
-        c.y += Math.sin(c.angle) * c.curSpeed * dt;
+        // Smooth visual turning around corners while locked cleanly onto asphalt!
+        let diff = pos.angle - c.angle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        c.angle += diff * Math.min(1, dt * 14);
 
         // Player Collision Check (Car hits player if player steps into moving traffic!)
         const hitDist = player.inCar ? 48 : 36;
