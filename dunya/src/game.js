@@ -161,6 +161,9 @@ window.YasamDunya = window.YasamDunya || {};
 
       this.questProgress = {};
       this.questDone = new Set();
+      this.starterDone = new Set();
+      this.guideMinimized = false;
+      this.guideCompass = true;
 
       this.todayPath = [];
       this.yesterdayPath = [];
@@ -417,6 +420,25 @@ window.YasamDunya = window.YasamDunya || {};
 
       document.getElementById('btnAutoPilot').addEventListener('click', () => { this.audio.unlock(); this.toggleAutoPilot(); });
       document.getElementById('btnStopSwarm').addEventListener('click', () => { this.audio.unlock(); this.toggleAutoPilot(false); });
+      document.getElementById('btnGuideCompass')?.addEventListener('click', () => {
+        this.audio.unlock(); this.audio.uiClick();
+        this.guideCompass = !this.guideCompass;
+        this.updateGuideHUD(); this.saveGame();
+      });
+      document.getElementById('btnGuideCollapse')?.addEventListener('click', () => {
+        this.audio.unlock(); this.audio.uiClick();
+        this.guideMinimized = true;
+        this.updateGuideHUD(); this.saveGame();
+      });
+      document.getElementById('guideMiniBtn')?.addEventListener('click', () => {
+        this.audio.unlock(); this.audio.uiClick();
+        this.guideMinimized = false;
+        this.updateGuideHUD(); this.saveGame();
+      });
+      document.getElementById('btnGuideSkip')?.addEventListener('click', () => {
+        this.audio.unlock();
+        this.skipActiveStarterTask();
+      });
       document.getElementById('btnBag').addEventListener('click', () => { this.audio.unlock(); this.toggleBag(!this.bagOpen); });
       document.getElementById('btnCloseBag').addEventListener('click', () => this.toggleBag(false));
       document.getElementById('btnOpenCookFromBag').addEventListener('click', () => { this.audio.unlock(); this.toggleCook(true); });
@@ -576,6 +598,9 @@ window.YasamDunya = window.YasamDunya || {};
         bag: this.bag, achievements: [...this.achievements], animalFriends: [...this.animalFriends],
         npcHearts: this.npcHearts,
         questProgress: this.questProgress, questDone: [...this.questDone],
+        starterDone: [...this.starterDone],
+        guideMinimized: this.guideMinimized,
+        guideCompass: this.guideCompass,
         px: this.player.x, py: this.player.y
       };
       try { storage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) {}
@@ -620,6 +645,9 @@ window.YasamDunya = window.YasamDunya || {};
         this.npcHearts = { ...d.npcHearts };
         this.questProgress = { ...d.questProgress };
         this.questDone = d.questDone;
+        this.starterDone = d.starterDone || new Set();
+        this.guideMinimized = Boolean(d.guideMinimized);
+        this.guideCompass = d.guideCompass !== false;
         if (d.px !== null && d.py !== null) {
           this.player.x = d.px; this.player.y = d.py;
           this.world.resolveCollisions(this.player, false);
@@ -654,6 +682,9 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     advanceQuest(id, amt = 1) {
+      if (id === 'q_animals') this.completeStarterTask('st_animal');
+      else if (id === 'q_work' || id === 'q_delivery') this.completeStarterTask('st_work');
+      else if (id === 'q_uni') this.completeStarterTask('st_campus');
       if (this.questDone.has(id)) return;
       this.questProgress[id] = (this.questProgress[id] || 0) + amt;
       const q = YD.QUESTS.find((x) => x.id === id);
@@ -667,6 +698,120 @@ window.YasamDunya = window.YasamDunya || {};
         this.checkAchievements();
       }
       this.renderQuests();
+    }
+
+    getActiveStarterTask() {
+      const list = YD.STARTER_TASKS || [];
+      for (let i = 0; i < list.length; i++) {
+        if (!this.starterDone.has(list[i].id)) return { task: list[i], idx: i, total: list.length };
+      }
+      return null;
+    }
+
+    getStarterWaypoint() {
+      const cur = this.getActiveStarterTask();
+      if (!cur || !cur.task.waypoint) return null;
+      const wp = cur.task.waypoint;
+      if (wp.type === 'point') return { x: wp.x, y: wp.y };
+      if (wp.type === 'stray' && this.world.strays && this.world.strays.length > 0) {
+        let best = this.world.strays[0], bestD = Infinity;
+        for (const s of this.world.strays) {
+          const d = Math.hypot(s.x - this.player.x, s.y - this.player.y);
+          if (d < bestD) { bestD = d; best = s; }
+        }
+        return { x: best.x, y: best.y };
+      }
+      if (wp.type === 'garden' && this.world.gardenPlots && this.world.gardenPlots.length > 0) {
+        const empty = this.world.gardenPlots.find((p) => !p.crop) || this.world.gardenPlots[0];
+        return { x: empty.x, y: empty.y };
+      }
+      if (wp.type === 'pier' && this.world.pier) {
+        return { x: this.world.pier.x + this.world.pier.w / 2, y: this.world.pier.y + this.world.pier.h - 24 };
+      }
+      return null;
+    }
+
+    completeStarterTask(id, skipped = false) {
+      if (!id || this.starterDone.has(id)) return;
+      const list = YD.STARTER_TASKS || [];
+      const t = list.find((x) => x.id === id);
+      if (!t) return;
+      this.starterDone.add(id);
+      if (!skipped) {
+        this.money += t.rewardMoney;
+        this.addXp(t.rewardXp);
+        this.happiness = Math.min(100, this.happiness + 8);
+        this.audio.levelUp();
+        const tTitle = YD.tr ? YD.tr(t.title) : t.title;
+        const mStr = YD.fmtMoney ? YD.fmtMoney(t.rewardMoney) : `₺${t.rewardMoney}`;
+        this.showToast(`🎯 ${tTitle} ✓ (+${mStr}, +${t.rewardXp} XP)`);
+        this.burst(this.player.x, this.player.y, '#38bdf8', 16);
+      }
+      if (this.starterDone.size >= list.length && !skipped) {
+        this.showToast('🏆 KEŞİF REHBERİ TAMAMLANDI! Artık Hazine Adası [U], Gurme Mutfak ve Kafe Sahipliği seni bekliyor!');
+      }
+      this.checkAchievements();
+      this.updateGuideHUD();
+      this.saveGame();
+    }
+
+    skipActiveStarterTask() {
+      const cur = this.getActiveStarterTask();
+      if (!cur) return;
+      this.audio.uiClick();
+      this.completeStarterTask(cur.task.id, true);
+    }
+
+    updateGuideHUD() {
+      const card = document.getElementById('guideCard');
+      const mini = document.getElementById('guideMiniBtn');
+      if (!card || !mini) return;
+      const cur = this.getActiveStarterTask();
+      const busy = !this.started || !cur || this.hasOpenModal() || this.fishing.active || this.barista.active;
+      if (busy) {
+        card.classList.add('hidden');
+        mini.classList.add('hidden');
+        return;
+      }
+      const doneCount = this.starterDone.size;
+      const stepLabel = `${Math.min(cur.total, doneCount + 1)}/${cur.total}`;
+      if (this.guideMinimized) {
+        card.classList.add('hidden');
+        mini.classList.remove('hidden');
+        const mt = document.getElementById('guideMiniText');
+        if (mt) mt.textContent = stepLabel;
+        return;
+      }
+      mini.classList.add('hidden');
+      card.classList.remove('hidden');
+
+      const stepEl = document.getElementById('guideStepBadge');
+      const fillEl = document.getElementById('guideProgressFill');
+      const titleEl = document.getElementById('guideTaskTitle');
+      const hintEl = document.getElementById('guideTaskHint');
+      const metaEl = document.getElementById('guideTaskMeta');
+      const distEl = document.getElementById('guideDistBadge');
+      const cmpBtn = document.getElementById('btnGuideCompass');
+
+      if (stepEl) stepEl.textContent = stepLabel;
+      if (fillEl) fillEl.style.width = `${Math.round((doneCount / cur.total) * 100)}%`;
+      const tTitle = YD.tr ? YD.tr(cur.task.title) : cur.task.title;
+      const tHint = YD.tr ? YD.tr(cur.task.hint) : cur.task.hint;
+      if (titleEl) titleEl.textContent = `${cur.task.icon} ${tTitle}`;
+      if (hintEl) hintEl.textContent = tHint;
+      const mStr = YD.fmtMoney ? YD.fmtMoney(cur.task.rewardMoney) : `₺${cur.task.rewardMoney}`;
+      if (metaEl) metaEl.textContent = `+${mStr} · +${cur.task.rewardXp} XP`;
+      if (cmpBtn) cmpBtn.classList.toggle('off', !this.guideCompass);
+
+      if (distEl) {
+        const wp = this.scene === 'world' ? this.getStarterWaypoint() : null;
+        if (wp) {
+          const distM = Math.max(1, Math.round(Math.hypot(wp.x - this.player.x, wp.y - this.player.y) / 4));
+          distEl.textContent = `📍 ${distM}m`;
+        } else {
+          distEl.textContent = '';
+        }
+      }
     }
 
     syncMusicButton() {
@@ -837,7 +982,10 @@ window.YasamDunya = window.YasamDunya || {};
       this.closeAllModals();
       this.musicOpen = open;
       document.getElementById('musicModal').classList.toggle('hidden', !open);
-      if (open) this.renderMusicModal();
+      if (open) {
+        this.renderMusicModal();
+        this.completeStarterTask('st_tech');
+      }
     }
 
     renderMusicModal() {
@@ -1524,6 +1672,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.audio.pickup();
       this.burst(plot.x, plot.y, '#84cc16', 14);
       this.popup(plot.x, plot.y - 24, `🌱 ${c.name} Ekildi! ([E] Sula)`, '#bef264');
+      this.completeStarterTask('st_garden');
       this.toggleGarden(false);
       this.saveGame();
     }
@@ -1543,6 +1692,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.happiness = Math.min(100, this.happiness + 18);
         this.audio.pickup();
         this.popup(this.player.x, this.player.y - 34, this.ownsCafe ? '☕ Patron İkramı! +Enerji' : '☕ Latte & Simit! +Enerji', '#fb923c');
+        this.completeStarterTask('st_campus');
         this.toggleCafe(false);
         this.saveGame();
       };
@@ -1739,6 +1889,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.homePet = this.pet ? { kind: this.pet.kind, x: 300, y: 360, angle: -Math.PI / 2 } : null;
       this.audio.pickup();
       this.showToast('🏠 Evine Hoş Geldin! Odada gez, [E] ile mutfak/eşyaları kullan veya [ESC] ile çık.');
+      this.completeStarterTask('st_home');
     }
 
     exitHome() {
@@ -2019,6 +2170,7 @@ window.YasamDunya = window.YasamDunya || {};
                 this.popup(this.player.x, this.player.y - 34, `${item.icon} ${item.name} ALINDI!`, '#4ade80');
               }
               this.audio.coin();
+              this.completeStarterTask('st_shop');
               this.checkAchievements();
               this.renderShop(); this.saveGame();
             }
@@ -2164,6 +2316,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('fishSweetZone').style.width = this.inventory.has('rod') ? '24%' : '15%';
       document.getElementById('fishingBarWrap').classList.remove('hidden');
       this.audio.splash();
+      this.completeStarterTask('st_fish');
     }
 
     stopFishing() {
@@ -2631,6 +2784,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.autoPilot.role = '🤖 SWARM';
         this.autoPilot.task = '4 Ajan otonom kontrolü devraldı...';
         this.showToast('🤖 OTONOM YAŞAM SWARM AKTİF! (İhtiyaç · Çiftlik/Şef · Kariyer/Finans · Keşif/Fotoğraf)');
+        this.completeStarterTask('st_tech');
       } else {
         this.player.vx = 0; this.player.vy = 0;
         this.showToast('🤖 Oto-Pilot kapatıldı — Manuel kontrol sende.');
@@ -3448,6 +3602,8 @@ window.YasamDunya = window.YasamDunya || {};
       } else {
         promptEl.classList.add('hidden');
       }
+
+      this.updateGuideHUD();
     }
 
     loop(ts) {

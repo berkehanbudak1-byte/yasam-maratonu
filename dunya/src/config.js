@@ -228,6 +228,65 @@ window.YasamDunya = window.YasamDunya || {};
     { id: 'q_swim',     title: 'Turkuaz Denizde Yüz',                               target: 1, rewardMoney: 110, rewardXp: 35 }
   ];
 
+  YD.STARTER_TASKS = [
+    {
+      id: 'st_home', icon: '🏡',
+      title: 'Evine Gir & Odanı Keşfet',
+      hint: 'Ev kapısına yaklaş ve [E] ile içeri gir',
+      rewardMoney: 35, rewardXp: 20,
+      waypoint: { type: 'point', x: 2062, y: 1510 }
+    },
+    {
+      id: 'st_animal', icon: '🐱',
+      title: 'Bir Hayvan Dostu Edin',
+      hint: 'Sokak kedisi/köpeği veya ördekleri [E] ile sev/besle',
+      rewardMoney: 40, rewardXp: 25,
+      waypoint: { type: 'stray' }
+    },
+    {
+      id: 'st_garden', icon: '🌱',
+      title: 'Bahçene İlk Tohumunu Ek',
+      hint: 'Ev arkası toprakta [E] ile organik tohum ek',
+      rewardMoney: 45, rewardXp: 25,
+      waypoint: { type: 'garden' }
+    },
+    {
+      id: 'st_work', icon: '💼',
+      title: 'İlk Maaşını Kazan',
+      hint: 'İş Merkezinde [E] ile vardiya veya Kurye yap',
+      rewardMoney: 55, rewardXp: 30,
+      waypoint: { type: 'point', x: 2762, y: 1510 }
+    },
+    {
+      id: 'st_fish', icon: '🎣',
+      title: 'Sahil İskelesinde Balık Tut',
+      hint: 'Güneydeki Altın Sahil İskelesine in ve [E] bas',
+      rewardMoney: 60, rewardXp: 30,
+      waypoint: { type: 'pier' }
+    },
+    {
+      id: 'st_shop', icon: '🛍️',
+      title: 'Marketten İlk Eşyanı Al',
+      hint: '[I] tuşuna basıp Bisiklet, Mama veya Evcil Hayvan al',
+      rewardMoney: 50, rewardXp: 25,
+      waypoint: null
+    },
+    {
+      id: 'st_campus', icon: '🎓',
+      title: 'Üniversite veya Kafeye Uğra',
+      hint: 'Üniversitede [E] Burs Sınavı çöz ya da Kafede mola ver',
+      rewardMoney: 65, rewardXp: 35,
+      waypoint: { type: 'point', x: 2762, y: 2060 }
+    },
+    {
+      id: 'st_tech', icon: '🎵',
+      title: 'Müzik Stüdyosu veya Oto-Pilotu Dene',
+      hint: '[N] Radyo Stüdyosunu aç veya [O] Swarm AI başlat',
+      rewardMoney: 100, rewardXp: 50,
+      waypoint: null
+    }
+  ];
+
   YD.ACHIEVEMENTS = [
     { id: 'ach_animals', icon: '🐾', name: 'Hayvan Dostu',      desc: '3 farklı hayvanla dost ol veya besle' },
     { id: 'ach_chef',    icon: '👨‍🍳', name: 'Usta Şef',          desc: 'Mutfakta gurme bir yemek pişir' },

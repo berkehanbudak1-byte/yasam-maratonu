@@ -169,6 +169,7 @@
     const validCertIds = new Set((cfg.UNI_CERTS || []).map((i) => i.id));
     const validAchIds = new Set((cfg.ACHIEVEMENTS || []).map((i) => i.id));
     const validQuestIds = new Set((cfg.QUESTS || []).map((i) => i.id));
+    const validStarterIds = new Set((cfg.STARTER_TASKS || []).map((i) => i.id));
     const validNpcNames = new Set((cfg.NPC_TEMPLATES || []).map((n) => n.name));
     const validCropIds = new Set(Object.keys(cfg.CROPS || {}));
     const validBagKeys = Object.keys(cfg.BAG_ITEMS || {});
@@ -255,6 +256,9 @@
       npcHearts,
       questProgress,
       questDone: filterAllowedIds(parsed.questDone, validQuestIds),
+      starterDone: filterAllowedIds(parsed.starterDone, validStarterIds),
+      guideMinimized: Boolean(parsed.guideMinimized),
+      guideCompass: parsed.guideCompass !== false,
       px: hasPos ? clampNum(parsed.px, 2062, 40, worldW - 40) : null,
       py: hasPos ? clampNum(parsed.py, 1525, 40, worldH - 40) : null
     };

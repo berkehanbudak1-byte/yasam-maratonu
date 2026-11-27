@@ -192,6 +192,8 @@ window.YasamDunya = window.YasamDunya || {};
 
       if (game.delivery && game.delivery.active) {
         this.drawDeliveryBeacon(ctx, game, now);
+      } else if (game.guideCompass && game.getStarterWaypoint) {
+        this.drawGuideBeacon(ctx, game, now);
       }
       if (game.autoPilot && game.autoPilot.active) {
         this.drawSwarmBeacon(ctx, game, now);
@@ -1972,6 +1974,46 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.restore();
     }
 
+    drawGuideBeacon(ctx, game, now) {
+      if (game.scene !== 'world') return;
+      const wp = game.getStarterWaypoint();
+      if (!wp) return;
+      const p = game.player;
+      const dist = Math.hypot(wp.x - p.x, wp.y - p.y);
+      ctx.save();
+      // Gentle pulsing sky-blue ring at destination
+      const pulse = 26 + Math.sin(now * 5.2) * 6;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.88)';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(wp.x, wp.y, pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+      ctx.beginPath(); ctx.arc(wp.x, wp.y, pulse, 0, Math.PI * 2); ctx.fill();
+
+      // Small floating GOAL label above waypoint when nearby or visible
+      ctx.font = 'bold 11px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
+      ctx.fillRect(wp.x - 44, wp.y - 46, 88, 17);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText('🎯 HEDEF', wp.x, wp.y - 34);
+
+      // Orbiting directional compass arrow around player when >95px away
+      if (dist > 95) {
+        const ang = Math.atan2(wp.y - p.y, wp.x - p.x);
+        const ax = p.x + Math.cos(ang) * 56;
+        const ay = p.y + Math.sin(ang) * 56;
+        ctx.translate(ax, ay);
+        ctx.rotate(ang);
+        ctx.fillStyle = '#38bdf8';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(12, 0); ctx.lineTo(-7, -7.5); ctx.lineTo(-3.5, 0); ctx.lineTo(-7, 7.5);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     drawSwarmBeacon(ctx, game, now) {
       const p = game.player;
       const ap = game.autoPilot;
@@ -2070,6 +2112,12 @@ window.YasamDunya = window.YasamDunya || {};
         const dt = game.delivery.target;
         mctx.fillStyle = '#fde047'; mctx.strokeStyle = '#111'; mctx.lineWidth = 1.4;
         mctx.beginPath(); mctx.arc(dt.x * sx, dt.y * sy, 4.5, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
+      } else if (game.guideCompass && game.getStarterWaypoint) {
+        const gw = game.getStarterWaypoint();
+        if (gw) {
+          mctx.fillStyle = '#38bdf8'; mctx.strokeStyle = '#0f172a'; mctx.lineWidth = 1.4;
+          mctx.beginPath(); mctx.arc(gw.x * sx, gw.y * sy, 4, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
+        }
       }
       if (game.autoPilot && game.autoPilot.active && typeof game.autoPilot.targetX === 'number') {
         mctx.strokeStyle = '#4ade80'; mctx.lineWidth = 1.6;

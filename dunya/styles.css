@@ -86,6 +86,81 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
   font-weight: 900; font-size: 14px;
 }
 
+/* STARTER DISCOVERY GUIDE (TOP-LEFT COMPACT OBJECTIVE CARD) */
+.guide-card {
+  position: fixed;
+  top: 56px; left: 10px;
+  width: 266px;
+  max-width: calc(100vw - 24px);
+  padding: 9px 11px;
+  pointer-events: auto;
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(15, 23, 42, 0.86);
+  z-index: 14;
+}
+.guide-head {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 5px;
+}
+.guide-label {
+  font-size: 10px; font-weight: 900; letter-spacing: 0.7px; color: #38bdf8;
+}
+.guide-step {
+  font-size: 10px; font-weight: 900; color: #fde047;
+  background: rgba(250, 204, 21, 0.14);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 999px; padding: 1px 6px;
+}
+.guide-btns {
+  margin-left: auto; display: flex; gap: 4px;
+}
+.guide-mini-action {
+  width: 22px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px; color: #e2e8f0;
+  font-size: 11px; cursor: pointer;
+}
+.guide-mini-action:hover { border-color: #fde047; color: #fde047; }
+.guide-mini-action.off { opacity: 0.42; filter: grayscale(1); }
+.guide-progress-track {
+  height: 4px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden; margin-bottom: 7px;
+}
+.guide-progress-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #4ade80);
+  transition: width 0.3s ease;
+}
+.guide-task-title {
+  font-size: 12.5px; font-weight: 900; color: #f8fafc; line-height: 1.25;
+}
+.guide-task-hint {
+  font-size: 11px; color: #cbd5e1; margin-top: 2px; line-height: 1.3;
+}
+.guide-foot {
+  display: flex; align-items: center; gap: 6px; margin-top: 7px;
+  padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.guide-meta {
+  font-size: 10.5px; font-weight: 800; color: #4ade80;
+}
+.guide-dist {
+  font-size: 10.5px; font-weight: 800; color: #38bdf8; margin-left: auto;
+}
+.guide-skip-btn {
+  background: none; border: none; color: #94a3b8;
+  font-size: 10px; font-weight: 800; cursor: pointer; padding: 1px 4px;
+}
+.guide-skip-btn:hover { color: #fde047; }
+.guide-mini-pill {
+  position: fixed;
+  top: 56px; left: 10px;
+  z-index: 14;
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
 /* BOTTOM COMPACT DOCK + MINIMAP */
 .hud-bottom {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;

@@ -333,7 +333,31 @@ window.YasamDunya = window.YasamDunya || {};
     'Yeşil Park Göletinde ördekleri besleyip enerji topluyor...': 'Feeding ducks at Green Park Pond...',
     'Klavye kontrolü algılandı (Bırakınca Swarm devam eder)': 'Manual input detected (Swarm resumes when released)',
     '🤖 OTONOM YAŞAM SWARM AKTİF! (İhtiyaç · Çiftlik/Şef · Kariyer/Finans · Keşif/Fotoğraf)': '🤖 AUTONOMOUS LIFE SWARM ACTIVE! (Needs · Farm/Chef · Career · Explore)',
-    '🤖 Oto-Pilot kapatıldı — Manuel kontrol sende.': '🤖 Auto-Pilot paused — Manual control restored.'
+    '🤖 Oto-Pilot kapatıldı — Manuel kontrol sende.': '🤖 Auto-Pilot paused — Manual control restored.',
+    // Starter Discovery Guide (v10.2)
+    '🧭 KEŞİF REHBERİ': '🧭 DISCOVERY GUIDE',
+    'Yön Okunu Aç/Kapat': 'Toggle Waypoint Arrow',
+    'Rehberi Küçült': 'Collapse Guide',
+    'Rehberi Göster': 'Show Discovery Guide',
+    'ATLA ›': 'SKIP ›',
+    '🎯 HEDEF': '🎯 GOAL',
+    'Evine Gir & Odanı Keşfet': 'Visit Your Cozy Home',
+    'Ev kapısına yaklaş ve [E] ile içeri gir': 'Walk to your Home door & press [E] to enter',
+    'Bir Hayvan Dostu Edin': 'Make an Animal Friend',
+    'Sokak kedisi/köpeği veya ördekleri [E] ile sev/besle': 'Pet or feed any street cat, dog, or park duck with [E]',
+    'Bahçene İlk Tohumunu Ek': 'Plant Your First Garden Seed',
+    'Ev arkası toprakta [E] ile organik tohum ek': 'Plant a seed in the garden behind your home with [E]',
+    'İlk Maaşını Kazan': 'Earn Your First Paycheck',
+    'İş Merkezinde [E] ile vardiya veya Kurye yap': 'Visit Business Center ([E]) for a shift or Courier gig',
+    'Sahil İskelesinde Balık Tut': 'Go Fishing at the Beach Pier',
+    'Güneydeki Altın Sahil İskelesine in ve [E] bas': 'Head south to Golden Beach Pier & cast with [E]',
+    'Marketten İlk Eşyanı Al': 'Gear Up at the Market',
+    '[I] tuşuna basıp Bisiklet, Mama veya Evcil Hayvan al': 'Press [I] to open Market & buy any item or pet',
+    'Üniversite veya Kafeye Uğra': 'Visit University or the Cafe',
+    'Üniversitede [E] Burs Sınavı çöz ya da Kafede mola ver': 'Try the University Quiz (+$150) or grab a Cafe Latte ([E])',
+    'Müzik Stüdyosu veya Oto-Pilotu Dene': 'Try Music Studio or Auto-Pilot',
+    '[N] Radyo Stüdyosunu aç veya [O] Swarm AI başlat': 'Open Music Studio ([N]) or try Swarm Auto-Pilot ([O])',
+    '🏆 KEŞİF REHBERİ TAMAMLANDI! Artık Hazine Adası [U], Gurme Mutfak ve Kafe Sahipliği seni bekliyor!': '🏆 DISCOVERY GUIDE COMPLETE! Now explore Treasure Island [U], Gourmet Cooking & owning the Cafe!'
   };
 
   // Safe ordered phrase replacements for dynamic strings when lang === 'en'
