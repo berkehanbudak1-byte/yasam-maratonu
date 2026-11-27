@@ -184,6 +184,9 @@ window.YasamDunya = window.YasamDunya || {};
       if (game.delivery && game.delivery.active) {
         this.drawDeliveryBeacon(ctx, game, now);
       }
+      if (game.autoPilot && game.autoPilot.active) {
+        this.drawSwarmBeacon(ctx, game, now);
+      }
 
       // Soft drifting cloud shadows on sunny days!
       if (weather.id === 'clear' && nightAlpha < 0.25) {
@@ -1960,6 +1963,41 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.restore();
     }
 
+    drawSwarmBeacon(ctx, game, now) {
+      const p = game.player;
+      const ap = game.autoPilot;
+      ctx.save();
+      // Glowing emerald AI autopilot halo around player
+      const r = 24 + Math.sin(now * 6) * 2.5;
+      ctx.strokeStyle = 'rgba(74, 222, 128, 0.78)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+      const orbAng = now * 3.5;
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath(); ctx.arc(p.x + Math.cos(orbAng) * r, p.y + Math.sin(orbAng) * r, 3.6, 0, Math.PI * 2); ctx.fill();
+
+      // Dashed trajectory line & waypoint ring when heading to an autonomous target
+      if (typeof ap.targetX === 'number' && typeof ap.targetY === 'number') {
+        const dist = Math.hypot(ap.targetX - p.x, ap.targetY - p.y);
+        if (dist > 36) {
+          ctx.strokeStyle = 'rgba(74, 222, 128, 0.48)';
+          ctx.lineWidth = 2.2;
+          ctx.setLineDash([10, 8]);
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(ap.targetX, ap.targetY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          const tr = 20 + Math.sin(now * 7) * 4;
+          ctx.strokeStyle = '#4ade80';
+          ctx.lineWidth = 2.8;
+          ctx.beginPath(); ctx.arc(ap.targetX, ap.targetY, tr, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
     drawBirds(ctx, world, now, viewBox) {
       if (!world.birds) return;
       ctx.save();
@@ -2023,6 +2061,10 @@ window.YasamDunya = window.YasamDunya || {};
         const dt = game.delivery.target;
         mctx.fillStyle = '#fde047'; mctx.strokeStyle = '#111'; mctx.lineWidth = 1.4;
         mctx.beginPath(); mctx.arc(dt.x * sx, dt.y * sy, 4.5, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
+      }
+      if (game.autoPilot && game.autoPilot.active && typeof game.autoPilot.targetX === 'number') {
+        mctx.strokeStyle = '#4ade80'; mctx.lineWidth = 1.6;
+        mctx.beginPath(); mctx.arc(game.autoPilot.targetX * sx, game.autoPilot.targetY * sy, 4, 0, Math.PI * 2); mctx.stroke();
       }
 
       if (game.pastEcho && !game.pastEcho.claimed) {

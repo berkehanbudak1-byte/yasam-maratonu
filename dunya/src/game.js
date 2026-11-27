@@ -58,6 +58,20 @@ window.YasamDunya = window.YasamDunya || {};
       this.fishing = { active: false, pos: 0.5, dir: 1, speed: 1.55 };
       this.barista = { active: false, timeLeft: 25, score: 0, combo: 1, served: 0, order: null, patience: 4.5, maxPatience: 4.5 };
       this.delivery = { active: false, target: null, timeLeft: 45 };
+      this.autoPilot = {
+        active: false,
+        role: '🤖 SWARM',
+        task: 'Otonom karar hesaplanıyor...',
+        targetX: null,
+        targetY: null,
+        actionCd: 0,
+        baristaCd: 0,
+        stuckTimer: 0,
+        nudgeTimer: 0,
+        nudgeSign: 1,
+        lastX: 2062,
+        lastY: 1525
+      };
 
       this.playerName = 'Gezgin';
       this.player = {
@@ -257,6 +271,8 @@ window.YasamDunya = window.YasamDunya || {};
           return;
         }
 
+        if (e.code === 'KeyO') { this.toggleAutoPilot(); return; }
+
         if (this.barista.active) {
           const match = YD.CAFE_ORDERS.find((o) => o.code === e.code || e.key === o.key);
           if (match) this.serveBarista(match.id);
@@ -312,6 +328,8 @@ window.YasamDunya = window.YasamDunya || {};
 
       window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
 
+      document.getElementById('btnAutoPilot').addEventListener('click', () => { this.audio.unlock(); this.toggleAutoPilot(); });
+      document.getElementById('btnStopSwarm').addEventListener('click', () => { this.audio.unlock(); this.toggleAutoPilot(false); });
       document.getElementById('btnBag').addEventListener('click', () => { this.audio.unlock(); this.toggleBag(!this.bagOpen); });
       document.getElementById('btnCloseBag').addEventListener('click', () => this.toggleBag(false));
       document.getElementById('btnOpenCookFromBag').addEventListener('click', () => { this.audio.unlock(); this.toggleCook(true); });
@@ -1583,23 +1601,27 @@ window.YasamDunya = window.YasamDunya || {};
       const hp = this.homePlayer;
       hp.color = this.player.color;
 
-      let ix = 0, iy = 0;
-      if (this.keys['KeyW'] || this.keys['ArrowUp']) iy -= 1;
-      if (this.keys['KeyS'] || this.keys['ArrowDown']) iy += 1;
-      if (this.keys['KeyA'] || this.keys['ArrowLeft']) ix -= 1;
-      if (this.keys['KeyD'] || this.keys['ArrowRight']) ix += 1;
-      const len = Math.hypot(ix, iy);
-      if (len === 0) {
-        hp.vx = 0; hp.vy = 0;
+      if (this.autoPilot.active && !this.isManualMoveHeld()) {
+        this.updateHomeAutoPilot(dt);
       } else {
-        ix /= len; iy /= len;
-        const spd = 215;
-        hp.vx = ix * spd; hp.vy = iy * spd;
-        hp.angle = Math.atan2(iy, ix);
-        hp.walkCycle += dt * 11;
+        let ix = 0, iy = 0;
+        if (this.keys['KeyW'] || this.keys['ArrowUp']) iy -= 1;
+        if (this.keys['KeyS'] || this.keys['ArrowDown']) iy += 1;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) ix -= 1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) ix += 1;
+        const len = Math.hypot(ix, iy);
+        if (len === 0) {
+          hp.vx = 0; hp.vy = 0;
+        } else {
+          ix /= len; iy /= len;
+          const spd = 215;
+          hp.vx = ix * spd; hp.vy = iy * spd;
+          hp.angle = Math.atan2(iy, ix);
+          hp.walkCycle += dt * 11;
+        }
+        hp.x = Math.max(28, Math.min(YD.HOME_ROOM.w - 28, hp.x + hp.vx * dt));
+        hp.y = Math.max(80, Math.min(YD.HOME_ROOM.h - 22, hp.y + hp.vy * dt));
       }
-      hp.x = Math.max(28, Math.min(YD.HOME_ROOM.w - 28, hp.x + hp.vx * dt));
-      hp.y = Math.max(80, Math.min(YD.HOME_ROOM.h - 22, hp.y + hp.vy * dt));
 
       if (this.pet && this.homePet) {
         this.pet.petCd = Math.max(0, this.pet.petCd - dt);
@@ -2308,6 +2330,502 @@ window.YasamDunya = window.YasamDunya || {};
       this.saveGame();
     }
 
+    // =========================================================================
+    //  v10: 4-ROLE AUTONOMOUS LIFE SWARM / AUTO-PILOT AI ENGINE ([O])
+    // =========================================================================
+
+    isManualMoveHeld() {
+      return !!(
+        this.keys['KeyW'] || this.keys['KeyA'] || this.keys['KeyS'] || this.keys['KeyD'] ||
+        this.keys['ArrowUp'] || this.keys['ArrowDown'] || this.keys['ArrowLeft'] || this.keys['ArrowRight']
+      );
+    }
+
+    toggleAutoPilot(force) {
+      const next = typeof force === 'boolean' ? force : !this.autoPilot.active;
+      this.autoPilot.active = next;
+      this.autoPilot.targetX = null;
+      this.autoPilot.targetY = null;
+      this.autoPilot.actionCd = 0.2;
+      if (next && this.hasOpenModal()) {
+        this.closeAllModals();
+      }
+      const btn = document.getElementById('btnAutoPilot');
+      if (btn) btn.classList.toggle('swarm-active', next);
+      const banner = document.getElementById('swarmBanner');
+      if (banner) banner.classList.toggle('hidden', !next);
+
+      this.audio.uiClick();
+      if (next) {
+        this.autoPilot.role = '🤖 SWARM';
+        this.autoPilot.task = '4 Ajan otonom kontrolü devraldı...';
+        this.showToast('🤖 OTONOM YAŞAM SWARM AKTİF! (İhtiyaç · Çiftlik/Şef · Kariyer/Finans · Keşif/Fotoğraf)');
+      } else {
+        this.player.vx = 0; this.player.vy = 0;
+        this.showToast('🤖 Oto-Pilot kapatıldı — Manuel kontrol sende.');
+      }
+    }
+
+    updateHomeAutoPilot(dt) {
+      const hp = this.homePlayer;
+      const hr = (this.timeMinutes / 60) % 24;
+      const wantSleep = hr >= 21.5 || hr < 5.5 || this.energy < 42;
+      const tgt = wantSleep ? { x: 110, y: 110 } : { x: 340, y: 405 };
+      this.autoPilot.role = '🩺 İHTİYAÇ AJANI';
+      this.autoPilot.task = wantSleep ? 'Evde yatağa gidip uyuyor...' : 'Dinlendi, şehre çıkıyor...';
+
+      const dx = tgt.x - hp.x, dy = tgt.y - hp.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 28) {
+        if (wantSleep) this.startNextDay(false);
+        else this.exitHome();
+        return;
+      }
+      const ang = Math.atan2(dy, dx);
+      hp.angle = ang;
+      hp.vx = Math.cos(ang) * 215;
+      hp.vy = Math.sin(ang) * 215;
+      hp.walkCycle += dt * 11;
+      hp.x = Math.max(28, Math.min(YD.HOME_ROOM.w - 28, hp.x + hp.vx * dt));
+      hp.y = Math.max(80, Math.min(YD.HOME_ROOM.h - 22, hp.y + hp.vy * dt));
+    }
+
+    steerAutoPilotTo(tx, ty, dt, role, task) {
+      const p = this.player;
+      this.autoPilot.role = role;
+      this.autoPilot.task = task;
+      this.autoPilot.targetX = tx;
+      this.autoPilot.targetY = ty;
+
+      if (p.inCar) {
+        p.inCar = false;
+        this.parkedCar = { x: p.x, y: p.y, angle: p.angle };
+      }
+      if (p.inBoat && ty < YD.SEA_Y) {
+        p.inBoat = false;
+        this.parkedBoat = { x: p.x, y: p.y, angle: p.angle };
+      }
+
+      const inWater = this.world.isInWater(p.x, p.y);
+      p.swimming = inWater;
+      const dist = Math.hypot(tx - p.x, ty - p.y);
+
+      if (!inWater && this.inventory.has('bike')) {
+        p.onBike = dist > 110;
+      } else if (inWater) {
+        p.onBike = false;
+      }
+
+      // Smart Building-Corner Waypoint Router: if a building blocks the path to (tx, ty), route around its nearest side corner!
+      let navX = tx, navY = ty;
+      for (const b of this.world.buildings) {
+        const pad = 34;
+        const leftX = b.x - pad, rightX = b.x + b.w + pad;
+        const topY = b.y - pad, botY = b.y + b.h + pad;
+        const xOverlap = Math.max(p.x, tx) > leftX && Math.min(p.x, tx) < rightX;
+        if (!xOverlap) continue;
+        // Player is north of building's south face and target is south of building's north face
+        if (p.y < botY - 8 && ty >= b.y && p.x > leftX - 24 && p.x < rightX + 24) {
+          navX = Math.abs(p.x - leftX) <= Math.abs(p.x - rightX) ? leftX : rightX;
+          navY = botY;
+          break;
+        }
+        // Player is south of building's north face and target is north of building's south face
+        if (p.y > topY + 8 && ty <= b.y + b.h && p.x > leftX - 24 && p.x < rightX + 24) {
+          navX = Math.abs(p.x - leftX) <= Math.abs(p.x - rightX) ? leftX : rightX;
+          navY = topY;
+          break;
+        }
+      }
+
+      // Stuck detection & automatic sidestep recovery
+      const moved = Math.hypot(p.x - this.autoPilot.lastX, p.y - this.autoPilot.lastY);
+      this.autoPilot.lastX = p.x;
+      this.autoPilot.lastY = p.y;
+      if (moved < 55 * dt && dist > 35) {
+        this.autoPilot.stuckTimer += dt;
+        if (this.autoPilot.stuckTimer > 0.45) {
+          this.autoPilot.stuckTimer = 0;
+          this.autoPilot.nudgeTimer = 0.65;
+          this.autoPilot.nudgeSign *= -1;
+        }
+      } else {
+        this.autoPilot.stuckTimer = Math.max(0, this.autoPilot.stuckTimer - dt);
+      }
+
+      let baseAng = Math.atan2(navY - p.y, navX - p.x);
+      if (this.autoPilot.nudgeTimer > 0) {
+        this.autoPilot.nudgeTimer -= dt;
+        baseAng += this.autoPilot.nudgeSign * 1.15;
+      }
+
+      // Multi-whisker obstacle & traffic avoidance
+      const offsets = [0, 0.48, -0.48, 0.95, -0.95, 1.45, -1.45, 2.1, -2.1];
+      let chosenAng = baseAng;
+      for (const off of offsets) {
+        const cand = baseAng + off;
+        const probeX = p.x + Math.cos(cand) * 44;
+        const probeY = p.y + Math.sin(cand) * 44;
+        const hitBldg = this.world.isInsideBuilding(probeX, probeY, 24);
+        const hitPond = ty < YD.SEA_Y && this.world.isInPond(probeX, probeY, 14);
+        const hitFountain = (Math.hypot(tx - this.world.fountain.x, ty - this.world.fountain.y) > 45) &&
+          Math.hypot(probeX - this.world.fountain.x, probeY - this.world.fountain.y) < this.world.fountain.r + 22;
+        const hitCar = this.world.cars.some((c) => Math.hypot(probeX - c.x, probeY - c.y) < 52);
+        if (!hitBldg && !hitPond && !hitFountain && !hitCar) {
+          chosenAng = cand;
+          break;
+        }
+      }
+
+      const maxSpd = p.swimming ? 185 : (p.onBike ? 430 : (this.energy > 35 ? 320 : 255));
+      p.angle = chosenAng;
+      p.vx = Math.cos(chosenAng) * maxSpd;
+      p.vy = Math.sin(chosenAng) * maxSpd;
+      p.walkCycle += dt * (maxSpd * 0.055);
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      this.world.resolveCollisions(p, false);
+      this.energy = Math.max(0, this.energy - 0.35 * dt);
+      return dist;
+    }
+
+    updateAutoPilot(dt) {
+      if (!this.autoPilot.active) return false;
+      if (this.isManualMoveHeld()) {
+        this.autoPilot.role = '⌨️ MANUEL';
+        this.autoPilot.task = 'Klavye kontrolü algılandı (Bırakınca Swarm devam eder)';
+        this.autoPilot.targetX = null;
+        this.autoPilot.targetY = null;
+        return false;
+      }
+
+      const p = this.player;
+      const hr = (this.timeMinutes / 60) % 24;
+      this.autoPilot.actionCd = Math.max(0, this.autoPilot.actionCd - dt);
+
+      // --- CONTINUOUS BACKGROUND SWARM SENSORS (Photo, Animal Petting, Auto-Chef & Upgrades) ---
+      // 1) Exploration & Photography Sensor: Auto-snap unphotographed landmarks & animals in range!
+      if (this.cameraCd <= 0) {
+        const nearNewSpot = YD.PHOTO_SPOTS.some((sp) => !this.photosTaken.has(sp.id) && Math.hypot(p.x - sp.x, p.y - sp.y) <= sp.r - 10);
+        const nearNewAnimal = [...(this.world.strays || []), ...(this.world.wildlife || [])].some(
+          (st) => !this.photosTaken.has(`ph_${st.id}`) && Math.hypot(p.x - st.x, p.y - st.y) < 115
+        );
+        if (nearNewSpot || nearNewAnimal) {
+          this.snapPhoto();
+        }
+      }
+
+      // 2) Animal Friend Sensor: Auto-pet/feed any nearby cat, dog, deer, or companion pet!
+      if (this.pet && this.pet.petCd <= 0 && this.happiness < 86) {
+        this.petCompanion();
+      }
+      for (const st of (this.world.strays || [])) {
+        if (st.petCd <= 0 && Math.hypot(p.x - st.x, p.y - st.y) < 55) {
+          this.handleInteract();
+          break;
+        }
+      }
+      for (const w of (this.world.wildlife || [])) {
+        if (w.petCd <= 0 && Math.hypot(p.x - w.x, p.y - w.y) < 58) {
+          this.handleInteract();
+          break;
+        }
+      }
+
+      // 3) Auto-Chef, Auto-Eat, Surplus Market Sales & Smart Equipment/Diploma Upgrades!
+      if (this.autoPilot.actionCd <= 0) {
+        // A) Cook any gourmet recipe whose ingredients are ready in bag
+        for (const r of [...YD.RECIPES].reverse()) {
+          const canCook = Object.entries(r.ingredients).every(([k, need]) => (this.bag[k] || 0) >= need);
+          if (canCook) {
+            for (const [k, need] of Object.entries(r.ingredients)) this.bag[k] -= need;
+            this.bag[r.id] = (this.bag[r.id] || 0) + 1;
+            this.happiness = Math.min(100, this.happiness + 12);
+            this.addXp(r.xp);
+            this.audio.cookSizzle();
+            this.popup(p.x, p.y - 36, `🤖🍳 ${r.icon} ${r.name} Pişirildi!`, '#fb923c');
+            this.unlockAchievement('ach_chef');
+            this.advanceQuest('q_cook', 1);
+            this.autoPilot.actionCd = 0.6;
+            break;
+          }
+        }
+
+        // B) Eat from bag automatically when hunger < 62 or energy < 38
+        if (this.hunger < 62 || this.energy < 38) {
+          const foodPriority = ['feast', 'soup', 'pie', 'grilled', 'goldfish', 'tomato', 'strawberry', 'fish', 'mushroom', 'berry'];
+          for (const fk of foodPriority) {
+            if ((this.bag[fk] || 0) > 0) {
+              const info = YD.BAG_ITEMS[fk];
+              this.bag[fk]--;
+              this.hunger = Math.min(100, this.hunger + info.hunger);
+              this.energy = Math.min(100, this.energy + info.energy);
+              this.health = Math.min(100, this.health + info.health);
+              this.audio.pickup();
+              this.popup(p.x, p.y - 34, `🤖🍽️ ${info.icon} ${info.name} Yendi!`, '#4ade80');
+              this.autoPilot.actionCd = 0.5;
+              break;
+            }
+          }
+        }
+
+        // C) Sell non-edible valuables (sunflower, crystal) or surplus cooked/foraged items (qty > 2)
+        for (const [k, qty] of Object.entries(this.bag)) {
+          if (k === 'petfood' || qty <= 0) continue;
+          const isCashCrop = k === 'sunflower' || k === 'crystal';
+          if (isCashCrop || qty > 2) {
+            const sellQty = isCashCrop ? qty : (qty - 2);
+            const unitVal = this.getBagSellValue(k);
+            this.bag[k] -= sellQty;
+            this.money += unitVal * sellQty;
+            this.audio.coin();
+            this.popup(p.x, p.y - 34, `🤖💰 ${YD.BAG_ITEMS[k].icon} x${sellQty} Satıldı (+₺${unitVal * sellQty})`, '#fde047');
+            this.checkAchievements();
+            this.autoPilot.actionCd = 0.5;
+            break;
+          }
+        }
+
+        // D) Smart Autonomous Upgrades (Shop Items, University Diplomas, Home Decor & Cafe Ownership!)
+        const reserve = 110;
+        for (const itemId of ['umbrella', 'bike', 'rod', 'pet_dog', 'sisyphus', 'car', 'boat', 'hourglass', 'lantern']) {
+          if (!this.inventory.has(itemId)) {
+            const item = YD.SHOP_ITEMS.find((i) => i.id === itemId);
+            if (item && this.money >= item.price + reserve) {
+              this.money -= item.price;
+              this.inventory.add(item.id);
+              this.syncPetFromInventory();
+              this.audio.coin();
+              this.showToast(`🤖 [Finans Ajanı]: ${item.icon} ${item.name} satın alındı!`);
+              this.checkAchievements();
+              this.autoPilot.actionCd = 0.6;
+              break;
+            }
+          }
+        }
+        for (const cert of YD.UNI_CERTS) {
+          if (!this.uniCerts.has(cert.id) && this.money >= cert.price + reserve) {
+            this.money -= cert.price;
+            this.uniCerts.add(cert.id);
+            this.addXp(45);
+            this.audio.levelUp();
+            this.showToast(`🤖 [Akademi Ajanı]: ${cert.icon} ${cert.name} alındı!`);
+            this.advanceQuest('q_uni', 1);
+            this.checkAchievements();
+            this.autoPilot.actionCd = 0.6;
+            break;
+          }
+        }
+        for (const dec of YD.HOME_DECOR) {
+          if (!this.homeDecor.has(dec.id) && this.money >= dec.price + reserve + 120) {
+            this.money -= dec.price;
+            this.homeDecor.add(dec.id);
+            this.audio.coin();
+            this.showToast(`🤖 [Ev Ajanı]: 🏠 ${dec.icon} ${dec.name} eve yerleştirildi!`);
+            this.checkAchievements();
+            this.autoPilot.actionCd = 0.6;
+            break;
+          }
+        }
+        if (!this.ownsCafe && this.money >= YD.CAFE_PRICE + reserve + 100) {
+          this.money -= YD.CAFE_PRICE;
+          this.ownsCafe = true;
+          this.audio.levelUp();
+          this.showToast(`🤖 [Finans Ajanı]: ⭐ ${this.playerName} KAFE satın alındı!`);
+          this.checkAchievements();
+        }
+      }
+
+      // --- PRIORITY DECISION TREE ACROSS THE 4 SWARM ROLES ---
+
+      // PRIORITY 1: Active Express Courier Delivery!
+      if (this.delivery.active && this.delivery.target) {
+        const tgt = this.delivery.target;
+        this.steerAutoPilotTo(tgt.x, tgt.y, dt, '📦 KURYE AJANI', `${tgt.name} noktasına teslimat yapılıyor (${Math.ceil(this.delivery.timeLeft)}sn)...`);
+        return true;
+      }
+
+      // PRIORITY 2: Urgent Health, Hunger, or Nighttime Sleep (İhtiyaç & Sağlık Ajanı)
+      if (this.health < 55) {
+        if (this.money >= 30) {
+          const d = this.steerAutoPilotTo(2082, 1050, dt, '🩺 SAĞLIK AJANI', 'Şehir Hastanesine muayeneye gidiyor...');
+          if (d < 46 && this.autoPilot.actionCd <= 0) {
+            this.handleInteract();
+            this.autoPilot.actionCd = 0.8;
+          }
+        } else {
+          const d = this.steerAutoPilotTo(this.world.hotSpring.x, this.world.hotSpring.y + 40, dt, '🩺 SAĞLIK AJANI', 'Sıcak Kaplıcada şifa arıyor...');
+          if (d < 52 && this.autoPilot.actionCd <= 0) {
+            this.handleInteract();
+            this.autoPilot.actionCd = 0.8;
+          }
+        }
+        return true;
+      }
+
+      if (this.hunger < 45 && this.money >= 25) {
+        const d = this.steerAutoPilotTo(2062, 2045, dt, '🩺 İHTİYAÇ AJANI', 'Kafede sıcak Latte & Simit molasına gidiyor...');
+        if (d < 46 && this.autoPilot.actionCd <= 0) {
+          const cost = this.ownsCafe ? 0 : 25;
+          this.money -= cost;
+          this.energy = Math.min(100, this.energy + 35);
+          this.hunger = Math.min(100, this.hunger + 35);
+          this.happiness = Math.min(100, this.happiness + 18);
+          this.audio.pickup();
+          this.popup(p.x, p.y - 34, '🤖☕ Kafe Molası! +35 Enerji & Tokluk', '#fb923c');
+          this.autoPilot.actionCd = 0.8;
+        }
+        return true;
+      }
+
+      if (hr >= 22 || hr < 5.5 || this.energy < 24) {
+        const distHome = Math.hypot(p.x - 2062, p.y - 1510);
+        if (distHome > 1100 && this.money >= 15) {
+          this.travelToBusStop('bus_city');
+          return true;
+        }
+        const d = this.steerAutoPilotTo(2062, 1510, dt, '🩺 İHTİYAÇ AJANI', 'Eve dinlenmeye ve yeni güne hazırlanmaya gidiyor...');
+        if (d < 46 && this.autoPilot.actionCd <= 0) {
+          this.startNextDay(false);
+          this.autoPilot.actionCd = 1.0;
+        }
+        return true;
+      }
+
+      // PRIORITY 3: Organic Garden Harvest, Watering & Planting (Çiftlik & Şef Ajanı)
+      const ripePlot = this.world.gardenPlots.find((gp) => gp.crop && gp.growth >= 1);
+      if (ripePlot) {
+        const d = this.steerAutoPilotTo(ripePlot.x, ripePlot.y, dt, '🌱 ÇİFTLİK AJANI', `Olgunlaşan ${YD.CROPS[ripePlot.crop].name} hasat ediliyor...`);
+        if (d < 36 && this.autoPilot.actionCd <= 0) {
+          this.handleInteract();
+          this.autoPilot.actionCd = 0.45;
+        }
+        return true;
+      }
+
+      const dryPlot = this.world.gardenPlots.find((gp) => gp.crop && !gp.watered);
+      if (dryPlot) {
+        const d = this.steerAutoPilotTo(dryPlot.x, dryPlot.y, dt, '🌱 ÇİFTLİK AJANI', `Bahçedeki ${YD.CROPS[dryPlot.crop].name} sulanıyor (2x hız)...`);
+        if (d < 36 && this.autoPilot.actionCd <= 0) {
+          this.handleInteract();
+          this.autoPilot.actionCd = 0.45;
+        }
+        return true;
+      }
+
+      const emptyPlot = this.world.gardenPlots.find((gp) => !gp.crop);
+      if (emptyPlot && this.money >= 35) {
+        const d = this.steerAutoPilotTo(emptyPlot.x, emptyPlot.y, dt, '🌱 ÇİFTLİK AJANI', 'Organik bahçeye yeni tohum ekiliyor...');
+        if (d < 36 && this.autoPilot.actionCd <= 0) {
+          const seedId = (emptyPlot.id % 3 === 0 && this.money >= 90) ? 'sunflower' : (emptyPlot.id % 2 === 0 && this.money >= 55 ? 'strawberry' : 'tomato');
+          this.activePlotId = emptyPlot.id;
+          this.plantSeed(seedId);
+          this.autoPilot.actionCd = 0.45;
+        }
+        return true;
+      }
+
+      // PRIORITY 4: Daily University Scholarship Quiz, Wishing Fountain & Bank ATM Compound Interest (Kariyer & Finans Ajanı)
+      if (!this.quizDoneToday) {
+        const d = this.steerAutoPilotTo(2762, 2060, dt, '🎓 AKADEMİ AJANI', 'Üniversite Günlük Burs Sınavına (+₺150) gidiyor...');
+        if (d < 48 && this.autoPilot.actionCd <= 0) {
+          this.quizDoneToday = true;
+          this.money += 150;
+          this.addXp(55);
+          this.happiness = Math.min(100, this.happiness + 18);
+          this.audio.levelUp();
+          this.popup(p.x, p.y - 36, '🤖🎓 BURS SINAVI GEÇİLDİ! +₺150 & +55 XP', '#2dd4bf');
+          this.advanceQuest('q_uni', 1);
+          this.checkAchievements();
+          this.autoPilot.actionCd = 0.8;
+        }
+        return true;
+      }
+
+      if (!this.fountainWishedToday && this.money >= 30) {
+        const d = this.steerAutoPilotTo(this.world.fountain.x, this.world.fountain.y + 34, dt, '⛲ ŞANS AJANI', 'Şehir Dilek Çeşmesinde günlük 4D dilek tutuyor...');
+        if (d < 46 && this.autoPilot.actionCd <= 0) {
+          this.handleInteract();
+          this.autoPilot.actionCd = 0.7;
+        }
+        return true;
+      }
+
+      if (this.money >= 360) {
+        const d = this.steerAutoPilotTo(this.world.atm.x, this.world.atm.y, dt, '🏦 FİNANS AJANI', 'Fazla nakti Banka ATM\'ye (%8–%12 günlük faiz) yatırıyor...');
+        if (d < 44 && this.autoPilot.actionCd <= 0) {
+          const dep = Math.floor(this.money - 160);
+          if (dep >= 50) {
+            this.money -= dep;
+            this.bankBalance += dep;
+            this.audio.cashRegister();
+            this.popup(p.x, p.y - 36, `🤖🏦 +₺${dep} Bankaya Yatırıldı!`, '#4ade80');
+            this.checkAchievements();
+          }
+          this.autoPilot.actionCd = 0.8;
+        }
+        return true;
+      }
+
+      // PRIORITY 5: Nearby Forageables, Cafe Barista Shift, Express Courier & Office Career
+      let nearestForage = null, bestForageD = 620;
+      for (const fg of this.world.forageables) {
+        if (!fg.collected) {
+          const fd = Math.hypot(p.x - fg.x, p.y - fg.y);
+          if (fd < bestForageD) { bestForageD = fd; nearestForage = fg; }
+        }
+      }
+      if (nearestForage) {
+        const d = this.steerAutoPilotTo(nearestForage.x, nearestForage.y, dt, '📸 KEŞİF AJANI', `${YD.BAG_ITEMS[nearestForage.kind].name} topluyor...`);
+        if (d < 42 && this.autoPilot.actionCd <= 0) {
+          this.handleInteract();
+          this.autoPilot.actionCd = 0.45;
+        }
+        return true;
+      }
+
+      if (this.ownsCafe && !this.questDone.has('q_cafe') && this.energy >= 35) {
+        const d = this.steerAutoPilotTo(2062, 2045, dt, '☕ BARİSTA AJANI', 'Kendi kafesinde Barista Vardiyası başlatıyor...');
+        if (d < 48 && this.autoPilot.actionCd <= 0) {
+          this.startBaristaShift();
+          this.autoPilot.actionCd = 0.8;
+        }
+        return true;
+      }
+
+      if (this.energy >= 44) {
+        const d = this.steerAutoPilotTo(2762, 1510, dt, '💼 KARİYER AJANI', 'İş Merkezinde vardiya & Ekspres Kurye görevine gidiyor...');
+        if (d < 48 && this.autoPilot.actionCd <= 0) {
+          if (!this.questDone.has('q_delivery') || Math.random() < 0.5) {
+            this.startDelivery();
+          } else {
+            this.doOfficeShift();
+          }
+          this.autoPilot.actionCd = 0.8;
+        }
+        return true;
+      }
+
+      // PRIORITY 6: Moderate Energy Exploration — Fishing, Park Duck Feeding, or Scenic Photo Expedition
+      if (!this.questDone.has('q_fish') && this.energy >= 26) {
+        const fx = this.world.pier.x + this.world.pier.w / 2;
+        const fy = this.world.pier.y + this.world.pier.h - 24;
+        const d = this.steerAutoPilotTo(fx, fy, dt, '🎣 KEŞİF AJANI', 'Balık İskelesinde altın balık avına gidiyor...');
+        if (d < 52 && this.autoPilot.actionCd <= 0) {
+          this.startFishing();
+          this.autoPilot.actionCd = 0.8;
+        }
+        return true;
+      }
+
+      const d = this.steerAutoPilotTo(3880, 1605, dt, '🌳 KEŞİF AJANI', 'Yeşil Park Göletinde ördekleri besleyip enerji topluyor...');
+      if (d < 48 && this.autoPilot.actionCd <= 0) {
+        this.handleInteract();
+        this.autoPilot.actionCd = 0.9;
+      }
+      return true;
+    }
+
     tickAudio(dt) {
       const biome = this.started ? this.world.getBiome(this.player.x, this.player.y) : 'city';
       const weatherId = YD.WEATHERS[this.weatherIdx] ? YD.WEATHERS[this.weatherIdx].id : 'clear';
@@ -2338,6 +2856,13 @@ window.YasamDunya = window.YasamDunya || {};
       if (this.barista.active) {
         this.barista.timeLeft -= dt;
         this.barista.patience -= dt;
+        if (this.autoPilot.active && this.barista.order) {
+          this.autoPilot.baristaCd -= dt;
+          if (this.autoPilot.baristaCd <= 0) {
+            this.autoPilot.baristaCd = 0.42;
+            this.serveBarista(this.barista.order.id);
+          }
+        }
         if (this.barista.patience <= 0) {
           this.barista.combo = 1;
           this.audio.miss();
@@ -2353,6 +2878,9 @@ window.YasamDunya = window.YasamDunya || {};
         if (this.fishing.pos >= 1) { this.fishing.pos = 1; this.fishing.dir = -1; }
         if (this.fishing.pos <= 0) { this.fishing.pos = 0; this.fishing.dir = 1; }
         document.getElementById('fishCursor').style.left = `${this.fishing.pos * 100}%`;
+        if (this.autoPilot.active && Math.abs(this.fishing.pos - 0.5) <= 0.045) {
+          this.resolveFishingAttempt();
+        }
         return;
       }
 
@@ -2382,7 +2910,11 @@ window.YasamDunya = window.YasamDunya || {};
       const p = this.player;
       p.speechTimer = Math.max(0, p.speechTimer - dt);
 
-      if (p.inBoat) {
+      const swarmHandledMove = this.updateAutoPilot(dt);
+
+      if (swarmHandledMove) {
+        // Movement & collision already updated by Autonomous Life Swarm!
+      } else if (p.inBoat) {
         const accelInput = (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0) - (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0);
         const steerInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
         if (accelInput !== 0) {
@@ -2619,6 +3151,13 @@ window.YasamDunya = window.YasamDunya || {};
 
       const bottomBar = document.querySelector('.hud-bottom');
       if (bottomBar) bottomBar.classList.toggle('hidden', this.scene === 'home');
+
+      if (this.autoPilot.active) {
+        const rEl = document.getElementById('swarmRoleBadge');
+        const tEl = document.getElementById('swarmActionText');
+        if (rEl) rEl.textContent = this.autoPilot.role;
+        if (tEl) tEl.textContent = this.autoPilot.task;
+      }
 
       if (this.delivery.active && this.delivery.target) {
         const distM = Math.round(Math.hypot(this.player.x - this.delivery.target.x, this.player.y - this.delivery.target.y) / 4);

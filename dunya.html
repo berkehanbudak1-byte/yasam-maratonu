@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="index.icon.png" />
   <title>Yaşam Maratonu: Büyük Dünya — 60 FPS Açık Dünya Yaşam Simülatörü</title>
-  <link rel="stylesheet" href="dunya/styles.css?v=9.0" />
+  <link rel="stylesheet" href="dunya/styles.css?v=10.0" />
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
@@ -36,7 +36,7 @@
         <button id="btnContinueGame" class="hud-btn gold title-play-btn hidden">▶ DEVAM ET</button>
         <button id="btnStartNewGame" class="hud-btn gold title-play-btn">✨ OYUNA BAŞLA</button>
       </div>
-      <div class="title-hint">WASD Gez/Sür · [E] Etkileşim · [C] Çanta · [G] Görevler · [I] Market · [M] Harita · [K] Tuşlar</div>
+      <div class="title-hint">WASD Gez/Sür · [E] Etkileşim · [O] 🤖 Oto-Pilot Swarm · [C] Çanta · [G] Görevler · [I] Market · [K] Tuşlar</div>
     </div>
   </div>
 
@@ -66,12 +66,21 @@
 
       <!-- TOP-RIGHT: CLEAN HOTKEY ICON PILLS -->
       <div class="hotkey-bar">
+        <button id="btnAutoPilot" class="icon-pill" title="Otonom Yaşam Swarm / Oto-Pilot [O]">🤖 <b>[O]</b></button>
         <button id="btnBag" class="icon-pill" title="Çanta / Envanter [C]">🎒 <b>[C]</b></button>
         <button id="btnQuests" class="icon-pill" title="Görevler & Başarımlar [G]">📋 <b>[G]</b></button>
         <button id="btnShop" class="icon-pill gold" title="Market & Galeri [I]">🛍️ <b>[I]</b></button>
         <button id="btnMapToggle" class="icon-pill" title="Harita Göster/Gizle [M]">🗺️ <b>[M]</b></button>
         <button id="btnHelp" class="icon-pill" title="Kontroller [K]">⌨️ <b>[K]</b></button>
       </div>
+    </div>
+
+    <!-- AUTONOMOUS LIFE SWARM / AUTO-PILOT LIVE STATUS BANNER (Only visible when [O] Auto-Pilot is active!) -->
+    <div id="swarmBanner" class="glass-panel swarm-banner hidden">
+      <span class="swarm-dot"></span>
+      <span id="swarmRoleBadge" class="swarm-role">🤖 SWARM</span>
+      <span id="swarmActionText" class="swarm-task">Otonom karar hesaplanıyor...</span>
+      <button id="btnStopSwarm" class="hud-btn" style="padding:2px 8px; font-size:10px;">DURDUR [O]</button>
     </div>
 
     <!-- TEMPORARY FLOATING EVENT / ACHIEVEMENT TOAST -->
@@ -344,6 +353,7 @@
         <div><b>G</b><span>Görevler, Kariyer &amp; Başarımlar</span></div>
         <div><b>I</b><span>Market, Galeri &amp; Evcil Hayvan</span></div>
         <div><b>P / F</b><span>Hayvanı Sev [P] · Manzara Fotoğrafı [F]</span></div>
+        <div><b>O</b><span>🤖 Otonom Yaşam Swarm (Tam Oto-Pilot)</span></div>
         <div><b>M</b><span>Haritayı Göster / Gizle</span></div>
         <div><b>V / B / U</b><span>Araba / Bisiklet / Sürat Teknesi</span></div>
         <div><b>H / Space</b><span>Araba Kornası</span></div>
@@ -368,10 +378,10 @@
     </div>
   </div>
 
-  <script defer src="dunya/src/config.js?v=9.0"></script>
-  <script defer src="dunya/src/audio.js?v=9.0"></script>
-  <script defer src="dunya/src/world.js?v=9.0"></script>
-  <script defer src="dunya/src/renderer.js?v=9.0"></script>
-  <script defer src="dunya/src/game.js?v=9.0"></script>
+  <script defer src="dunya/src/config.js?v=10.0"></script>
+  <script defer src="dunya/src/audio.js?v=10.0"></script>
+  <script defer src="dunya/src/world.js?v=10.0"></script>
+  <script defer src="dunya/src/renderer.js?v=10.0"></script>
+  <script defer src="dunya/src/game.js?v=10.0"></script>
 </body>
 </html>
