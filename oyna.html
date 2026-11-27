@@ -464,6 +464,7 @@
 
       function isOwnStorageKey(key) {
         if (typeof key !== "string" || !key) return false;
+        if (SIBLING_4D_RE.test(key)) return false;
         for (let i = 0; i < APP_STORAGE_PREFIXES.length; i += 1) {
           if (key.startsWith(APP_STORAGE_PREFIXES[i])) return true;
         }

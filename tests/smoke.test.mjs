@@ -247,19 +247,20 @@ test('oyna.html scopes SW, cache, IndexedDB, and localStorage resets strictly to
       yasam_maratonu_launch_profile: 'touch',
       yasam_maratonu_dunya_save_v4: '{"day":5}',
       yasam_maratonu_audio_v7: '{"muted":false}',
+      yasam_maratonu_4d_flags: 'on',
       ym4d_launch_profile: 'touch',
       ym4d_extra: 'sibling-4d',
       haber_web_pref: 'keep'
     },
     withIdb: true,
-    idbNames: ['/userfs', 'yasam-maratonu-assets', 'other-godot-project']
+    idbNames: ['/userfs', 'yasam-maratonu-assets', 'yasam-maratonu-4d-cache', 'yasam_maratonu_4d_db', 'other-godot-project']
   });
 
   await new Promise((resolve) => setImmediate(resolve));
 
-  // Initial telemetry counts only yasam-maratonu resources
+  // Initial telemetry counts only yasam-maratonu resources (excluding yasam_maratonu_4d_* and ym4d_*)
   assert.equal(harness.elements.get('telCache').textContent, 'Önbellek: 3 Cache · 2 SW');
-  assert.equal(harness.elements.get('telLocal').textContent, 'LocalStorage: 3 / 6 anahtar');
+  assert.equal(harness.elements.get('telLocal').textContent, 'LocalStorage: 3 / 7 anahtar');
 
   // Clear asset cache must only touch yasam-maratonu SWs and caches
   await harness.elements.get('clearCacheBtn').listeners.click();
@@ -276,11 +277,12 @@ test('oyna.html scopes SW, cache, IndexedDB, and localStorage resets strictly to
   assert.ok(harness.cacheSet.has('ym4d-assets'));
   assert.ok(harness.cacheSet.has('haber-web-v1'));
 
-  // Confirmed save reset clears yasam_maratonu_* keys + /userfs/own DB without wiping sibling ym4d_* or other DBs
+  // Confirmed save reset clears yasam_maratonu_* keys + /userfs/own DB without wiping sibling 4D keys or DBs
   await harness.elements.get('confirmResetSaveBtn').listeners.click();
   assert.equal(harness.store.has('yasam_maratonu_dunya_save_v4'), false);
   assert.equal(harness.store.has('yasam_maratonu_audio_v7'), false);
   assert.equal(harness.store.get('yasam_maratonu_launch_profile'), 'desktop');
+  assert.equal(harness.store.get('yasam_maratonu_4d_flags'), 'on');
   assert.equal(harness.store.get('ym4d_launch_profile'), 'touch');
   assert.equal(harness.store.get('ym4d_extra'), 'sibling-4d');
   assert.equal(harness.store.get('haber_web_pref'), 'keep');
