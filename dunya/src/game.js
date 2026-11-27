@@ -790,8 +790,8 @@ window.YasamDunya = window.YasamDunya || {};
         mini.classList.add('hidden');
         return;
       }
-      const doneCount = this.starterDone.size;
-      const stepLabel = `${Math.min(cur.total, doneCount + 1)}/${cur.total}`;
+      const doneCount = Math.min(cur.total, this.starterDone.size);
+      const stepLabel = `${doneCount}/${cur.total} ✓`;
       if (this.guideMinimized) {
         card.classList.add('hidden');
         mini.classList.remove('hidden');
