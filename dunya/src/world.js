@@ -33,6 +33,8 @@ window.YasamDunya = window.YasamDunya || {};
       this.campfire = { x: 890, y: 1240, r: 22 };
       this.altar = { x: 520, y: 920, r: 34 };
       this.lighthouse = { x: 4220, y: 2830, r: 38, beamAngle: 0 };
+      this.island = { x: 920, y: 3395, rx: 140, ry: 85, chestX: 920, chestY: 3378, chestOpened: false };
+      this.birds = [];
 
       // Personal 6-Plot Organic Garden (Dedicated sunny yard between Center Hwy x=2380 and Office x=2620!)
       this.gardenBounds = { x: 2404, y: 1278, w: 184, h: 256 };
@@ -90,8 +92,12 @@ window.YasamDunya = window.YasamDunya || {};
         { id: 'park_gym',   kind: 'workout',    label: '🏃 PARK SPOR ALANI (+Sağlık)',         x: 3640, y: 1860, r: 66 },
         { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI (+Mutluluk)',           x: 3880, y: 1605, r: 58 },
         { id: 'pier_fish',  kind: 'fish',       label: '🎣 İSKELE — BALIK TUT',               x: this.pier.x + this.pier.w / 2, y: this.pier.y + this.pier.h - 24, r: 68 },
-        { id: 'lighthouse', kind: 'lighthouse', label: '🗼 DENİZ FENERİ (Manzara)',            x: this.lighthouse.x, y: this.lighthouse.y + 44, r: 58 }
+        { id: 'lighthouse', kind: 'lighthouse', label: '🗼 DENİZ FENERİ (Manzara)',            x: this.lighthouse.x, y: this.lighthouse.y + 44, r: 58 },
+        { id: 'treasure',   kind: 'treasure',   label: '🪙 ANTİK HAZİNE SANDIĞI',              x: this.island.chestX, y: this.island.chestY, r: 58 }
       );
+      for (const bs of YD.BUS_STOPS) {
+        this.interactables.push({ id: bs.id, kind: 'bus', label: `🚏 OTOBÜS DURAĞI (${bs.name})`, x: bs.x, y: bs.y, r: 52 });
+      }
 
       const lampSpots = [
         [1880, 1198], [2266, 1198], [2780, 1198], [3120, 1198],
@@ -126,12 +132,13 @@ window.YasamDunya = window.YasamDunya || {};
         const ty = 85 + rand() * 590;
         if (Math.hypot(tx - this.hotSpring.x, ty - this.hotSpring.y) < 165) continue;
         if (Math.hypot(tx - this.summitRock.x, ty - this.summitRock.y) < 110) continue;
+        if (Math.hypot(tx - 2215, ty - 515) < 80) continue; // Keep Mountain Bus Stop clear
         if (Math.abs(tx - 2330) < 95) continue;
         if (this.isInsideBuilding(tx, ty, 52)) continue;
         this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: 'snow_pine' });
       }
 
-      // Forest Trees (keep West Ring Road & Forest Dirt Trail completely clear!)
+      // Forest Trees (keep West Ring Road, Forest Dirt Trail & Forest Bus Stop completely clear!)
       const trailSegs = [[520, 920, 890, 1240], [890, 1240, 1190, 1270], [1190, 1270, 1750, 1720]];
       const onForestTrail = (px, py, pad = 62) => trailSegs.some(([x1, y1, x2, y2]) => {
         const dx = x2 - x1, dy = y2 - y1;
@@ -143,6 +150,7 @@ window.YasamDunya = window.YasamDunya || {};
         const ty = 780 + rand() * 1640;
         if (Math.hypot(tx - this.campfire.x, ty - this.campfire.y) < 135) continue;
         if (Math.hypot(tx - this.altar.x, ty - this.altar.y) < 125) continue;
+        if (Math.hypot(tx - 1055, ty - 1365) < 75) continue; // Keep Forest Bus Stop clear
         if (onForestTrail(tx, ty, 64)) continue;
         if (this.isInsideBuilding(tx, ty, 52)) continue;
         this.trees.push({ x: tx, y: ty, r: 24 + rand() * 14, kind: rand() < 0.65 ? 'pine' : 'oak' });
@@ -158,11 +166,14 @@ window.YasamDunya = window.YasamDunya || {};
         this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: rand() < 0.45 ? 'blossom' : 'oak' });
       }
 
-      // Beach Palms
+      // Beach Palms + Tropical Treasure Island Palms!
       for (let i = 0; i < 22; i++) {
         const px = 140 + i * 205;
-        if (Math.abs(px - 2300) < 150) continue;
+        if (Math.abs(px - 2330) < 160) continue;
         this.trees.push({ x: px, y: 2605 + (i % 2) * 35, r: 24, kind: 'palm' });
+      }
+      for (const [ix, iy] of [[835, 3365], [1005, 3375], [925, 3442]]) {
+        this.trees.push({ x: ix, y: iy, r: 24, kind: 'palm' });
       }
 
       this.spawnForageables();
@@ -181,11 +192,22 @@ window.YasamDunya = window.YasamDunya || {};
           speed: (0.25 + rand() * 0.25) * (i % 2 === 0 ? 1 : -1)
         });
       }
+      // Sailboat shipping lanes strictly clear of Pier (y<=3220) AND Treasure Island (y: 3310..3480)!
       for (let i = 0; i < 5; i++) {
         this.boats.push({
-          x: 280 + i * 920, y: 3305 + (i % 2) * 145,
+          x: 280 + i * 920, y: i % 2 === 0 ? 3262 : 3535,
           dir: i % 2 === 0 ? 1 : -1, speed: 36 + i * 9,
           sailColor: ['#ffffff', '#fde047', '#fb7185', '#38bdf8', '#a7f3d0'][i]
+        });
+      }
+      // Soaring Ghibli-style Seagulls & Forest Birds!
+      for (let i = 0; i < 9; i++) {
+        this.birds.push({
+          x: 200 + rand() * (YD.WORLD_W - 400),
+          y: 900 + rand() * 2400,
+          vx: (i % 2 === 0 ? 1 : -1) * (42 + rand() * 32),
+          vy: (rand() - 0.5) * 14,
+          phase: rand() * Math.PI * 2
         });
       }
 
@@ -300,6 +322,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     getBiome(x, y) {
+      if (this.isOnIsland(x, y)) return 'island';
       if (y < YD.MOUNTAIN_Y) return 'mountain';
       if (y >= YD.SEA_Y) return 'sea';
       if (y >= YD.BEACH_Y) return 'beach';
@@ -315,7 +338,8 @@ window.YasamDunya = window.YasamDunya || {};
         city:     '🏙️ ŞEHİR MERKEZİ',
         park:     '🌳 YEŞİL PARK & GÖLET',
         beach:    '🏖️ ALTIN SAHİL',
-        sea:      '🌊 TURKUAZ DENİZ'
+        sea:      '🌊 TURKUAZ DENİZ',
+        island:   '🏝️ TROPİK HAZİNE ADASI'
       };
       return map[biome] || 'BÜYÜK DÜNYA';
     }
@@ -325,6 +349,12 @@ window.YasamDunya = window.YasamDunya || {};
       return x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h;
     }
 
+    isOnIsland(x, y, pad = 0) {
+      const isl = this.island;
+      const dx = (x - isl.x) / (isl.rx + pad), dy = (y - isl.y) / (isl.ry + pad);
+      return dx * dx + dy * dy <= 1;
+    }
+
     isInHotSpring(x, y) {
       const hs = this.hotSpring;
       const dx = (x - hs.x) / hs.rx, dy = (y - hs.y) / hs.ry;
@@ -332,7 +362,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     isInWater(x, y) {
-      if (y >= YD.SEA_Y && !this.isOnPier(x, y)) return true;
+      if (y >= YD.SEA_Y && !this.isOnPier(x, y) && !this.isOnIsland(x, y)) return true;
       if (this.isInPond(x, y, 0)) return true;
       return this.isInHotSpring(x, y);
     }
@@ -460,6 +490,13 @@ window.YasamDunya = window.YasamDunya || {};
         bt.x += bt.dir * bt.speed * dt;
         if (bt.x > YD.WORLD_W + 140) bt.x = -140;
         if (bt.x < -140) bt.x = YD.WORLD_W + 140;
+      }
+      for (const bd of this.birds) {
+        bd.x += bd.vx * dt;
+        bd.y += bd.vy * dt + Math.sin(bd.phase + bd.x * 0.008) * 10 * dt;
+        if (bd.x > YD.WORLD_W + 120) bd.x = -120;
+        if (bd.x < -120) bd.x = YD.WORLD_W + 120;
+        if (bd.y < 760 || bd.y > YD.WORLD_H - 120) bd.vy *= -1;
       }
 
       // --- CONTINUOUS PARAMETRIC CLOSED-LOOP TRAFFIC + SMART CROSSWALK YIELD + PLAYER DAMAGE! ---

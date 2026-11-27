@@ -61,6 +61,7 @@ window.YasamDunya = window.YasamDunya || {};
   YD.SHOP_ITEMS = [
     { id: 'bike',      name: 'Şehir Bisikleti',     icon: '🚲', price: 160, desc: '[B] ile bin — 2x hızlı ulaşım!' },
     { id: 'car',       name: 'Elektrikli Araba',    icon: '🚗', price: 340, desc: '[V] ile sür — Drift, farlar, korna & 3x hız!' },
+    { id: 'boat',      name: 'Sürat Teknesi',       icon: '🚤', price: 280, desc: 'Denizde [U] ile bin — Hazine Adasına hızla yelken aç!' },
     { id: 'pet_dog',   name: 'Altın Köpek "Paşa"',  icon: '🐶', price: 180, desc: 'Peşinden gelir, [P] ile sev (+Mutluluk), eşya koklar!' },
     { id: 'pet_cat',   name: 'Tekir Kedi "Pamuk"',  icon: '🐱', price: 150, desc: 'Tatlı yol arkadaşın! [P] ile sev, şans verir!' },
     { id: 'rod',       name: 'Pro Olta Takımı',     icon: '🎣', price: 140, desc: 'Balık mini-oyununda dev Altın bölge & nadir balık!' },
@@ -119,11 +120,30 @@ window.YasamDunya = window.YasamDunya || {};
     sunflower:  { name: 'Altın Ayçiçeği',   icon: '🌻', hunger: 0,  health: 0,  energy: 20, sell: 175 }
   };
 
+  YD.BUS_STOPS = [
+    { id: 'bus_city',     name: '🏙️ Şehir Merkezi',  x: 1945, y: 1632, spawnX: 1945, spawnY: 1600 },
+    { id: 'bus_mountain', name: '🏔️ Karlı Zirve',    x: 2215, y: 515,  spawnX: 2215, spawnY: 550  },
+    { id: 'bus_forest',   name: '🌲 Kuzey Ormanı',   x: 1055, y: 1365, spawnX: 1055, spawnY: 1330 },
+    { id: 'bus_beach',    name: '🏖️ Altın Sahil',    x: 2455, y: 2490, spawnX: 2455, spawnY: 2455 }
+  ];
+
+  YD.DELIVERY_TARGETS = [
+    { id: 'dt_lodge',      name: '🏔️ Dağ Kulübesi',    x: 1625, y: 445,  reward: 230 },
+    { id: 'dt_cabin',      name: '🪵 Orman Kulübesi',  x: 1190, y: 1270, reward: 190 },
+    { id: 'dt_lighthouse', name: '🗼 Deniz Feneri',    x: 4220, y: 2874, reward: 250 },
+    { id: 'dt_uni',        name: '🎓 Üniversite',      x: 2762, y: 2060, reward: 140 },
+    { id: 'dt_hospital',   name: '🏥 Şehir Hastanesi', x: 2082, y: 1050, reward: 145 },
+    { id: 'dt_park',       name: '🪑 Gölet Bankı',     x: 3880, y: 1605, reward: 185 },
+    { id: 'dt_cafe',       name: '☕ Kafe & Fırın',    x: 2062, y: 2045, reward: 145 }
+  ];
+
   YD.QUESTS = [
     { id: 'q_forest',   title: 'Ormanda 3 Böğürtlen/Mantar Topla',        target: 3, rewardMoney: 120, rewardXp: 40 },
     { id: 'q_fish',     title: 'İskelede Balık Mini-Oyunuyla 2 Balık Tut', target: 2, rewardMoney: 180, rewardXp: 55 },
     { id: 'q_garden',   title: 'Bahçende 2 Organik Ürün Hasat Et',        target: 2, rewardMoney: 160, rewardXp: 50 },
     { id: 'q_cafe',     title: 'Kendi Kafeni Aç & Barista Vardiyası Yap', target: 1, rewardMoney: 220, rewardXp: 70 },
+    { id: 'q_delivery', title: 'Şehirde 1 Ekspres Kurye Teslimatı Yap',   target: 1, rewardMoney: 175, rewardXp: 55 },
+    { id: 'q_island',   title: 'Tropik Hazine Adasına Çık & Sandığı Aç',  target: 1, rewardMoney: 210, rewardXp: 65 },
     { id: 'q_mountain', title: 'Karlı Zirveye Çık & Kaplıcada Dinlen',     target: 1, rewardMoney: 170, rewardXp: 60 },
     { id: 'q_park',     title: 'Yeşil Parkta Spor Yap veya Dinlen',        target: 1, rewardMoney: 95,  rewardXp: 35 },
     { id: 'q_work',     title: 'Şehirde 1 Vardiya Çalış',                  target: 1, rewardMoney: 150, rewardXp: 45 },
@@ -132,6 +152,8 @@ window.YasamDunya = window.YasamDunya || {};
 
   YD.ACHIEVEMENTS = [
     { id: 'ach_summit',  icon: '🏔️', name: 'Zirve Fatihi',    desc: 'Sisyphos Zirvesine ulaş' },
+    { id: 'ach_island',  icon: '🏝️', name: 'Ada Kaşifi',      desc: 'Tropik Hazine Sandığını aç' },
+    { id: 'ach_courier', icon: '📦', name: 'Hızlı Kurye',     desc: 'İlk Ekspres Teslimatı tamamla' },
     { id: 'ach_farmer',  icon: '🌱', name: 'Usta Bahçıvan',   desc: 'Bahçenden ilk ürününü hasat et' },
     { id: 'ach_barista', icon: '☕', name: 'Kafe Patronu',    desc: 'Kendi kafeni satın al ve işlet' },
     { id: 'ach_car',     icon: '🚗', name: 'Yolların Kralı',  desc: 'Elektrikli Araba satın al' },
@@ -143,10 +165,10 @@ window.YasamDunya = window.YasamDunya || {};
 
   YD.NPC_TEMPLATES = [
     { name: 'Barista Ela',     zone: 'city',     x: 2205, y: 2035, color: '#f472b6', lines: ['Taze espresso kokusu şehri uyandırır! Bir gün kafeyi devralmak ister misin?', 'Evini dekore edip içine girerek yaşayabilirsin!', 'Seninle sohbet etmek harika, al benden ufak bir hediye!'] },
-    { name: 'Balıkçı Hasan',   zone: 'beach',    x: 2330, y: 2860, color: '#0284c7', lines: ['İskelede oltayı at, ibre ALTIN bölgeye gelince [E] bas!', 'Tuttuğun balıkları [C] çantandan kamp ateşinde pişirebilirsin!', 'Sen artık usta bir denizcisin dostum!'] },
+    { name: 'Balıkçı Hasan',   zone: 'beach',    x: 2330, y: 2860, color: '#0284c7', lines: ['İskelede oltayı at, ibre ALTIN bölgeye gelince [E] bas!', 'Sürat Teknesi alıp güneybatıdaki Tropik Hazine Adasını keşfet!', 'Sen artık usta bir denizcisin dostum!'] },
     { name: 'Ormancı Kerim',   zone: 'forest',   x: 1020, y: 1280, color: '#15803d', lines: ['Kuzeyde Karlı Zirve ve Sıcak Kaplıca seni bekliyor!', 'Evinin yanındaki bahçeye tohum ekip sulamayı denedin mi?', 'Ormanın gerçek dostu sensin!'] },
-    { name: 'Dağcı Alp',       zone: 'mountain', x: 2155, y: 420,  color: '#06b6d4', lines: ['Karlı Zirveye hoş geldin! Kaplıca tüm yorgunluğunu alır!', 'Zirve kristallerini [C] çantandan satarak zengin olabilirsin!', 'Zirvenin efsanesi oldun!'] },
-    { name: 'Koşucu Deniz',    zone: 'park',     x: 3720, y: 1730, color: '#f97316', lines: ['Trafiğe dikkat et! Şehir Hastanesi kuzeybatı köşede.', 'Park göletinde ördekleri izlemek mutluluğu uçuruyor!', 'Harika bir kondisyonun var!'] },
+    { name: 'Dağcı Alp',       zone: 'mountain', x: 2155, y: 420,  color: '#06b6d4', lines: ['Karlı Zirveye hoş geldin! Kaplıca tüm yorgunluğunu alır!', 'Duraklardan otobüse binip haritanın dört bir yanına anında gidebilirsin!', 'Zirvenin efsanesi oldun!'] },
+    { name: 'Koşucu Deniz',    zone: 'park',     x: 3720, y: 1730, color: '#f97316', lines: ['İş Merkezinden Ekspres Kurye görevleri alıp büyük para kazanabilirsin!', 'Park göletinde ördekleri izlemek mutluluğu uçuruyor!', 'Harika bir kondisyonun var!'] },
     { name: 'Antikacı Bilge',  zone: 'city',     x: 2740, y: 1050, color: '#9333ea', lines: ['4D Kum Saati mevsimleri, [Y] tuşu havayı değiştirir...', 'Dünkü rotanda yürüyen altın yankına dokunmayı unutma!', 'Zamanın sırrını çözdün gezgin!'] }
   ];
 })(window.YasamDunya);

@@ -35,17 +35,21 @@ window.YasamDunya = window.YasamDunya || {};
       this.bagOpen = false;
       this.gardenOpen = false;
       this.cafeOpen = false;
+      this.officeOpen = false;
+      this.busOpen = false;
       this.activePlotId = null;
       this.minimapVisible = true;
 
       this.fishing = { active: false, pos: 0.5, dir: 1, speed: 1.55 };
       this.barista = { active: false, timeLeft: 25, score: 0, combo: 1, served: 0, order: null, patience: 4.5, maxPatience: 4.5 };
+      this.delivery = { active: false, target: null, timeLeft: 45 };
 
       this.playerName = 'Gezgin';
       this.player = {
         x: 2062, y: 1525, vx: 0, vy: 0, r: 16, angle: Math.PI / 2,
         color: YD.JACKET_COLORS[0].hex, walkCycle: 0,
         swimming: false, onBike: false, inCar: false, carSpeed: 0,
+        inBoat: false, boatSpeed: 0,
         speech: '', speechTimer: 0
       };
       this.homePlayer = {
@@ -55,6 +59,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.pet = null; // { kind: 'dog'|'cat', x, y, angle, petCd }
       this.homePet = null;
       this.parkedCar = null;
+      this.parkedBoat = { x: 2435, y: 2975, angle: Math.PI / 2 };
       this.skidMarks = [];
       this.damageFlash = 0;
       this.carHitInvuln = 0;
@@ -186,12 +191,12 @@ window.YasamDunya = window.YasamDunya || {};
 
     clearAllKeys() {
       for (const k in this.keys) this.keys[k] = false;
-      if (this.player) { this.player.vx = 0; this.player.vy = 0; this.player.carSpeed = 0; }
+      if (this.player) { this.player.vx = 0; this.player.vy = 0; this.player.carSpeed = 0; this.player.boatSpeed = 0; }
       if (this.homePlayer) { this.homePlayer.vx = 0; this.homePlayer.vy = 0; }
     }
 
     hasOpenModal() {
-      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen;
+      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen;
     }
 
     bindEvents() {
@@ -269,6 +274,7 @@ window.YasamDunya = window.YasamDunya || {};
         }
         if (e.code === 'KeyB') this.toggleBike();
         if (e.code === 'KeyV') this.toggleCar();
+        if (e.code === 'KeyU') this.toggleBoat();
         if (e.code === 'KeyT') this.useHourglass();
         if (e.code === 'KeyY') this.cycleWeather();
         if (e.code === 'Equal' || e.code === 'NumpadAdd') this.cam.zoom = Math.min(1.45, this.cam.zoom + 0.1);
@@ -286,6 +292,9 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCloseHome').addEventListener('click', () => this.toggleHome(false));
       document.getElementById('btnCloseGarden').addEventListener('click', () => this.toggleGarden(false));
       document.getElementById('btnCloseCafe').addEventListener('click', () => this.toggleCafe(false));
+      document.getElementById('btnCloseOffice').addEventListener('click', () => this.toggleOffice(false));
+      document.getElementById('btnCloseBus').addEventListener('click', () => this.toggleBus(false));
+      document.getElementById('btnCancelDelivery').addEventListener('click', () => this.cancelDelivery('Teslimat iptal edildi.'));
       document.getElementById('btnStopBarista').addEventListener('click', () => this.finishBaristaShift(true));
       document.getElementById('btnHomeSleep').addEventListener('click', () => { this.toggleHome(false); this.startNextDay(false); });
       document.getElementById('btnMapToggle').addEventListener('click', () => { this.audio.unlock(); this.toggleMap(); });
@@ -293,6 +302,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCloseHelp').addEventListener('click', () => this.toggleHelp(false));
       document.getElementById('btnBike').addEventListener('click', () => { this.audio.unlock(); this.toggleBike(); });
       document.getElementById('btnCar').addEventListener('click', () => { this.audio.unlock(); this.toggleCar(); });
+      document.getElementById('btnBoat').addEventListener('click', () => { this.audio.unlock(); this.toggleBoat(); });
       document.getElementById('btnPetAction').addEventListener('click', () => { this.audio.unlock(); this.petCompanion(); });
       document.getElementById('btnWeather').addEventListener('click', () => { this.audio.unlock(); this.cycleWeather(); });
       document.getElementById('btnSeason').addEventListener('click', () => { this.audio.unlock(); this.useHourglass(); });
@@ -504,7 +514,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     toggleCar() {
       if (!this.inventory.has('car')) { this.say(this.player, 'Marketten [I] Elektrikli Araba (₺340) al! 🚗', 2.5); return; }
-      if (this.player.swimming) { this.say(this.player, 'Karaya çıkınca arabaya binebilirsin!', 2.2); return; }
+      if (this.player.swimming || this.player.inBoat) { this.say(this.player, 'Karaya çıkınca arabaya binebilirsin!', 2.2); return; }
       this.player.onBike = false;
       if (!this.player.inCar) {
         this.player.inCar = true; this.player.carSpeed = 0; this.parkedCar = null;
@@ -520,6 +530,39 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
+    toggleBoat() {
+      if (!this.inventory.has('boat')) { this.say(this.player, 'Marketten [I] Sürat Teknesi (₺280) al! 🚤', 2.5); return; }
+      const p = this.player;
+      if (!p.inBoat) {
+        if (p.y < YD.BEACH_Y - 20) {
+          this.say(p, 'Sürat teknesine sahilde veya denizde binebilirsin! 🏖️🚤', 2.4);
+          return;
+        }
+        p.onBike = false; p.inCar = false; p.swimming = false;
+        p.inBoat = true; p.boatSpeed = 0; this.parkedBoat = null;
+        if (p.y < YD.SEA_Y + 32) p.y = YD.SEA_Y + 34;
+        if (this.world.isOnPier(p.x, p.y)) p.x = this.world.pier.x + this.world.pier.w + 38;
+        if (this.world.isOnIsland(p.x, p.y, 18)) p.y = this.world.island.y - this.world.island.ry - 34;
+        this.audio.splash(); this.audio.carStart();
+        this.burst(p.x, p.y, '#38bdf8', 16);
+        this.popup(p.x, p.y - 34, '🚤 SÜRAT TEKNESİ AÇIK! (Güneybatıda Hazine Adası!)', '#38bdf8');
+      } else {
+        p.inBoat = false; p.boatSpeed = 0;
+        this.parkedBoat = { x: p.x, y: p.y, angle: p.angle };
+        if (this.world.isOnIsland(p.x, p.y, 75)) {
+          p.x = this.world.island.x; p.y = this.world.island.y - this.world.island.ry + 28;
+          this.popup(p.x, p.y - 28, '🏝️ HAZİNE ADASINA ÇIKTIN!', '#fde047');
+        } else if (p.y < YD.SEA_Y + 90) {
+          p.y = YD.SEA_Y - 26;
+          this.popup(p.x, p.y - 28, '🏖️ SAHİLE ÇIKTIN', '#fde047');
+        } else {
+          p.swimming = true;
+          this.popup(p.x, p.y - 28, '🏊 DENİZE ATLADIN', '#38bdf8');
+        }
+        this.audio.splash();
+      }
+    }
+
     useHourglass() {
       if (!this.inventory.has('hourglass')) { this.say(this.player, '4D Kum Saati için Marketten [I] al! ⏳', 2.4); return; }
       this.seasonIdx = (this.seasonIdx + 1) % YD.SEASONS.length;
@@ -532,8 +575,8 @@ window.YasamDunya = window.YasamDunya || {};
 
     closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = false;
-      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'interactPrompt'].forEach((id) => {
+      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = false;
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'interactPrompt'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
@@ -556,6 +599,149 @@ window.YasamDunya = window.YasamDunya || {};
       this.cafeOpen = open;
       document.getElementById('cafeModal').classList.toggle('hidden', !open);
       if (open) this.renderCafeModal();
+    }
+    toggleOffice(open) {
+      this.closeAllModals();
+      this.officeOpen = open;
+      document.getElementById('officeModal').classList.toggle('hidden', !open);
+      if (open) this.renderOfficeModal();
+    }
+    toggleBus(open) {
+      this.closeAllModals();
+      this.busOpen = open;
+      document.getElementById('busModal').classList.toggle('hidden', !open);
+      if (open) this.renderBusModal();
+    }
+
+    renderOfficeModal() {
+      const career = YD.getCareer(this.level);
+      const bonusMult = this.inventory.has('sisyphus') ? 1.4 : 1.0;
+      const evMult = this.dailyEventIdx === 2 ? 1.5 : 1.0;
+      const shiftPay = Math.round((80 + this.level * 18) * career.bonus * bonusMult * evMult);
+      const cb = document.getElementById('officeCareerBanner');
+      if (cb) cb.innerHTML = `💼 Unvan: <b>${career.title}</b> (Maaş x${career.bonus})${this.dailyEventIdx === 2 ? ' · 🔥 +%50 Bonus Günü!' : ''}`;
+      const grid = document.getElementById('officeActionsGrid');
+      if (!grid) return;
+      grid.innerHTML = `
+        <div class="shop-item">
+          <div style="font-size:24px;">💼</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:800; color:#f8fafc;">Ofis Vardiyası Çalış</div>
+            <div style="font-size:11px; color:#94a3b8;">+₺${shiftPay} · +30 XP · -22 Enerji</div>
+          </div>
+          <button id="btnOfficeShift" class="shop-buy-btn">ÇALIŞ</button>
+        </div>
+        <div class="shop-item">
+          <div style="font-size:24px;">📦</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:800; color:#fde047;">Ekspres Kurye Teslimatı (45sn Yarış!)</div>
+            <div style="font-size:11px; color:#94a3b8;">Bisiklet veya Arabanla hedefe yetiş — +₺140–₺320 + Hız Bonusu!</div>
+          </div>
+          <button id="btnStartDelivery" class="shop-buy-btn" ${this.delivery.active ? 'disabled' : ''}>${this.delivery.active ? 'AKTİF' : 'BAŞLAT ▶'}</button>
+        </div>`;
+      document.getElementById('btnOfficeShift').addEventListener('click', () => {
+        this.toggleOffice(false);
+        this.doOfficeShift();
+      });
+      const delBtn = document.getElementById('btnStartDelivery');
+      if (delBtn && !this.delivery.active) {
+        delBtn.addEventListener('click', () => {
+          this.toggleOffice(false);
+          this.startDelivery();
+        });
+      }
+    }
+
+    doOfficeShift() {
+      const p = this.player;
+      if (this.energy < 22) { this.say(p, 'Çok yorgunum, önce uyu veya kahve iç! 😴', 2.2); return; }
+      const career = YD.getCareer(this.level);
+      const bonusMult = this.inventory.has('sisyphus') ? 1.4 : 1.0;
+      const evMult = this.dailyEventIdx === 2 ? 1.5 : 1.0;
+      const pay = Math.round((80 + this.level * 18) * career.bonus * bonusMult * evMult);
+      this.energy -= 22; this.hunger = Math.max(0, this.hunger - 14);
+      this.timeMinutes += 120; this.money += pay; this.addXp(30);
+      this.audio.coin();
+      this.popup(p.x, p.y - 34, `+₺${pay} (${career.title}) 💼`, '#facc15');
+      this.advanceQuest('q_work', 1);
+      this.checkAchievements();
+      this.saveGame();
+    }
+
+    startDelivery() {
+      if (this.energy < 12) { this.say(this.player, 'Kurye teslimatı için biraz enerji lazım!', 2.2); return; }
+      const tgt = YD.DELIVERY_TARGETS[Math.floor(Math.random() * YD.DELIVERY_TARGETS.length)];
+      this.delivery = { active: true, target: tgt, timeLeft: 45 };
+      this.energy -= 10;
+      document.getElementById('deliveryBanner').classList.remove('hidden');
+      this.audio.pickup();
+      this.showToast(`📦 EKSPRES KURYE: ${tgt.name} noktasına 45 saniyede yetiş!`);
+    }
+
+    cancelDelivery(msg) {
+      if (!this.delivery.active) return;
+      this.delivery = { active: false, target: null, timeLeft: 0 };
+      document.getElementById('deliveryBanner').classList.add('hidden');
+      if (msg) this.showToast(`📦 ${msg}`);
+    }
+
+    completeDelivery() {
+      const tgt = this.delivery.target;
+      const speedBonus = Math.round(this.delivery.timeLeft * 2);
+      const total = tgt.reward + speedBonus;
+      this.delivery = { active: false, target: null, timeLeft: 0 };
+      document.getElementById('deliveryBanner').classList.add('hidden');
+      this.money += total;
+      this.addXp(38);
+      this.happiness = Math.min(100, this.happiness + 15);
+      this.audio.levelUp();
+      this.burst(this.player.x, this.player.y, '#fde047', 24);
+      this.popup(this.player.x, this.player.y - 36, `📦 TESLİM EDİLDİ! +₺${total}`, '#4ade80');
+      this.showToast(`📦 Ekspres Teslimat Tamamlandı! (+₺${total}, Hız Bonusu +₺${speedBonus})`);
+      this.unlockAchievement('ach_courier');
+      this.advanceQuest('q_delivery', 1);
+      this.checkAchievements();
+      this.saveGame();
+    }
+
+    renderBusModal() {
+      const grid = document.getElementById('busStopGrid');
+      if (!grid) return;
+      grid.innerHTML = YD.BUS_STOPS.map((bs) => {
+        const here = Math.hypot(this.player.x - bs.x, this.player.y - bs.y) < 120;
+        return `
+          <div class="shop-item">
+            <div style="font-size:22px;">🚏</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:800; color:#f8fafc;">${bs.name}</div>
+              <div style="font-size:11px; color:#94a3b8;">${here ? 'Şu an bu duraktasın' : 'Anında hızlı seyahat'}</div>
+            </div>
+            <button class="shop-buy-btn ${here ? 'owned' : ''}" data-bus="${bs.id}" ${here ? 'disabled' : ''}>
+              ${here ? 'BURADA' : 'GİT ₺15'}
+            </button>
+          </div>`;
+      }).join('');
+      grid.querySelectorAll('[data-bus]:not(.owned)').forEach((btn) => {
+        btn.addEventListener('click', () => this.travelToBusStop(btn.dataset.bus));
+      });
+    }
+
+    travelToBusStop(stopId) {
+      const bs = YD.BUS_STOPS.find((b) => b.id === stopId);
+      if (!bs) return;
+      if (this.money < 15) { this.popup(this.player.x, this.player.y - 30, 'Otobüs bileti ₺15!', '#ef4444'); return; }
+      this.money -= 15;
+      if (this.delivery.active) this.cancelDelivery('Otobüs kullanıldığı için kurye görevi iptal edildi.');
+      this.player.inCar = false; this.player.onBike = false; this.player.inBoat = false; this.player.swimming = false;
+      this.player.x = bs.spawnX; this.player.y = bs.spawnY;
+      this.cam.x = bs.spawnX; this.cam.y = bs.spawnY;
+      if (this.pet) { this.pet.x = bs.spawnX - 28; this.pet.y = bs.spawnY + 14; }
+      this.timeMinutes += 15;
+      this.audio.bikeBell();
+      this.burst(bs.spawnX, bs.spawnY, '#38bdf8', 18);
+      this.toggleBus(false);
+      this.showToast(`🚏 ${bs.name} durağına ulaştın! (-₺15)`);
+      this.saveGame();
     }
 
     renderGardenModal() {
@@ -1283,15 +1469,28 @@ window.YasamDunya = window.YasamDunya || {};
         this.unlockAchievement('ach_summit');
         this.advanceQuest('q_mountain', 1);
       } else if (target.kind === 'work') {
-        if (this.energy < 22) { this.say(p, 'Çok yorgunum, önce uyu veya kahve iç! 😴', 2.2); return; }
-        const career = YD.getCareer(this.level);
-        const evMult = this.dailyEventIdx === 2 ? 1.5 : 1.0;
-        const pay = Math.round((80 + this.level * 18) * career.bonus * bonusMult * evMult);
-        this.energy -= 22; this.hunger = Math.max(0, this.hunger - 14);
-        this.timeMinutes += 120; this.money += pay; this.addXp(30);
-        this.audio.coin();
-        this.popup(p.x, p.y - 34, `+₺${pay} (${career.title}) 💼`, '#facc15');
-        this.advanceQuest('q_work', 1);
+        this.toggleOffice(true);
+        return;
+      } else if (target.kind === 'bus') {
+        this.toggleBus(true);
+        return;
+      } else if (target.kind === 'treasure') {
+        if (this.world.island.chestOpened) {
+          this.say(p, 'Bugünkü hazineyi topladım! Yarın yeni bir sandık vurabilir. 🏝️', 2.4);
+          return;
+        }
+        this.world.island.chestOpened = true;
+        const loot = 210 + Math.floor(Math.random() * 60);
+        this.money += loot;
+        this.bag.crystal = (this.bag.crystal || 0) + 1;
+        this.happiness = Math.min(100, this.happiness + 25);
+        this.addXp(45);
+        this.audio.levelUp();
+        this.burst(this.world.island.chestX, this.world.island.chestY, '#fde047', 28);
+        this.popup(p.x, p.y - 36, `🪙 HAZİNE! +₺${loot} & +1 💎 Kristal!`, '#fde047');
+        this.showToast(`🏝️ Tropik Hazine Sandığı Açıldı! +₺${loot} + 💎 Zirve Kristali!`);
+        this.unlockAchievement('ach_island');
+        this.advanceQuest('q_island', 1);
       } else if (target.kind === 'cafe') {
         this.toggleCafe(true);
         return;
@@ -1349,6 +1548,8 @@ window.YasamDunya = window.YasamDunya || {};
       this.health = Math.min(100, this.health + 20 + (this.homeDecor.has('plants') ? 15 : 0));
       this.happiness = Math.min(100, this.happiness + (this.homeDecor.has('espresso_m') ? 15 : 0));
       this.hunger = Math.max(45, this.hunger - 12);
+      this.world.island.chestOpened = false;
+      if (this.delivery.active) this.cancelDelivery('');
       this.audio.sleep();
 
       // Passive Daily Cafe Profit if player owns the cafe!
@@ -1372,7 +1573,7 @@ window.YasamDunya = window.YasamDunya || {};
 
       this.scene = 'world';
       this.player.x = 2062; this.player.y = 1525;
-      this.player.onBike = false; this.player.inCar = false;
+      this.player.onBike = false; this.player.inCar = false; this.player.inBoat = false;
       const s = YD.SEASONS[this.seasonIdx], ev = YD.DAILY_EVENTS[this.dailyEventIdx];
       this.showToast(`☀️ Gün ${this.day} (${s.icon} ${s.name}) • ${ev.icon} ${ev.name}${cafeMsg}`);
       this.checkAchievements();
@@ -1440,7 +1641,31 @@ window.YasamDunya = window.YasamDunya || {};
       const p = this.player;
       p.speechTimer = Math.max(0, p.speechTimer - dt);
 
-      if (p.inCar) {
+      if (p.inBoat) {
+        const accelInput = (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0) - (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0);
+        const steerInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
+        if (accelInput !== 0) {
+          p.boatSpeed += accelInput * 620 * dt;
+          p.boatSpeed = Math.max(-160, Math.min(430, p.boatSpeed));
+        } else {
+          p.boatSpeed *= Math.pow(0.001, dt);
+          if (Math.abs(p.boatSpeed) < 15) p.boatSpeed = 0;
+        }
+        if (Math.abs(p.boatSpeed) > 15 || steerInput !== 0) {
+          p.angle += steerInput * 2.8 * (p.boatSpeed < -15 ? -1 : 1) * dt;
+        }
+        p.vx = Math.cos(p.angle) * p.boatSpeed; p.vy = Math.sin(p.angle) * p.boatSpeed;
+        const nx = Math.max(55, Math.min(YD.WORLD_W - 55, p.x + p.vx * dt));
+        const ny = Math.max(YD.SEA_Y + 26, Math.min(YD.WORLD_H - 45, p.y + p.vy * dt));
+        // Keep speedboat cleanly in open sea (bounce gently off pier & island shore!)
+        if (!this.world.isOnPier(nx, ny) && !this.world.isOnIsland(nx, ny, 14)) {
+          p.x = nx; p.y = ny;
+        } else {
+          p.boatSpeed *= -0.25;
+        }
+        this.happiness = Math.min(100, this.happiness + dt * 2.5);
+        this.advanceQuest('q_swim', 1);
+      } else if (p.inCar) {
         const accelInput = (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0) - (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0);
         const steerInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
         if (accelInput !== 0) {
@@ -1496,8 +1721,20 @@ window.YasamDunya = window.YasamDunya || {};
         this.energy = Math.max(0, this.energy - (sprinting ? 2.2 : (p.swimming ? 1.4 : 0.4)) * dt);
       }
 
+      // Express Delivery countdown & automatic arrival detection!
+      if (this.delivery.active && this.delivery.target) {
+        this.delivery.timeLeft -= dt;
+        const dTgt = Math.hypot(p.x - this.delivery.target.x, p.y - this.delivery.target.y);
+        if (dTgt < 78) {
+          this.completeDelivery();
+        } else if (this.delivery.timeLeft <= 0) {
+          this.audio.miss();
+          this.cancelDelivery('Süre doldu! Tekrar dene.');
+        }
+      }
+
       // Loyal Pet Companion Follow Logic (walks around buildings cleanly!)
-      if (this.pet) {
+      if (this.pet && !p.inBoat) {
         this.pet.petCd = Math.max(0, this.pet.petCd - dt);
         const dx = p.x - this.pet.x, dy = p.y - this.pet.y;
         const d = Math.hypot(dx, dy);
@@ -1573,7 +1810,7 @@ window.YasamDunya = window.YasamDunya || {};
         if (wp.y > this.viewH) { wp.y = 0; wp.x = Math.random() * this.viewW; }
       }
 
-      const targetZoom = p.inCar ? 0.84 : 1.0;
+      const targetZoom = (p.inCar || p.inBoat) ? 0.84 : 1.0;
       this.cam.zoom += (targetZoom - this.cam.zoom) * Math.min(1, dt * 2.5);
       this.cam.x += (p.x + p.vx * 0.16 - this.cam.x) * Math.min(1, dt * 7.5);
       this.cam.y += (p.y + p.vy * 0.16 - this.cam.y) * Math.min(1, dt * 7.5);
@@ -1611,9 +1848,16 @@ window.YasamDunya = window.YasamDunya || {};
       const bottomBar = document.querySelector('.hud-bottom');
       if (bottomBar) bottomBar.classList.toggle('hidden', this.scene === 'home');
 
+      if (this.delivery.active && this.delivery.target) {
+        const distM = Math.round(Math.hypot(this.player.x - this.delivery.target.x, this.player.y - this.delivery.target.y) / 4);
+        document.getElementById('deliveryTargetText').textContent = `📦 Hedef: ${this.delivery.target.name}`;
+        document.getElementById('deliveryTimerText').textContent = `${Math.ceil(this.delivery.timeLeft)}s`;
+        document.getElementById('deliveryDistText').textContent = `${distM}m`;
+      }
+
       const prompt = this.scene === 'home' ? this.findNearestHomeInteraction() : this.findNearestInteraction();
       const promptEl = document.getElementById('interactPrompt');
-      if (prompt && !this.fishing.active && !this.barista.active && !this.hasOpenModal()) {
+      if (prompt && !this.fishing.active && !this.barista.active && !this.hasOpenModal() && !this.player.inBoat) {
         promptEl.textContent = prompt.text;
         promptEl.classList.remove('hidden');
       } else {

@@ -110,9 +110,11 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.translate(-game.cam.x, -game.cam.y);
 
       this.drawBiomes(ctx, game.world, season, now, viewBox);
+      this.drawIsland(ctx, game.world, now);
       this.drawGroundDetails(ctx, season, now, viewBox);
       this.drawRoadsAndPaths(ctx, game.world);
       this.drawGarden(ctx, game.world, now);
+      this.drawBusStops(ctx);
       this.drawSkidMarks(ctx, game.skidMarks);
       this.drawHotSpringAndSummit(ctx, game.world, now);
       this.drawPondAndPier(ctx, game.world, now);
@@ -129,12 +131,17 @@ window.YasamDunya = window.YasamDunya || {};
       if (game.inventory.has('car') && !game.player.inCar && game.parkedCar) {
         this.drawPlayerCar(ctx, game.parkedCar.x, game.parkedCar.y, game.parkedCar.angle, false);
       }
+      if (game.inventory.has('boat') && !game.player.inBoat && game.parkedBoat) {
+        this.drawPlayerBoat(ctx, game.parkedBoat.x, game.parkedBoat.y, game.parkedBoat.angle, false, now);
+      }
 
       for (const npc of game.npcs) this.drawCharacter(ctx, npc, false, false, false, now);
 
-      if (game.pet) this.drawPet(ctx, game.pet, game.world, now);
+      if (game.pet && !game.player.inBoat) this.drawPet(ctx, game.pet, game.world, now);
 
-      if (game.player.inCar) {
+      if (game.player.inBoat) {
+        this.drawPlayerBoat(ctx, game.player.x, game.player.y, game.player.angle, Math.abs(game.player.boatSpeed) > 35, now);
+      } else if (game.player.inCar) {
         this.drawPlayerCar(ctx, game.player.x, game.player.y, game.player.angle, nightAlpha > 0.12 || weather.id !== 'clear');
       } else {
         this.drawCharacter(ctx, game.player, true, game.player.swimming, game.player.onBike, now);
@@ -143,7 +150,12 @@ window.YasamDunya = window.YasamDunya || {};
       this.drawBuildings3D(ctx, game.world, game.cam, now, nightAlpha, game);
       this.drawLighthouse(ctx, game.world, nightAlpha);
       this.drawTrees(ctx, game.world, season, now, viewBox);
+      this.drawBirds(ctx, game.world, now, viewBox);
       this.drawParticles(ctx, game.particles);
+
+      if (game.delivery && game.delivery.active) {
+        this.drawDeliveryBeacon(ctx, game, now);
+      }
 
       // Soft drifting cloud shadows on sunny days!
       if (weather.id === 'clear' && nightAlpha < 0.25) {
@@ -1337,6 +1349,190 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.restore();
     }
 
+    drawIsland(ctx, world, now) {
+      const isl = world.island;
+      if (!isl) return;
+      ctx.save();
+      // Lapping shallow turquoise surf foam halo around Tropical Treasure Island!
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.beginPath();
+      ctx.ellipse(isl.x, isl.y, isl.rx + 18 + Math.sin(now * 2.5) * 4, isl.ry + 14 + Math.cos(now * 2.5) * 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#5eead4';
+      ctx.beginPath();
+      ctx.ellipse(isl.x, isl.y, isl.rx + 10, isl.ry + 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Golden sandy beach island
+      ctx.fillStyle = '#fde68a'; ctx.strokeStyle = '#d97706'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(isl.x, isl.y, isl.rx, isl.ry, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+
+      // Lush central tropical grass knoll
+      ctx.fillStyle = '#65a30d';
+      ctx.beginPath();
+      ctx.ellipse(isl.x, isl.y, isl.rx * 0.62, isl.ry * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ancient Treasure Chest!
+      const cx = isl.chestX, cy = isl.chestY;
+      if (!isl.chestOpened) {
+        ctx.strokeStyle = `rgba(253, 224, 71, ${0.55 + Math.sin(now * 6) * 0.35})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, 26 + Math.sin(now * 5) * 3, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.fillStyle = isl.chestOpened ? '#78350f' : '#b45309';
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 2.4;
+      ctx.fillRect(cx - 17, cy - 12, 34, 24); ctx.strokeRect(cx - 17, cy - 12, 34, 24);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(cx - 17, cy - 2, 34, 4);
+      ctx.fillRect(cx - 4, cy - 5, 8, 9);
+
+      ctx.font = 'bold 10px "Courier New", monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+      ctx.fillRect(cx - 62, cy - 34, 124, 15);
+      ctx.fillStyle = isl.chestOpened ? '#94a3b8' : '#fde047';
+      ctx.fillText(isl.chestOpened ? '🏝️ SANDIK AÇILDI ✓' : '🪙 HAZİNE ADASI', cx, cy - 23);
+      ctx.textAlign = 'left';
+      ctx.restore();
+    }
+
+    drawBusStops(ctx) {
+      for (const bs of YD.BUS_STOPS) {
+        ctx.save();
+        ctx.translate(bs.x, bs.y);
+        // Drop shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.fillRect(-26, -10, 56, 26);
+        // Glass & steel bus shelter roof
+        ctx.fillStyle = '#0284c7'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-28, -14, 56, 24, 6);
+        else ctx.rect(-28, -14, 56, 24);
+        ctx.fill(); ctx.stroke();
+        // Glossy glass reflection strip
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fillRect(-22, -10, 44, 6);
+        // Yellow bus stop pole sign
+        ctx.fillStyle = '#facc15'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(28, -12, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#111';
+        ctx.fillText('B', 28, -8.5);
+        // Compact label
+        ctx.fillStyle = 'rgba(15,23,42,0.82)';
+        ctx.fillRect(-34, -30, 68, 13);
+        ctx.font = 'bold 9px "Courier New", monospace'; ctx.fillStyle = '#fde047';
+        ctx.fillText('🚏 DURAK', 0, -20.5);
+        ctx.textAlign = 'left';
+        ctx.restore();
+      }
+    }
+
+    drawPlayerBoat(ctx, x, y, angle, moving, now) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+
+      // Dramatic Foamy V-Wake Trail behind hull when cruising!
+      if (moving) {
+        const wLen = 46 + Math.sin(now * 16) * 8;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)'; ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-26, -5); ctx.lineTo(-26 - wLen, -24);
+        ctx.moveTo(-26, 5);  ctx.lineTo(-26 - wLen, 24);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-28, 0); ctx.lineTo(-28 - wLen * 0.85, 0);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.ellipse(0, 0, 38 + Math.sin(now * 3) * 3, 21 + Math.sin(now * 3) * 2, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      // Glossy White & Crimson Speedboat Hull
+      ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      ctx.moveTo(34, 0);
+      ctx.quadraticCurveTo(16, -19, -28, -15);
+      ctx.lineTo(-30, 15);
+      ctx.quadraticCurveTo(16, 19, 34, 0);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+
+      // Racing crimson side stripe
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(28, 0); ctx.lineTo(-24, -10); ctx.lineTo(-24, -5); ctx.lineTo(18, 0);
+      ctx.lineTo(-24, 5); ctx.lineTo(-24, 10); ctx.closePath(); ctx.fill();
+
+      // Tinted curved cockpit windshield & captain seat
+      ctx.fillStyle = '#0f172a'; ctx.fillRect(-14, -9, 20, 18);
+      ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, -8, 8, 16);
+      // Outboard engine block
+      ctx.fillStyle = '#334155'; ctx.fillRect(-35, -6, 8, 12); ctx.strokeRect(-35, -6, 8, 12);
+      ctx.restore();
+    }
+
+    drawDeliveryBeacon(ctx, game, now) {
+      const tgt = game.delivery.target;
+      if (!tgt) return;
+      ctx.save();
+      // Pulsing golden landing zone at destination!
+      const pulse = 36 + Math.sin(now * 7) * 9;
+      ctx.strokeStyle = '#facc15'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(tgt.x, tgt.y, pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.18)';
+      ctx.beginPath(); ctx.arc(tgt.x, tgt.y, pulse, 0, Math.PI * 2); ctx.fill();
+
+      ctx.font = 'bold 12px "Courier New", monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(15,23,42,0.88)';
+      ctx.fillRect(tgt.x - 68, tgt.y - 54, 136, 18);
+      ctx.fillStyle = '#fde047';
+      ctx.fillText('📦 TESLİMAT NOKTASI', tgt.x, tgt.y - 41);
+
+      // Orbiting directional compass arrow around player pointing straight to destination!
+      const p = game.player;
+      const dist = Math.hypot(tgt.x - p.x, tgt.y - p.y);
+      if (dist > 95) {
+        const ang = Math.atan2(tgt.y - p.y, tgt.x - p.x);
+        const ax = p.x + Math.cos(ang) * 62;
+        const ay = p.y + Math.sin(ang) * 62;
+        ctx.translate(ax, ay);
+        ctx.rotate(ang);
+        ctx.fillStyle = '#facc15'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(14, 0); ctx.lineTo(-8, -9); ctx.lineTo(-4, 0); ctx.lineTo(-8, 9);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    drawBirds(ctx, world, now, viewBox) {
+      if (!world.birds) return;
+      ctx.save();
+      for (const bd of world.birds) {
+        if (bd.x < viewBox.x1 || bd.x > viewBox.x2 || bd.y < viewBox.y1 || bd.y > viewBox.y2) continue;
+        const flap = Math.sin(now * 9 + bd.phase) * 5;
+        // Soft ground shadow below soaring bird
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.16)'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bd.x + 14 - 8, bd.y + 38 + flap * 0.5);
+        ctx.quadraticCurveTo(bd.x + 14, bd.y + 34, bd.x + 14 + 8, bd.y + 38 + flap * 0.5);
+        ctx.stroke();
+        // Crisp white soaring seagull wings
+        ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(bd.x - 10, bd.y + flap);
+        ctx.quadraticCurveTo(bd.x - 4, bd.y - 5, bd.x, bd.y);
+        ctx.quadraticCurveTo(bd.x + 4, bd.y - 5, bd.x + 10, bd.y + flap);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     drawMinimap(game, season) {
       const mctx = this.miniCtx;
       const mw = this.miniCanvas.width, mh = this.miniCanvas.height;
@@ -1349,6 +1545,13 @@ window.YasamDunya = window.YasamDunya || {};
       mctx.fillStyle = season.park; mctx.fillRect(YD.CITY_X2 * sx, YD.MOUNTAIN_Y * sy, (YD.WORLD_W - YD.CITY_X2) * sx, (YD.BEACH_Y - YD.MOUNTAIN_Y) * sy);
       mctx.fillStyle = '#f6d78a'; mctx.fillRect(0, YD.BEACH_Y * sy, mw, (YD.SEA_Y - YD.BEACH_Y) * sy);
       mctx.fillStyle = '#0284c7'; mctx.fillRect(0, YD.SEA_Y * sy, mw, (YD.WORLD_H - YD.SEA_Y) * sy);
+
+      // Tropical Treasure Island on minimap!
+      if (game.world.island) {
+        const isl = game.world.island;
+        mctx.fillStyle = '#fde68a';
+        mctx.beginPath(); mctx.ellipse(isl.x * sx, isl.y * sy, Math.max(5, isl.rx * sx), Math.max(3.5, isl.ry * sy), 0, 0, Math.PI * 2); mctx.fill();
+      }
 
       mctx.fillStyle = '#2dd4bf';
       mctx.beginPath(); mctx.ellipse(game.world.hotSpring.x * sx, game.world.hotSpring.y * sy, game.world.hotSpring.rx * sx, game.world.hotSpring.ry * sy, 0, 0, Math.PI * 2); mctx.fill();
@@ -1365,6 +1568,12 @@ window.YasamDunya = window.YasamDunya || {};
 
       mctx.fillStyle = '#1e293b';
       for (const b of game.world.buildings) mctx.fillRect(b.x * sx, b.y * sy, b.w * sx, b.h * sy);
+
+      if (game.delivery && game.delivery.active && game.delivery.target) {
+        const dt = game.delivery.target;
+        mctx.fillStyle = '#fde047'; mctx.strokeStyle = '#111'; mctx.lineWidth = 1.4;
+        mctx.beginPath(); mctx.arc(dt.x * sx, dt.y * sy, 4.5, 0, Math.PI * 2); mctx.fill(); mctx.stroke();
+      }
 
       if (game.pastEcho && !game.pastEcho.claimed) {
         mctx.fillStyle = '#facc15'; mctx.beginPath(); mctx.arc(game.pastEcho.x * sx, game.pastEcho.y * sy, 3.5, 0, Math.PI * 2); mctx.fill();

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="index.icon.png" />
   <title>Yaşam Maratonu: Büyük Dünya — 60 FPS Açık Dünya Yaşam Simülatörü</title>
-  <link rel="stylesheet" href="dunya/styles.css?v=5.4" />
+  <link rel="stylesheet" href="dunya/styles.css?v=6.0" />
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
@@ -77,6 +77,14 @@
     <!-- TEMPORARY FLOATING EVENT / ACHIEVEMENT TOAST -->
     <div id="eventToast" class="glass-panel event-toast hidden"></div>
 
+    <!-- TRANSIENT EXPRESS DELIVERY BANNER (Only visible during an active delivery!) -->
+    <div id="deliveryBanner" class="glass-panel delivery-banner hidden">
+      <span id="deliveryTargetText">📦 Hedef: —</span>
+      <span id="deliveryTimerText" style="color:#fde047;">45s</span>
+      <span id="deliveryDistText" style="color:#38bdf8;">— m</span>
+      <button id="btnCancelDelivery" class="hud-btn" style="padding:2px 8px; font-size:10px;">İPTAL</button>
+    </div>
+
     <!-- INTERACTIVE FISHING TIMING MINI-GAME BAR -->
     <div id="fishingBarWrap" class="glass-panel fishing-bar-wrap hidden">
       <div class="fish-title">🎣 BALIK YAKALA! İbre ALTIN bölgeye gelince [E] / [SPACE] bas!</div>
@@ -114,6 +122,7 @@
       <div class="quick-dock">
         <button id="btnCar" class="dock-btn" title="Araba [V]">🚗<span>V</span></button>
         <button id="btnBike" class="dock-btn" title="Bisiklet [B]">🚲<span>B</span></button>
+        <button id="btnBoat" class="dock-btn" title="Sürat Teknesi [U]">🚤<span>U</span></button>
         <button id="btnPetAction" class="dock-btn" title="Evcil Hayvanı Sev [P]">🐾<span>P</span></button>
         <button id="btnWeather" class="dock-btn" title="Hava Durumu [Y]">⛈️<span>Y</span></button>
         <button id="btnSeason" class="dock-btn" title="4D Mevsim [T]">⏳<span>T</span></button>
@@ -127,6 +136,30 @@
           <span>🏔️Dağ</span><span>🌲Orman</span><span>🏙️Şehir</span><span>🌳Park</span><span>🌊Deniz</span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- OFFICE & EXPRESS DELIVERY MODAL ([E] AT OFFICE) -->
+  <div id="officeModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal" style="max-width:480px;">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#38bdf8; font-size:20px;">🏢 İŞ MERKEZİ &amp; KURYE</h2>
+        <button id="btnCloseOffice" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div id="officeCareerBanner" class="career-banner" style="margin-bottom:10px;"></div>
+      <div id="officeActionsGrid" class="shop-grid"></div>
+    </div>
+  </div>
+
+  <!-- BUS FAST-TRAVEL MODAL ([E] AT ANY BUS STOP) -->
+  <div id="busModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal" style="max-width:490px;">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fde047; font-size:18px;">🚏 HIZLI OTOBÜS SEYAHATİ</h2>
+        <button id="btnCloseBus" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div style="font-size:12px; color:#cbd5e1; margin-bottom:10px;">Bilet sadece <b>₺15</b>! Haritanın dört bir yanına anında git.</div>
+      <div id="busStopGrid" class="shop-grid"></div>
     </div>
   </div>
 
@@ -225,7 +258,7 @@
         <div><b>I</b><span>Market, Galeri &amp; Evcil Hayvan</span></div>
         <div><b>P</b><span>Evcil Hayvanı Sev (+Mutluluk)</span></div>
         <div><b>M</b><span>Haritayı Göster / Gizle</span></div>
-        <div><b>V / B</b><span>Araba / Bisiklet</span></div>
+        <div><b>V / B / U</b><span>Araba / Bisiklet / Sürat Teknesi</span></div>
         <div><b>H / Space</b><span>Araba Kornası</span></div>
         <div><b>Y / T / N</b><span>Hava / 4D Mevsim / Müzik</span></div>
       </div>
@@ -248,10 +281,10 @@
     </div>
   </div>
 
-  <script defer src="dunya/src/config.js?v=5.4"></script>
-  <script defer src="dunya/src/audio.js?v=5.4"></script>
-  <script defer src="dunya/src/world.js?v=5.4"></script>
-  <script defer src="dunya/src/renderer.js?v=5.4"></script>
-  <script defer src="dunya/src/game.js?v=5.4"></script>
+  <script defer src="dunya/src/config.js?v=6.0"></script>
+  <script defer src="dunya/src/audio.js?v=6.0"></script>
+  <script defer src="dunya/src/world.js?v=6.0"></script>
+  <script defer src="dunya/src/renderer.js?v=6.0"></script>
+  <script defer src="dunya/src/game.js?v=6.0"></script>
 </body>
 </html>
