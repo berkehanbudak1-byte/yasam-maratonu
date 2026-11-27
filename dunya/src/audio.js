@@ -1118,7 +1118,106 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     thunder() { this.noise(1.25, 0.22, 160); this.tone(68, 26, 0.95, 'sawtooth', 0.11); }
-    carHorn() { this.tone(370, 370, 0.16, 'sawtooth', 0.075); this.tone(466, 466, 0.16, 'sawtooth', 0.065); }
+    carHorn(pitch = 1.0, doubleBeep = false, volScale = 1.0) {
+      if (this.muted || !this.ctx || !this.sfxBus) return;
+      const ctx = this.ctx;
+      const burst = (delay, dur) => {
+        const t = ctx.currentTime + delay;
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'lowpass';
+        filt.frequency.value = 1750;
+        const g = ctx.createGain();
+        const peak = 0.068 * Math.max(0.15, Math.min(1.15, volScale));
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(peak, t + 0.014);
+        g.gain.setValueAtTime(peak * 0.9, t + Math.max(0.02, dur - 0.03));
+        g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+        filt.connect(g); g.connect(this.sfxBus);
+        // Authentic dual-tone automotive horn (minor/major 3rd interval!)
+        [370 * pitch, 466 * pitch].forEach((freq) => {
+          const o = ctx.createOscillator();
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(freq, t);
+          o.connect(filt);
+          o.start(t); o.stop(t + dur + 0.02);
+        });
+      };
+      if (doubleBeep) {
+        burst(0, 0.12);
+        burst(0.16, 0.18);
+      } else {
+        burst(0, 0.24);
+      }
+    }
+    meow() {
+      if (this.muted || !this.ctx || !this.sfxBus) return;
+      const ctx = this.ctx, t = ctx.currentTime;
+      const o = ctx.createOscillator();
+      const f = ctx.createBiquadFilter();
+      const g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(580, t);
+      o.frequency.exponentialRampToValueAtTime(920, t + 0.12);
+      o.frequency.exponentialRampToValueAtTime(480, t + 0.36);
+      f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = 2.0;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.14, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+      o.connect(f); f.connect(g); g.connect(this.sfxBus);
+      o.start(t); o.stop(t + 0.40);
+    }
+    bark() {
+      if (this.muted || !this.ctx || !this.sfxBus) return;
+      const ctx = this.ctx;
+      const woof = (delay, base) => {
+        const t = ctx.currentTime + delay;
+        const o = ctx.createOscillator();
+        const f = ctx.createBiquadFilter();
+        const g = ctx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(base * 1.45, t);
+        o.frequency.exponentialRampToValueAtTime(base, t + 0.09);
+        f.type = 'bandpass'; f.frequency.value = 640; f.Q.value = 1.6;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(0.14, t + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+        o.connect(f); f.connect(g); g.connect(this.sfxBus);
+        o.start(t); o.stop(t + 0.13);
+      };
+      woof(0, 210);
+      woof(0.15, 235);
+    }
+    quack() {
+      if (this.muted || !this.ctx || !this.sfxBus) return;
+      const ctx = this.ctx;
+      const q = (delay) => {
+        const t = ctx.currentTime + delay;
+        const o = ctx.createOscillator();
+        const f = ctx.createBiquadFilter();
+        const g = ctx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(360, t);
+        o.frequency.exponentialRampToValueAtTime(240, t + 0.11);
+        f.type = 'bandpass';
+        f.frequency.setValueAtTime(1600, t);
+        f.frequency.exponentialRampToValueAtTime(850, t + 0.11);
+        f.Q.value = 3.2;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(0.15, t + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+        o.connect(f); f.connect(g); g.connect(this.sfxBus);
+        o.start(t); o.stop(t + 0.14);
+      };
+      q(0); q(0.15);
+    }
+    animalHappy() {
+      this.tone(720, 980, 0.08, 'sine', 0.09);
+      this.tone(980, 1280, 0.11, 'triangle', 0.08, 0.07);
+    }
+    cashRegister() {
+      this.tone(1046.5, 1046.5, 0.07, 'triangle', 0.11);
+      this.tone(1318.5, 1568.0, 0.15, 'triangle', 0.11, 0.065);
+    }
     carStart(){ this.tone(85, 220, 0.24, 'sawtooth', 0.075); this.noise(0.16, 0.05, 500); }
     guitar()  {
       if (!this.ctx) return;

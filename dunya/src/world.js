@@ -34,6 +34,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.altar = { x: 520, y: 920, r: 34 };
       this.lighthouse = { x: 4220, y: 2830, r: 38, beamAngle: 0 };
       this.island = { x: 920, y: 3395, rx: 140, ry: 85, chestX: 920, chestY: 3378, chestOpened: false };
+      this.atm = { x: 2965, y: 1455 };
+      this.evCharger = { x: 2880, y: 1015 };
+      this.strays = [];
       this.birds = [];
 
       // Personal 6-Plot Organic Garden (Dedicated sunny yard between Center Hwy x=2380 and Office x=2620!)
@@ -90,10 +93,12 @@ window.YasamDunya = window.YasamDunya || {};
         { id: 'camp',       kind: 'campfire',   label: '🔥 KAMP ATEŞİ (Dinlen)',              x: this.campfire.x, y: this.campfire.y, r: 58 },
         { id: 'altar',      kind: 'altar',      label: '⏳ ANTİK 4D SUNAK (İlham Al)',         x: this.altar.x, y: this.altar.y, r: 62 },
         { id: 'park_gym',   kind: 'workout',    label: '🏃 PARK SPOR ALANI (+Sağlık)',         x: 3640, y: 1860, r: 66 },
-        { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI (+Mutluluk)',           x: 3880, y: 1605, r: 58 },
+        { id: 'park_bench', kind: 'relax',      label: '🪑 GÖLET BANKI — Ördekleri Besle',     x: 3880, y: 1605, r: 58 },
         { id: 'pier_fish',  kind: 'fish',       label: '🎣 İSKELE — BALIK TUT',               x: this.pier.x + this.pier.w / 2, y: this.pier.y + this.pier.h - 24, r: 68 },
         { id: 'lighthouse', kind: 'lighthouse', label: '🗼 DENİZ FENERİ (Manzara)',            x: this.lighthouse.x, y: this.lighthouse.y + 44, r: 58 },
-        { id: 'treasure',   kind: 'treasure',   label: '🪙 ANTİK HAZİNE SANDIĞI',              x: this.island.chestX, y: this.island.chestY, r: 58 }
+        { id: 'treasure',   kind: 'treasure',   label: '🪙 ANTİK HAZİNE SANDIĞI',              x: this.island.chestX, y: this.island.chestY, r: 58 },
+        { id: 'bank_atm',   kind: 'bank',       label: '🏦 BANKA / ATM (Yatır, Çek & %8 Faiz)', x: this.atm.x, y: this.atm.y, r: 52 },
+        { id: 'ev_charge',  kind: 'evcharge',   label: '⚡ EV ŞARJ İSTASYONU (₺20 — %100 Batarya)', x: this.evCharger.x, y: this.evCharger.y, r: 54 }
       );
       for (const bs of YD.BUS_STOPS) {
         this.interactables.push({ id: bs.id, kind: 'bus', label: `🚏 OTOBÜS DURAĞI (${bs.name})`, x: bs.x, y: bs.y, r: 52 });
@@ -180,9 +185,29 @@ window.YasamDunya = window.YasamDunya || {};
 
       for (let i = 0; i < 10; i++) {
         this.wildlife.push({
+          id: `wild_${i}`,
           kind: i < 4 ? 'deer' : 'rabbit',
+          name: i < 4 ? ['Orman Geyiği', 'Kızıl Geyik', 'Genç Karaca', 'Geyik'][i] : ['Pamuk Tavşan', 'Beyaz Tavşan', 'Minik Tavşan', 'Tavşan', 'Kır Tavşanı', 'Hızlı Tavşan'][i - 4],
           x: 240 + rand() * 1320, y: 860 + rand() * 1450,
-          angle: rand() * Math.PI * 2, speed: i < 4 ? 52 : 68, timer: 1 + rand() * 3
+          angle: rand() * Math.PI * 2, speed: i < 4 ? 52 : 68, timer: 1 + rand() * 3,
+          heartTimer: 0, petCd: 0
+        });
+      }
+
+      // Friendly Street Cats & Dogs (Safe sidewalks & parks, 100% interactive!)
+      const straySpecs = [
+        { id: 'stray_tekir',   kind: 'cat', name: 'Tekir',   color: '#f97316', x: 2205, y: 2065 },
+        { id: 'stray_boncuk',  kind: 'cat', name: 'Boncuk',  color: '#334155', x: 1915, y: 1520 },
+        { id: 'stray_tarcin',  kind: 'cat', name: 'Tarçın',  color: '#fbbf24', x: 2195, y: 2565 },
+        { id: 'stray_karabas', kind: 'dog', name: 'Karabaş', color: '#d97706', x: 3560, y: 1620 },
+        { id: 'stray_badem',   kind: 'dog', name: 'Badem',   color: '#fef3c7', x: 2960, y: 1985 },
+        { id: 'stray_zeytin',  kind: 'dog', name: 'Zeytin',  color: '#475569', x: 1120, y: 1315 }
+      ];
+      for (const s of straySpecs) {
+        this.strays.push({
+          ...s, homeX: s.x, homeY: s.y,
+          angle: rand() * Math.PI * 2, speed: s.kind === 'dog' ? 46 : 36,
+          timer: 1 + rand() * 2.5, heartTimer: 0, petCd: 0, trust: 0
         });
       }
       for (let i = 0; i < 7; i++) {
@@ -300,6 +325,10 @@ window.YasamDunya = window.YasamDunya || {};
             curSpeed: spec.speed,
             color,
             isTaxi,
+            hornPitch: isTaxi ? 1.18 : (0.86 + ((carId * 7) % 5) * 0.08),
+            hornCd: 1.5 + (carId % 3),
+            hornFlash: 0,
+            waitTimer: 0,
             brakeTimer: 0,
             hitCd: 0
           });
@@ -445,7 +474,7 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
-    update(dt, player, onCarHitPlayer, weatherId) {
+    update(dt, player, onCarHitPlayer, weatherId, onCarHonk, playerCalm = true) {
       this.lighthouse.beamAngle += dt * 0.9;
 
       // Grow organic garden crops (2x speed when watered; rain auto-waters!)
@@ -466,14 +495,21 @@ window.YasamDunya = window.YasamDunya || {};
           if (fg.respawnTimer <= 0) fg.collected = false;
         }
       }
+
+      // Forest Wildlife: flees if you sprint or drive loudly, stays calm & pettable if you walk gently!
       for (const w of this.wildlife) {
         w.timer -= dt;
+        w.heartTimer = Math.max(0, (w.heartTimer || 0) - dt);
+        w.petCd = Math.max(0, (w.petCd || 0) - dt);
         const dPlayer = Math.hypot(player.x - w.x, player.y - w.y);
         let nx = w.x, ny = w.y;
-        if (dPlayer < 130) {
+        if (dPlayer < 135 && !playerCalm && w.heartTimer <= 0) {
           w.angle = Math.atan2(w.y - player.y, w.x - player.x);
           nx += Math.cos(w.angle) * (w.speed * 1.9) * dt;
           ny += Math.sin(w.angle) * (w.speed * 1.9) * dt;
+        } else if (dPlayer < 95 && playerCalm) {
+          // Curious gentle forest animal pauses and looks at you!
+          w.angle = Math.atan2(player.y - w.y, player.x - w.x);
         } else {
           if (w.timer <= 0) { w.timer = 2 + Math.random() * 3.5; w.angle += (Math.random() - 0.5) * 2.2; }
           nx += Math.cos(w.angle) * w.speed * dt; ny += Math.sin(w.angle) * w.speed * dt;
@@ -485,6 +521,36 @@ window.YasamDunya = window.YasamDunya || {};
           w.y = Math.max(YD.MOUNTAIN_Y + 60, Math.min(YD.BEACH_Y - 110, ny));
         }
       }
+
+      // Friendly Street Cats & Dogs (Safe sidewalks & parks; trot toward player when close!)
+      for (const st of this.strays) {
+        st.timer -= dt;
+        st.heartTimer = Math.max(0, st.heartTimer - dt);
+        st.petCd = Math.max(0, st.petCd - dt);
+        const dPlayer = Math.hypot(player.x - st.x, player.y - st.y);
+        let nx = st.x, ny = st.y;
+        if (dPlayer < 130 && dPlayer > 40 && !player.inCar && !player.inBoat) {
+          st.angle = Math.atan2(player.y - st.y, player.x - st.x);
+          nx += Math.cos(st.angle) * (st.speed * 1.15) * dt;
+          ny += Math.sin(st.angle) * (st.speed * 1.15) * dt;
+        } else if (dPlayer <= 40) {
+          st.angle = Math.atan2(player.y - st.y, player.x - st.x);
+        } else {
+          if (st.timer <= 0) {
+            st.timer = 2.0 + Math.random() * 3.0;
+            const dHome = Math.hypot(st.x - st.homeX, st.y - st.homeY);
+            st.angle = dHome > 95 ? Math.atan2(st.homeY - st.y, st.homeX - st.x) : st.angle + (Math.random() - 0.5) * 2.1;
+          }
+          nx += Math.cos(st.angle) * (st.speed * 0.55) * dt;
+          ny += Math.sin(st.angle) * (st.speed * 0.55) * dt;
+        }
+        if (!this.isOnRoad(nx, ny, 22) && !this.isInsideBuilding(nx, ny, 18) && !this.isInWater(nx, ny)) {
+          st.x = nx; st.y = ny;
+        } else {
+          st.angle += Math.PI * 0.75;
+        }
+      }
+
       for (const dk of this.ducks) dk.angle += dk.speed * dt;
       for (const bt of this.boats) {
         bt.x += bt.dir * bt.speed * dt;
@@ -499,10 +565,12 @@ window.YasamDunya = window.YasamDunya || {};
         if (bd.y < 760 || bd.y > YD.WORLD_H - 120) bd.vy *= -1;
       }
 
-      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP TRAFFIC + SMART CROSSWALK YIELD + PLAYER DAMAGE! ---
+      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP TRAFFIC + SMART YIELD + REALISTIC HONKING! ---
       for (const c of this.cars) {
         c.brakeTimer = Math.max(0, c.brakeTimer - dt);
         c.hitCd = Math.max(0, c.hitCd - dt);
+        c.hornCd = Math.max(0, (c.hornCd || 0) - dt);
+        c.hornFlash = Math.max(0, (c.hornFlash || 0) - dt);
 
         let yielding = false;
         const fx = Math.cos(c.angle), fy = Math.sin(c.angle);
@@ -533,6 +601,33 @@ window.YasamDunya = window.YasamDunya || {};
         }
         c.yielding = yielding;
 
+        // Realistic Honking! 1) Player steps in front of an oncoming car -> warning beep + gentle brake!
+        const pdx = player.x - c.x, pdy = player.y - c.y;
+        const pDist = Math.hypot(pdx, pdy);
+        const pFwd = pdx * fx + pdy * fy;
+        const pLat = Math.abs(-pdx * fy + pdy * fx);
+        if (pFwd > 28 && pFwd < 168 && pLat < 42 && c.curSpeed > 35) {
+          if (c.hornCd <= 0) {
+            c.hornCd = 2.6;
+            c.hornFlash = 0.55;
+            if (onCarHonk) onCarHonk(c, 'warn', pDist);
+          }
+          if (pFwd < 92 && pLat < 30) yielding = true; // Driver taps brakes before hitting you!
+        }
+
+        // 2) Impatient city driver honks occasionally when stuck waiting at an intersection near player
+        if (yielding) {
+          c.waitTimer = (c.waitTimer || 0) + dt;
+          if (c.waitTimer > 2.2 && c.hornCd <= 0 && pDist < 520) {
+            c.hornCd = 5.5 + Math.random() * 4;
+            c.hornFlash = 0.5;
+            c.waitTimer = 0;
+            if (onCarHonk) onCarHonk(c, 'traffic', pDist);
+          }
+        } else {
+          c.waitTimer = 0;
+        }
+
         const wantSpeed = (c.brakeTimer > 0 || yielding) ? 0 : c.speed;
         c.curSpeed += (wantSpeed - c.curSpeed) * Math.min(1, dt * (yielding ? 22 : 10));
         if (yielding && c.curSpeed < 12) c.curSpeed = 0;
@@ -553,6 +648,7 @@ window.YasamDunya = window.YasamDunya || {};
         if (c.hitCd <= 0 && c.curSpeed > 45 && Math.hypot(player.x - c.x, player.y - c.y) < hitDist) {
           c.hitCd = 1.4;
           c.brakeTimer = 0.85; // Car slams brakes & flashes hazards after hitting you!
+          c.hornFlash = 0.65;
           if (onCarHitPlayer) onCarHitPlayer(c);
         }
       }

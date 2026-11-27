@@ -62,6 +62,8 @@ window.YasamDunya = window.YasamDunya || {};
     { id: 'bike',      name: 'Şehir Bisikleti',     icon: '🚲', price: 160, desc: '[B] ile bin — 2x hızlı ulaşım!' },
     { id: 'car',       name: 'Elektrikli Araba',    icon: '🚗', price: 340, desc: '[V] ile sür — Drift, farlar, korna & 3x hız!' },
     { id: 'boat',      name: 'Sürat Teknesi',       icon: '🚤', price: 280, desc: 'Denizde [U] ile bin — Hazine Adasına hızla yelken aç!' },
+    { id: 'umbrella',  name: 'Renkli Şemsiye',      icon: '☂️', price: 65,  desc: 'Yağmur & fırtınada otomatik açılır, üşümeni engeller!' },
+    { id: 'petfood',   name: 'Hayvan Maması (5x)',  icon: '🥫', price: 40,  consumable: true, desc: 'Sokak kedi/köpekleri, ördekler & orman hayvanlarını besle!' },
     { id: 'pet_dog',   name: 'Altın Köpek "Paşa"',  icon: '🐶', price: 180, desc: 'Peşinden gelir, [P] ile sev (+Mutluluk), eşya koklar!' },
     { id: 'pet_cat',   name: 'Tekir Kedi "Pamuk"',  icon: '🐱', price: 150, desc: 'Tatlı yol arkadaşın! [P] ile sev, şans verir!' },
     { id: 'rod',       name: 'Pro Olta Takımı',     icon: '🎣', price: 140, desc: 'Balık mini-oyununda dev Altın bölge & nadir balık!' },
@@ -117,7 +119,8 @@ window.YasamDunya = window.YasamDunya || {};
     crystal:    { name: 'Zirve Kristali',   icon: '💎', hunger: 0,  health: 0,  energy: 15, sell: 85 },
     tomato:     { name: 'Organik Domates',  icon: '🍅', hunger: 30, health: 12, energy: 10, sell: 55 },
     strawberry: { name: 'Bahçe Çileği',     icon: '🍓', hunger: 25, health: 10, energy: 14, sell: 95 },
-    sunflower:  { name: 'Altın Ayçiçeği',   icon: '🌻', hunger: 0,  health: 0,  energy: 20, sell: 175 }
+    sunflower:  { name: 'Altın Ayçiçeği',   icon: '🌻', hunger: 0,  health: 0,  energy: 20, sell: 175 },
+    petfood:    { name: 'Hayvan Maması',    icon: '🥫', hunger: 0,  health: 0,  energy: 0,  sell: 6  }
   };
 
   YD.BUS_STOPS = [
@@ -138,6 +141,7 @@ window.YasamDunya = window.YasamDunya || {};
   ];
 
   YD.QUESTS = [
+    { id: 'q_animals',  title: '3 Hayvanı Sev veya Besle (Kedi/Köpek/Geyik/Ördek)', target: 3, rewardMoney: 140, rewardXp: 50 },
     { id: 'q_forest',   title: 'Ormanda 3 Böğürtlen/Mantar Topla',        target: 3, rewardMoney: 120, rewardXp: 40 },
     { id: 'q_fish',     title: 'İskelede Balık Mini-Oyunuyla 2 Balık Tut', target: 2, rewardMoney: 180, rewardXp: 55 },
     { id: 'q_garden',   title: 'Bahçende 2 Organik Ürün Hasat Et',        target: 2, rewardMoney: 160, rewardXp: 50 },
@@ -151,13 +155,14 @@ window.YasamDunya = window.YasamDunya || {};
   ];
 
   YD.ACHIEVEMENTS = [
+    { id: 'ach_animals', icon: '🐾', name: 'Hayvan Dostu',    desc: '3 farklı hayvanla dost ol veya besle' },
     { id: 'ach_summit',  icon: '🏔️', name: 'Zirve Fatihi',    desc: 'Sisyphos Zirvesine ulaş' },
     { id: 'ach_island',  icon: '🏝️', name: 'Ada Kaşifi',      desc: 'Tropik Hazine Sandığını aç' },
     { id: 'ach_courier', icon: '📦', name: 'Hızlı Kurye',     desc: 'İlk Ekspres Teslimatı tamamla' },
     { id: 'ach_farmer',  icon: '🌱', name: 'Usta Bahçıvan',   desc: 'Bahçenden ilk ürününü hasat et' },
     { id: 'ach_barista', icon: '☕', name: 'Kafe Patronu',    desc: 'Kendi kafeni satın al ve işlet' },
     { id: 'ach_car',     icon: '🚗', name: 'Yolların Kralı',  desc: 'Elektrikli Araba satın al' },
-    { id: 'ach_pet',     icon: '🐾', name: 'Sadık Dost',      desc: 'Bir evcil hayvan sahiplen' },
+    { id: 'ach_pet',     icon: '🐶', name: 'Sadık Dost',      desc: 'Bir evcil hayvan sahiplen' },
     { id: 'ach_decor',   icon: '🏡', name: 'Hayalindeki Ev',  desc: 'Evine en az 3 dekor al' },
     { id: 'ach_echo',    icon: '✨', name: '4D Efsanesi',     desc: 'Geçmiş benlik yankına dokun' },
     { id: 'ach_rich',    icon: '💰', name: 'Zengin Yaşam',    desc: '₺1.000 birikime ulaş' }

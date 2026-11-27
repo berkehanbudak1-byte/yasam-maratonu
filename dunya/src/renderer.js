@@ -115,6 +115,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.drawRoadsAndPaths(ctx, game.world);
       this.drawGarden(ctx, game.world, now);
       this.drawBusStops(ctx);
+      this.drawCityKiosks(ctx, game.world, now);
       this.drawSkidMarks(ctx, game.skidMarks);
       this.drawHotSpringAndSummit(ctx, game.world, now);
       this.drawPondAndPier(ctx, game.world, now);
@@ -143,8 +144,35 @@ window.YasamDunya = window.YasamDunya || {};
         this.drawPlayerBoat(ctx, game.player.x, game.player.y, game.player.angle, Math.abs(game.player.boatSpeed) > 35, now);
       } else if (game.player.inCar) {
         this.drawPlayerCar(ctx, game.player.x, game.player.y, game.player.angle, nightAlpha > 0.12 || weather.id !== 'clear');
+        // Sleek tiny EV battery gauge directly under car (zero permanent HUD clutter!)
+        const bat = Math.max(0, Math.min(100, game.carBattery ?? 100));
+        ctx.save();
+        ctx.fillStyle = 'rgba(15,23,42,0.82)';
+        ctx.fillRect(game.player.x - 22, game.player.y + 28, 44, 7);
+        ctx.fillStyle = bat > 35 ? '#4ade80' : (bat > 15 ? '#facc15' : '#ef4444');
+        ctx.fillRect(game.player.x - 20, game.player.y + 30, 40 * (bat / 100), 3);
+        ctx.restore();
       } else {
         this.drawCharacter(ctx, game.player, true, game.player.swimming, game.player.onBike, now);
+        // Open colorful Umbrella automatically held above player in rain/storm!
+        if ((weather.id === 'rain' || weather.id === 'storm') && !game.player.swimming && game.inventory.has('umbrella')) {
+          ctx.save();
+          ctx.translate(game.player.x, game.player.y - 4);
+          ctx.fillStyle = 'rgba(0,0,0,0.22)';
+          ctx.beginPath(); ctx.arc(3, 5, 22, 0, Math.PI * 2); ctx.fill();
+          const slices = ['#ef4444', '#facc15', '#38bdf8', '#22c55e', '#a855f7', '#fb923c'];
+          for (let i = 0; i < 6; i++) {
+            ctx.fillStyle = slices[i];
+            ctx.beginPath(); ctx.moveTo(0, 0);
+            ctx.arc(0, 0, 22, (i / 6) * Math.PI * 2, ((i + 1) / 6) * Math.PI * 2);
+            ctx.closePath(); ctx.fill();
+          }
+          ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = '#fde047';
+          ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
       }
 
       this.drawBuildings3D(ctx, game.world, game.cam, now, nightAlpha, game);
@@ -650,23 +678,125 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.restore();
     }
 
-    drawWildlife(ctx, world, now) {
-      for (const w of world.wildlife) {
-        ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.angle);
-        ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(2, 4, w.kind === 'deer' ? 14 : 8, 6, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = w.kind === 'deer' ? '#b45309' : '#f8fafc';
-        ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.ellipse(0, 0, w.kind === 'deer' ? 14 : 8, w.kind === 'deer' ? 8 : 5.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(w.kind === 'deer' ? 12 : 7, 0, w.kind === 'deer' ? 6 : 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    drawCityKiosks(ctx, world, now) {
+      // 1) Sleek Bank ATM Kiosk beside İş Merkezi
+      if (world.atm) {
+        const ax = world.atm.x, ay = world.atm.y;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(ax - 17, ay - 14, 40, 34);
+        ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.4;
+        ctx.fillRect(ax - 18, ay - 18, 36, 36); ctx.strokeRect(ax - 18, ay - 18, 36, 36);
+        ctx.fillStyle = '#22d3ee'; ctx.fillRect(ax - 11, ay - 11, 22, 13);
+        ctx.fillStyle = '#fde047'; ctx.fillRect(ax - 7, ay + 6, 14, 5);
+        ctx.font = 'bold 9px "Courier New", monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#e0f2fe'; ctx.fillText('ATM', ax, ay - 22);
         ctx.restore();
       }
+      // 2) Green EV Charging Station beside Market & Galeri
+      if (world.evCharger) {
+        const ex = world.evCharger.x, ey = world.evCharger.y;
+        ctx.save();
+        // Green EV parking bay paint
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.22)'; ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 2;
+        ctx.fillRect(ex - 28, ey - 16, 56, 40); ctx.strokeRect(ex - 28, ey - 16, 56, 40);
+        // Sleek EV supercharger pillar
+        ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#14532d'; ctx.lineWidth = 2;
+        ctx.fillRect(ex - 11, ey - 24, 22, 20); ctx.strokeRect(ex - 11, ey - 24, 22, 20);
+        ctx.fillStyle = `rgba(74, 222, 128, ${0.55 + Math.sin(now * 5) * 0.4})`;
+        ctx.fillRect(ex - 6, ey - 19, 12, 8);
+        ctx.font = 'bold 9px "Courier New", monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#bbf7d0'; ctx.fillText('⚡ EV ŞARJ', ex, ey - 28);
+        ctx.restore();
+      }
+    }
+
+    drawWildlife(ctx, world, now) {
+      // 1) Forest Deer & Rabbits (detailed top-down art!)
+      for (const w of world.wildlife) {
+        ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.angle);
+        ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(2, 4, w.kind === 'deer' ? 15 : 8, 6, 0, 0, Math.PI * 2); ctx.fill();
+        if (w.kind === 'deer') {
+          // Cinnamon coat, white spotted back, antlers & tail
+          ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#291002'; ctx.lineWidth = 1.8;
+          ctx.beginPath(); ctx.ellipse(0, 0, 14, 8, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#fef3c7';
+          ctx.beginPath(); ctx.arc(-4, -2.5, 1.8, 0, Math.PI * 2); ctx.arc(-1, 2.5, 1.6, 0, Math.PI * 2); ctx.arc(-13, 0, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#92400e';
+          ctx.beginPath(); ctx.arc(13, 0, 5.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          // Cute branching antlers
+          ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(12, -4); ctx.lineTo(16, -11); ctx.moveTo(14, -8); ctx.lineTo(19, -9);
+          ctx.moveTo(12, 4);  ctx.lineTo(16, 11);  ctx.moveTo(14, 8);  ctx.lineTo(19, 9);
+          ctx.stroke();
+        } else {
+          // Fluffy white rabbit with long pink-lined ears & cotton tail
+          ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.ellipse(0, 0, 8, 5.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(-8, 0, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(7, 0, 4.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#fbcfe8';
+          ctx.beginPath(); ctx.ellipse(4, -5.5, 4.5, 1.8, -0.4, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(4, 5.5, 4.5, 1.8, 0.4, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+        if (w.heartTimer > 0) {
+          ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText('❤️', w.x, w.y - 16 - Math.sin(now * 6) * 3);
+        }
+      }
+
+      // 2) Friendly Interactive Street Cats & Dogs!
+      if (world.strays) {
+        for (const st of world.strays) {
+          const wag = Math.sin(now * (st.heartTimer > 0 ? 18 : 9) + st.x) * (st.kind === 'dog' ? 0.55 : 0.25);
+          ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(st.angle);
+          ctx.fillStyle = 'rgba(0,0,0,0.2)';
+          ctx.beginPath(); ctx.ellipse(1, 4, st.kind === 'dog' ? 12 : 9.5, 6, 0, 0, Math.PI * 2); ctx.fill();
+          // Wagging tail
+          ctx.strokeStyle = st.color; ctx.lineWidth = st.kind === 'dog' ? 3.5 : 2.6; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(-17, Math.sin(wag) * 7); ctx.stroke();
+          // Body & Head
+          ctx.fillStyle = st.color; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.8;
+          ctx.beginPath(); ctx.ellipse(0, 0, st.kind === 'dog' ? 11 : 8.5, st.kind === 'dog' ? 6.8 : 5.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(st.kind === 'dog' ? 10 : 8, 0, st.kind === 'dog' ? 6 : 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          if (st.kind === 'cat') {
+            // Pointy triangular cat ears
+            ctx.beginPath();
+            ctx.moveTo(6, -4); ctx.lineTo(11, -8); ctx.lineTo(11, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(6, 4);  ctx.lineTo(11, 8);  ctx.lineTo(11, 2);  ctx.closePath(); ctx.fill(); ctx.stroke();
+          } else {
+            // Floppy cute dog ears + tiny collar
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath(); ctx.ellipse(8, -6, 4.2, 2.4, -0.3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(8, 6, 4.2, 2.4, 0.3, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2.2;
+            ctx.beginPath(); ctx.moveTo(5, -5); ctx.lineTo(5, 5); ctx.stroke();
+          }
+          ctx.restore();
+          if (st.heartTimer > 0) {
+            ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('❤️', st.x, st.y - 16 - Math.sin(now * 6) * 3);
+          }
+        }
+      }
+
+      // 3) Park Pond Mallard Ducks with ripples & bright beaks!
       for (const dk of world.ducks) {
         const dx = world.pond.x + Math.cos(dk.angle) * dk.orbitRx;
         const dy = world.pond.y + Math.sin(dk.angle) * dk.orbitRy;
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(dx, dy, 10 + Math.sin(now * 5) * 2, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = '#fde047'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.8;
-        ctx.beginPath(); ctx.arc(dx, dy, 6.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        const heading = dk.angle + (dk.speed >= 0 ? Math.PI / 2 : -Math.PI / 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.48)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(dx, dy, 11 + Math.sin(now * 5 + dk.angle) * 2, 0, Math.PI * 2); ctx.stroke();
+        ctx.save(); ctx.translate(dx, dy); ctx.rotate(heading);
+        ctx.fillStyle = '#fde047'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(0, 0, 7.5, 5.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#15803d';
+        ctx.beginPath(); ctx.arc(6.5, 0, 3.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.moveTo(10, -2); ctx.lineTo(14, 0); ctx.lineTo(10, 2); ctx.closePath(); ctx.fill();
+        ctx.restore();
       }
     }
 
@@ -686,6 +816,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     drawCars(ctx, world, headlights) {
+      const now = performance.now() * 0.001;
       for (const c of world.cars) {
         ctx.save();
         ctx.translate(c.x, c.y);
@@ -721,11 +852,25 @@ window.YasamDunya = window.YasamDunya || {};
           ctx.fillStyle = '#fef08a'; ctx.fillRect(-2, -3, 4, 6);
         }
 
-        // Headlights & glowing brake lights when braking or yielding at intersections!
-        ctx.fillStyle = '#fef08a';
+        // Headlights & glowing brake lights + amber hazard blinkers when emergency braking!
+        const blinkOn = Math.floor(now * 8) % 2 === 0;
+        ctx.fillStyle = (c.brakeTimer > 0 && blinkOn) ? '#fb923c' : '#fef08a';
         ctx.fillRect(25, -12, 4, 6); ctx.fillRect(25, 6, 4, 6);
         ctx.fillStyle = (c.brakeTimer > 0 || c.yielding) ? '#ff1e1e' : '#991b1b';
         ctx.fillRect(-29, -12, 4, 6); ctx.fillRect(-29, 6, 4, 6);
+
+        // Visual Horn Sound-Wave Arcs when honking!
+        if (c.hornFlash > 0) {
+          const p = 1 - Math.min(1, c.hornFlash / 0.55);
+          ctx.strokeStyle = `rgba(253, 224, 71, ${Math.max(0.15, 1 - p)})`;
+          ctx.lineWidth = 2.4;
+          for (let k = 0; k < 2; k++) {
+            const rad = 16 + p * 26 + k * 10;
+            ctx.beginPath();
+            ctx.arc(26, 0, rad, -0.58, 0.58);
+            ctx.stroke();
+          }
+        }
 
         ctx.restore();
       }

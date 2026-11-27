@@ -37,6 +37,8 @@ window.YasamDunya = window.YasamDunya || {};
       this.cafeOpen = false;
       this.officeOpen = false;
       this.busOpen = false;
+      this.busMode = 'bus';
+      this.bankOpen = false;
       this.musicOpen = false;
       this.activePlotId = null;
       this.minimapVisible = true;
@@ -83,6 +85,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.lightningFlash = 0;
       this.timeMinutes = 8 * 60;
       this.money = 160;
+      this.bankBalance = 0;
+      this.carBattery = 100;
+      this.rainChillTimer = 0;
       this.health = 100;
       this.energy = 100;
       this.hunger = 95;
@@ -93,8 +98,9 @@ window.YasamDunya = window.YasamDunya || {};
       this.cafeTotalEarned = 0;
       this.inventory = new Set();
       this.homeDecor = new Set();
-      this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0 };
+      this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, petfood: 2 };
       this.achievements = new Set();
+      this.animalFriends = new Set();
       this.npcHearts = {};
 
       this.questProgress = {};
@@ -205,7 +211,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     hasOpenModal() {
-      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.musicOpen;
+      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.bankOpen || this.musicOpen;
     }
 
     bindEvents() {
@@ -273,8 +279,7 @@ window.YasamDunya = window.YasamDunya || {};
           if (this.scene === 'home') {
             this.handleHomeInteract();
           } else if (this.player.inCar && e.code === 'Space') {
-            this.audio.carHorn();
-            this.popup(this.player.x, this.player.y - 34, 'DÜÜT! 🚗', '#fde047');
+            this.honkPlayerHorn();
           } else {
             this.handleInteract();
           }
@@ -283,8 +288,7 @@ window.YasamDunya = window.YasamDunya || {};
         if (this.scene === 'home') return;
 
         if (e.code === 'KeyH' && this.player.inCar) {
-          this.audio.carHorn();
-          this.popup(this.player.x, this.player.y - 34, 'DÜÜT! 🚗', '#fde047');
+          this.honkPlayerHorn();
         }
         if (e.code === 'KeyB') this.toggleBike();
         if (e.code === 'KeyV') this.toggleCar();
@@ -308,6 +312,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCloseCafe').addEventListener('click', () => this.toggleCafe(false));
       document.getElementById('btnCloseOffice').addEventListener('click', () => this.toggleOffice(false));
       document.getElementById('btnCloseBus').addEventListener('click', () => this.toggleBus(false));
+      document.getElementById('btnCloseBank').addEventListener('click', () => this.toggleBank(false));
       document.getElementById('btnCloseMusic').addEventListener('click', () => this.toggleMusicModal(false));
       document.getElementById('btnCancelDelivery').addEventListener('click', () => this.cancelDelivery('Teslimat iptal edildi.'));
       document.getElementById('btnStopBarista').addEventListener('click', () => this.finishBaristaShift(true));
@@ -392,11 +397,12 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     checkAchievements() {
-      if (this.money >= 1000) this.unlockAchievement('ach_rich');
+      if ((this.money + this.bankBalance) >= 1000) this.unlockAchievement('ach_rich');
       if (this.inventory.has('car')) this.unlockAchievement('ach_car');
       if (this.inventory.has('pet_dog') || this.inventory.has('pet_cat')) this.unlockAchievement('ach_pet');
       if (this.homeDecor.size >= 3) this.unlockAchievement('ach_decor');
       if (this.ownsCafe) this.unlockAchievement('ach_barista');
+      if (this.animalFriends.size >= 3) this.unlockAchievement('ach_animals');
     }
 
     syncPetFromInventory() {
@@ -413,16 +419,17 @@ window.YasamDunya = window.YasamDunya || {};
 
     petCompanion() {
       if (!this.pet) {
-        this.say(this.player, 'Marketten [I] Köpek veya Kedi sahiplenebilirsin! 🐾', 2.4);
+        this.say(this.player, 'Sokak hayvanlarına yaklaşıp [E] ile sevebilir veya Marketten [I] evcil hayvan sahiplenebilirsin! 🐾', 2.6);
         return;
       }
       if (this.pet.petCd > 0) return;
       this.pet.petCd = 3.0;
       this.happiness = Math.min(100, this.happiness + 12);
-      this.audio.pickup();
+      if (this.pet.kind === 'dog') this.audio.bark();
+      else this.audio.meow();
       const pRef = (this.scene === 'home' && this.homePet) ? this.homePet : this.pet;
       this.burst(pRef.x, pRef.y, '#f472b6', 14);
-      this.popup(pRef.x, pRef.y - 24, this.pet.kind === 'dog' ? 'HAV! ❤️ +12 Mutluluk' : 'MİYAV! ❤️ +12 Mutluluk', '#f9a8d4');
+      this.popup(pRef.x, pRef.y - 24, this.pet.kind === 'dog' ? 'HAV HAV! ❤️ +12 Mutluluk' : 'MİYAV! ❤️ +12 Mutluluk', '#f9a8d4');
     }
 
     saveGame() {
@@ -430,12 +437,14 @@ window.YasamDunya = window.YasamDunya || {};
         playerName: this.playerName, color: this.player.color,
         day: this.day, age: this.age, seasonIdx: this.seasonIdx, weatherIdx: this.weatherIdx,
         dailyEventIdx: this.dailyEventIdx, timeMinutes: this.timeMinutes,
-        money: this.money, health: this.health, energy: this.energy,
+        money: this.money, bankBalance: this.bankBalance, carBattery: this.carBattery,
+        health: this.health, energy: this.energy,
         hunger: this.hunger, happiness: this.happiness, xp: this.xp, level: this.level,
         ownsCafe: this.ownsCafe, cafeTotalEarned: this.cafeTotalEarned,
         gardenPlots: this.world.gardenPlots.map((g) => ({ crop: g.crop, growth: g.growth, watered: g.watered })),
         inventory: [...this.inventory], homeDecor: [...this.homeDecor],
-        bag: this.bag, achievements: [...this.achievements], npcHearts: this.npcHearts,
+        bag: this.bag, achievements: [...this.achievements], animalFriends: [...this.animalFriends],
+        npcHearts: this.npcHearts,
         questProgress: this.questProgress, questDone: [...this.questDone],
         px: this.player.x, py: this.player.y
       };
@@ -453,7 +462,10 @@ window.YasamDunya = window.YasamDunya || {};
         this.seasonIdx = d.seasonIdx || 0; this.weatherIdx = d.weatherIdx || 0;
         this.dailyEventIdx = d.dailyEventIdx || 0;
         this.timeMinutes = d.timeMinutes || 480;
-        this.money = d.money ?? 160; this.health = d.health ?? 100;
+        this.money = d.money ?? 160;
+        this.bankBalance = d.bankBalance || 0;
+        this.carBattery = d.carBattery ?? 100;
+        this.health = d.health ?? 100;
         this.energy = d.energy ?? 100; this.hunger = d.hunger ?? 95;
         this.happiness = d.happiness ?? 90; this.xp = d.xp || 0; this.level = d.level || 1;
         this.ownsCafe = !!d.ownsCafe;
@@ -469,8 +481,9 @@ window.YasamDunya = window.YasamDunya || {};
         }
         this.inventory = new Set(d.inventory || []);
         this.homeDecor = new Set(d.homeDecor || []);
-        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, ...(d.bag || {}) };
+        this.bag = { berry: 0, mushroom: 0, fish: 0, goldfish: 0, grilled: 0, crystal: 0, tomato: 0, strawberry: 0, sunflower: 0, petfood: 2, ...(d.bag || {}) };
         this.achievements = new Set(d.achievements || []);
+        this.animalFriends = new Set(d.animalFriends || []);
         this.npcHearts = d.npcHearts || {};
         this.questProgress = d.questProgress || {};
         this.questDone = new Set(d.questDone || []);
@@ -620,8 +633,8 @@ window.YasamDunya = window.YasamDunya || {};
 
     closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = this.musicOpen = false;
-      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'musicModal', 'interactPrompt'].forEach((id) => {
+      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = this.bankOpen = this.musicOpen = false;
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'bankModal', 'musicModal', 'interactPrompt'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
@@ -651,11 +664,18 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('officeModal').classList.toggle('hidden', !open);
       if (open) this.renderOfficeModal();
     }
-    toggleBus(open) {
+    toggleBus(open, mode = 'bus') {
       this.closeAllModals();
       this.busOpen = open;
+      this.busMode = mode;
       document.getElementById('busModal').classList.toggle('hidden', !open);
       if (open) this.renderBusModal();
+    }
+    toggleBank(open) {
+      this.closeAllModals();
+      this.bankOpen = open;
+      document.getElementById('bankModal').classList.toggle('hidden', !open);
+      if (open) this.renderBankModal();
     }
     toggleMusicModal(open) {
       this.closeAllModals();
@@ -834,19 +854,28 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     renderBusModal() {
+      const isTaxi = this.busMode === 'taxi';
+      const fare = isTaxi ? 35 : 15;
+      const titleEl = document.getElementById('busModalTitle');
+      const subEl = document.getElementById('busModalSub');
+      if (titleEl) titleEl.textContent = isTaxi ? '🚕 ŞEHİR TAKSİSİ' : '🚏 HIZLI OTOBÜS SEYAHATİ';
+      if (subEl) subEl.innerHTML = isTaxi
+        ? 'Taksi ücreti <b>₺35</b>! Seçtiğin bölgeye kapıdan kapıya hızlıca bırakır.'
+        : 'Bilet sadece <b>₺15</b>! Haritanın dört bir yanına anında git.';
+
       const grid = document.getElementById('busStopGrid');
       if (!grid) return;
       grid.innerHTML = YD.BUS_STOPS.map((bs) => {
         const here = Math.hypot(this.player.x - bs.x, this.player.y - bs.y) < 120;
         return `
           <div class="shop-item">
-            <div style="font-size:22px;">🚏</div>
+            <div style="font-size:22px;">${isTaxi ? '🚕' : '🚏'}</div>
             <div style="flex:1; min-width:0;">
               <div style="font-weight:800; color:#f8fafc;">${bs.name}</div>
-              <div style="font-size:11px; color:#94a3b8;">${here ? 'Şu an bu duraktasın' : 'Anında hızlı seyahat'}</div>
+              <div style="font-size:11px; color:#94a3b8;">${here ? 'Şu an bu bölgedesin' : (isTaxi ? 'Konforlu taksi yolculuğu' : 'Anında hızlı seyahat')}</div>
             </div>
             <button class="shop-buy-btn ${here ? 'owned' : ''}" data-bus="${bs.id}" ${here ? 'disabled' : ''}>
-              ${here ? 'BURADA' : 'GİT ₺15'}
+              ${here ? 'BURADA' : `GİT ₺${fare}`}
             </button>
           </div>`;
       }).join('');
@@ -858,19 +887,99 @@ window.YasamDunya = window.YasamDunya || {};
     travelToBusStop(stopId) {
       const bs = YD.BUS_STOPS.find((b) => b.id === stopId);
       if (!bs) return;
-      if (this.money < 15) { this.popup(this.player.x, this.player.y - 30, 'Otobüs bileti ₺15!', '#ef4444'); return; }
-      this.money -= 15;
-      if (this.delivery.active) this.cancelDelivery('Otobüs kullanıldığı için kurye görevi iptal edildi.');
+      const isTaxi = this.busMode === 'taxi';
+      const fare = isTaxi ? 35 : 15;
+      if (this.money < fare) { this.popup(this.player.x, this.player.y - 30, `Ücret ₺${fare}!`, '#ef4444'); return; }
+      this.money -= fare;
+      if (this.delivery.active) this.cancelDelivery(`${isTaxi ? 'Taksi' : 'Otobüs'} kullanıldığı için kurye görevi iptal edildi.`);
       this.player.inCar = false; this.player.onBike = false; this.player.inBoat = false; this.player.swimming = false;
       this.player.x = bs.spawnX; this.player.y = bs.spawnY;
       this.cam.x = bs.spawnX; this.cam.y = bs.spawnY;
       if (this.pet) { this.pet.x = bs.spawnX - 28; this.pet.y = bs.spawnY + 14; }
-      this.timeMinutes += 15;
-      this.audio.bikeBell();
-      this.burst(bs.spawnX, bs.spawnY, '#38bdf8', 18);
+      this.timeMinutes += isTaxi ? 8 : 15;
+      if (isTaxi) this.audio.carHorn(1.18, true, 0.9);
+      else this.audio.bikeBell();
+      this.burst(bs.spawnX, bs.spawnY, '#fde047', 18);
       this.toggleBus(false);
-      this.showToast(`🚏 ${bs.name} durağına ulaştın! (-₺15)`);
+      this.showToast(`${isTaxi ? '🚕 Taksi ile' : '🚏'} ${bs.name} noktasına ulaştın! (-₺${fare})`);
       this.saveGame();
+    }
+
+    renderBankModal() {
+      const banner = document.getElementById('bankBalanceBanner');
+      if (banner) {
+        const estInterest = Math.floor(this.bankBalance * 0.08);
+        banner.innerHTML = `💵 Cüzdan: <b>₺${Math.floor(this.money).toLocaleString()}</b> · 🏦 Banka: <b style="color:#4ade80;">₺${Math.floor(this.bankBalance).toLocaleString()}</b> <span style="color:#fde047;">(+₺${estInterest}/gün %8 faiz)</span>`;
+      }
+      const grid = document.getElementById('bankActionsGrid');
+      if (!grid) return;
+      const acts = [
+        { id: 'dep_50',  ico: '📥', title: '₺50 Yatır',        sub: 'Birikimine günlük %8 faiz işler',       dis: this.money < 50 },
+        { id: 'dep_200', ico: '💰', title: '₺200 Yatır',       sub: 'Hızlı tasarruf + yüksek günlük faiz',   dis: this.money < 200 },
+        { id: 'dep_all', ico: '🏦', title: 'Tüm Nakti Yatır',  sub: `₺${Math.floor(this.money)} hesaba aktar`, dis: this.money < 10 },
+        { id: 'wdr_50',  ico: '📤', title: '₺50 Çek',          sub: 'Cüzdanına anında nakit al',             dis: this.bankBalance < 50 },
+        { id: 'wdr_all', ico: '💵', title: 'Hepsini Çek',      sub: `₺${Math.floor(this.bankBalance)} cüzdana aktar`, dis: this.bankBalance < 1 }
+      ];
+      grid.innerHTML = acts.map((a) => `
+        <div class="shop-item">
+          <div style="font-size:22px;">${a.ico}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:800; color:#f8fafc;">${a.title}</div>
+            <div style="font-size:11px; color:#94a3b8;">${a.sub}</div>
+          </div>
+          <button class="shop-buy-btn" data-bank="${a.id}" ${a.dis ? 'disabled style="opacity:0.38; cursor:not-allowed; filter:grayscale(0.7);"' : ''}>UYGULA</button>
+        </div>`).join('');
+      grid.querySelectorAll('[data-bank]:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const act = btn.dataset.bank;
+          if (act === 'dep_50' && this.money >= 50) { this.money -= 50; this.bankBalance += 50; }
+          else if (act === 'dep_200' && this.money >= 200) { this.money -= 200; this.bankBalance += 200; }
+          else if (act === 'dep_all' && this.money >= 10) { const amt = Math.floor(this.money); this.money -= amt; this.bankBalance += amt; }
+          else if (act === 'wdr_50' && this.bankBalance >= 50) { this.bankBalance -= 50; this.money += 50; }
+          else if (act === 'wdr_all' && this.bankBalance >= 1) { const amt = Math.floor(this.bankBalance); this.bankBalance -= amt; this.money += amt; }
+          this.audio.cashRegister();
+          this.checkAchievements();
+          this.renderBankModal();
+          this.saveGame();
+        });
+      });
+    }
+
+    honkPlayerHorn() {
+      const p = this.player;
+      this.audio.carHorn(1.0, false, 1.0);
+      this.popup(p.x, p.y - 34, 'DÜÜT! 📣🚗', '#fde047');
+      // Nearby traffic cars playfully honk back!
+      let replied = false;
+      for (const c of this.world.cars) {
+        const d = Math.hypot(c.x - p.x, c.y - p.y);
+        if (d < 340 && !replied) {
+          replied = true;
+          c.hornFlash = 0.55;
+          setTimeout(() => {
+            if (!this.started) return;
+            this.audio.carHorn(c.hornPitch || 1.15, true, Math.max(0.35, 1 - d / 420));
+            this.popup(c.x, c.y - 26, c.isTaxi ? 'BİP BİP! 🚕' : 'DÜT DÜT! 📣', '#fef08a');
+          }, 260);
+        }
+      }
+      // Nearby NPCs react to your horn!
+      const reactions = ['Hey yavaş sür! 😅', 'Güzel araba! 🚗✨', 'Dikkat et dostum! 👋', 'Selam! 📣'];
+      for (const npc of this.npcs) {
+        if (Math.hypot(npc.x - p.x, npc.y - p.y) < 220 && npc.speechTimer <= 0) {
+          this.say(npc, reactions[Math.floor(Math.random() * reactions.length)], 2.2);
+        }
+      }
+    }
+
+    handleCarHonk(car, reason, dist) {
+      if (!this.started || this.scene !== 'world') return;
+      const volScale = Math.max(0.22, 1 - dist / 560);
+      this.audio.carHorn(car.hornPitch || 1.0, car.isTaxi || reason === 'warn', volScale);
+      const label = reason === 'warn'
+        ? (car.isTaxi ? 'BİP BİP! YOLDAN ÇEKİL! 🚕' : 'DÜÜÜT! DİKKAT! 📣')
+        : (car.isTaxi ? 'BİP BİP! 🚕' : 'DÜT! 📣');
+      this.popup(car.x, car.y - 26, label, reason === 'warn' ? '#fb923c' : '#fef08a');
     }
 
     renderGardenModal() {
@@ -1309,12 +1418,13 @@ window.YasamDunya = window.YasamDunya || {};
       const grid = document.getElementById('shopGrid');
       if (!grid) return;
       grid.innerHTML = YD.SHOP_ITEMS.map((item) => {
-        const owned = this.inventory.has(item.id);
+        const owned = !item.consumable && this.inventory.has(item.id);
+        const countBadge = item.consumable ? ` (Çantada: ${this.bag[item.id] || 0})` : '';
         return `
           <div class="shop-item">
             <div style="font-size:24px;">${item.icon}</div>
             <div style="flex:1; min-width:0;">
-              <div style="font-weight:800; color:#f8fafc;">${item.name}</div>
+              <div style="font-weight:800; color:#f8fafc;">${item.name}${countBadge}</div>
               <div style="font-size:11px; color:#94a3b8;">${item.desc}</div>
             </div>
             <button class="shop-buy-btn ${owned ? 'owned' : ''}" data-item="${item.id}" ${owned ? 'disabled' : ''}>
@@ -1329,10 +1439,15 @@ window.YasamDunya = window.YasamDunya || {};
           if (!item) return;
           if (this.money < item.price) { this.popup(this.player.x, this.player.y - 30, 'Yetersiz Bakiye!', '#ef4444'); return; }
           this.money -= item.price;
-          this.inventory.add(item.id);
-          this.syncPetFromInventory();
+          if (item.consumable) {
+            this.bag[item.id] = (this.bag[item.id] || 0) + 5;
+            this.popup(this.player.x, this.player.y - 34, `${item.icon} +5 ${item.name} Çantada!`, '#4ade80');
+          } else {
+            this.inventory.add(item.id);
+            this.syncPetFromInventory();
+            this.popup(this.player.x, this.player.y - 34, `${item.icon} ${item.name} ALINDI!`, '#4ade80');
+          }
           this.audio.coin();
-          this.popup(this.player.x, this.player.y - 34, `${item.icon} ${item.name} ALINDI!`, '#4ade80');
           this.checkAchievements();
           this.renderShop(); this.saveGame();
         });
@@ -1497,6 +1612,26 @@ window.YasamDunya = window.YasamDunya || {};
           return { kind: 'garden', ref: plot, text: `🌿 ${info.icon} ${info.name} Büyüyor (%${pct})` };
         }
       }
+      // 1) Friendly Street Cats & Dogs!
+      if (!p.inCar && !p.inBoat && this.world.strays) {
+        for (const st of this.world.strays) {
+          if (Math.hypot(p.x - st.x, p.y - st.y) < 58) {
+            const ico = st.kind === 'cat' ? '🐱' : '🐶';
+            const food = this.bag.petfood > 0 ? '🥫 Mama Ver' : (this.bag.fish > 0 ? '🐟 Balık Ver' : 'Sev');
+            return { kind: 'stray', ref: st, text: `[E] ${ico} ${st.name} (${food})` };
+          }
+        }
+      }
+      // 2) Forest Deer & Rabbits!
+      if (!p.inCar && !p.inBoat) {
+        for (const w of this.world.wildlife) {
+          if (Math.hypot(p.x - w.x, p.y - w.y) < 62) {
+            const ico = w.kind === 'deer' ? '🦌' : '🐰';
+            const food = this.bag.petfood > 0 ? '🥫 Besle' : (this.bag.berry > 0 ? '🍓 Böğürtlen Ver' : 'Sev');
+            return { kind: 'wild', ref: w, text: `[E] ${ico} ${w.name} (${food})` };
+          }
+        }
+      }
       for (const fg of this.world.forageables) {
         if (!fg.collected && Math.hypot(p.x - fg.x, p.y - fg.y) < 52) {
           const lbl = fg.kind === 'crystal' ? '💎 Zirve Kristali Topla' : (fg.kind === 'berry' ? '🍓 Böğürtlen Topla' : '🍄 Mantar Topla');
@@ -1514,6 +1649,14 @@ window.YasamDunya = window.YasamDunya || {};
           if (it.kind === 'home') return { kind: 'home', ref: it, text: '[E] 🏠 EVİNİN İÇİNE GİR' };
           if (it.kind === 'cafe') return { kind: 'cafe', ref: it, text: this.ownsCafe ? `[E] ⭐ ${this.playerName} KAFE (Barista & İkram)` : '[E] ☕ KAFE & FIRIN (İç / Satın Al)' };
           return { kind: it.kind, ref: it, text: `[E] ${it.label}` };
+        }
+      }
+      // 3) Hail a passing Yellow Taxi on the street!
+      if (!p.inCar && !p.inBoat && !p.swimming) {
+        for (const c of this.world.cars) {
+          if (c.isTaxi && Math.hypot(p.x - c.x, p.y - c.y) < 110) {
+            return { kind: 'taxi', ref: c, text: '[E] 🚕 Taksiyi Durdur (₺35)' };
+          }
         }
       }
       return null;
@@ -1652,9 +1795,94 @@ window.YasamDunya = window.YasamDunya || {};
         this.advanceQuest('q_park', 1);
       } else if (target.kind === 'relax') {
         this.energy = Math.min(100, this.energy + 22); this.happiness = Math.min(100, this.happiness + 24);
-        this.timeMinutes += 30; this.audio.pickup();
-        this.popup(p.x, p.y - 34, '🦆 Ördekleri İzledin (+Mutluluk)', '#38bdf8');
+        this.timeMinutes += 30;
+        this.audio.quack();
+        let msg = '🦆 VAK VAK! Ördekleri Besledin (+Mutluluk)';
+        if (this.bag.petfood > 0) {
+          this.bag.petfood--;
+          this.addXp(18);
+          msg = '🦆🥫 Ördekler Mamaya Bayıldı! (+18 XP)';
+        } else {
+          this.addXp(10);
+        }
+        this.animalFriends.add('pond_ducks');
+        this.burst(this.world.pond.x, this.world.pond.y + 85, '#fde047', 14);
+        this.popup(p.x, p.y - 34, msg, '#38bdf8');
         this.advanceQuest('q_park', 1);
+        this.advanceQuest('q_animals', 1);
+      } else if (target.kind === 'stray') {
+        const st = target.ref;
+        if (st.petCd > 0) {
+          this.popup(st.x, st.y - 24, st.kind === 'cat' ? 'Mırrr... 🐱❤️' : 'Hav! 🐶❤️', '#f9a8d4');
+          return;
+        }
+        st.petCd = 2.5;
+        st.heartTimer = 5.0;
+        if (st.kind === 'cat') this.audio.meow();
+        else this.audio.bark();
+        let fed = false;
+        if (this.bag.petfood > 0) { this.bag.petfood--; fed = true; }
+        else if (this.bag.fish > 0) { this.bag.fish--; fed = true; }
+        st.trust = (st.trust || 0) + (fed ? 2 : 1);
+        this.animalFriends.add(st.id);
+        this.happiness = Math.min(100, this.happiness + (fed ? 18 : 12));
+        this.addXp(fed ? 22 : 12);
+        this.burst(st.x, st.y, '#f472b6', 16);
+        const voice = st.kind === 'cat' ? 'MİYAV! 🐱' : 'HAV HAV! 🐶';
+        if (fed && st.trust >= 2 && Math.random() < 0.55) {
+          const gift = 25 + Math.floor(Math.random() * 21);
+          this.money += gift;
+          this.popup(st.x, st.y - 28, `${voice} ${st.name} sana ₺${gift} buldu! ❤️`, '#fde047');
+        } else {
+          this.popup(st.x, st.y - 28, `${voice} ${st.name} ${fed ? 'karnını doyurdu' : 'çok sevindi'}! ❤️`, '#f9a8d4');
+        }
+        this.advanceQuest('q_animals', 1);
+      } else if (target.kind === 'wild') {
+        const w = target.ref;
+        if (w.petCd > 0) {
+          this.popup(w.x, w.y - 24, w.kind === 'deer' ? '🦌❤️' : '🐰❤️', '#bef264');
+          return;
+        }
+        w.petCd = 3.0;
+        w.heartTimer = 6.5;
+        this.audio.animalHappy();
+        let fed = false;
+        if (this.bag.petfood > 0) { this.bag.petfood--; fed = true; }
+        else if (this.bag.berry > 0) { this.bag.berry--; fed = true; }
+        this.animalFriends.add(w.id);
+        this.happiness = Math.min(100, this.happiness + (fed ? 22 : 14));
+        this.addXp(fed ? 26 : 15);
+        this.burst(w.x, w.y, '#4ade80', 16);
+        this.popup(w.x, w.y - 28, `${w.kind === 'deer' ? '🦌' : '🐰'} ${w.name} ${fed ? 'elinden yedi!' : 'sana güvendi!'} ❤️`, '#bef264');
+        this.advanceQuest('q_animals', 1);
+      } else if (target.kind === 'taxi') {
+        const car = target.ref;
+        car.brakeTimer = 2.5;
+        car.hornFlash = 0.55;
+        this.audio.carHorn(1.18, true, 0.95);
+        this.toggleBus(true, 'taxi');
+        return;
+      } else if (target.kind === 'bank') {
+        this.toggleBank(true);
+        return;
+      } else if (target.kind === 'evcharge') {
+        if (!this.inventory.has('car')) {
+          this.say(p, 'Önce Marketten [I] Elektrikli Araba almalısın! 🚗⚡', 2.4);
+          return;
+        }
+        if (this.carBattery >= 98) {
+          this.popup(p.x, p.y - 34, '⚡ Batarya zaten %100 dolu!', '#4ade80');
+          return;
+        }
+        if (this.money < 20) {
+          this.popup(p.x, p.y - 34, 'Hızlı şarj ücreti ₺20!', '#ef4444');
+          return;
+        }
+        this.money -= 20;
+        this.carBattery = 100;
+        this.audio.levelUp();
+        this.burst(this.world.evCharger.x, this.world.evCharger.y, '#4ade80', 22);
+        this.popup(p.x, p.y - 36, '⚡ %100 HIZLI ŞARJ TAMAM! (-₺20)', '#4ade80');
       } else if (target.kind === 'fish') {
         this.startFishing();
       } else if (target.kind === 'lighthouse') {
@@ -1677,17 +1905,32 @@ window.YasamDunya = window.YasamDunya || {};
       this.health = Math.min(100, this.health + 20 + (this.homeDecor.has('plants') ? 15 : 0));
       this.happiness = Math.min(100, this.happiness + (this.homeDecor.has('espresso_m') ? 15 : 0));
       this.hunger = Math.max(45, this.hunger - 12);
+      this.carBattery = 100; // Home overnight EV charging!
       this.world.island.chestOpened = false;
       if (this.delivery.active) this.cancelDelivery('');
       this.audio.sleep();
 
       // Passive Daily Cafe Profit if player owns the cafe!
-      let cafeMsg = '';
+      let extraMsg = '';
       if (this.ownsCafe) {
         const profit = 95 + Math.floor(Math.random() * 51);
         this.money += profit;
         this.cafeTotalEarned += profit;
-        cafeMsg = ` • ☕ Kafe Geliri +₺${profit}`;
+        extraMsg += ` • ☕ Kafe +₺${profit}`;
+      }
+      // Daily 8% Bank Interest!
+      if (this.bankBalance >= 15) {
+        const interest = Math.max(1, Math.floor(this.bankBalance * 0.08));
+        this.bankBalance += interest;
+        extraMsg += ` • 🏦 Faiz +₺${interest}`;
+      }
+      // Modest real-life utility bill every 3rd day (eco-discount if you own indoor plants!)
+      if (this.day % 3 === 0) {
+        const bill = this.homeDecor.has('plants') ? 25 : 45;
+        if (this.money >= bill) {
+          this.money -= bill;
+          extraMsg += ` • 💡 Fatura -₺${bill}`;
+        }
       }
 
       const r = Math.random();
@@ -1704,7 +1947,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.player.x = 2062; this.player.y = 1525;
       this.player.onBike = false; this.player.inCar = false; this.player.inBoat = false;
       const s = YD.SEASONS[this.seasonIdx], ev = YD.DAILY_EVENTS[this.dailyEventIdx];
-      this.showToast(`☀️ Gün ${this.day} (${s.icon} ${s.name}) • ${ev.icon} ${ev.name}${cafeMsg}`);
+      this.showToast(`☀️ Gün ${this.day} (${s.icon} ${s.name}) • ${ev.icon} ${ev.name}${extraMsg}`);
       this.checkAchievements();
       this.saveGame();
     }
@@ -1808,12 +2051,22 @@ window.YasamDunya = window.YasamDunya || {};
       } else if (p.inCar) {
         const accelInput = (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0) - (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0);
         const steerInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
+        const maxCarSpd = this.carBattery > 0 ? 540 : 185;
         if (accelInput !== 0) {
           p.carSpeed += accelInput * 760 * dt;
-          p.carSpeed = Math.max(-220, Math.min(540, p.carSpeed));
+          p.carSpeed = Math.max(-220, Math.min(maxCarSpd, p.carSpeed));
         } else {
           p.carSpeed *= Math.pow(0.0004, dt);
           if (Math.abs(p.carSpeed) < 18) p.carSpeed = 0;
+        }
+        if (Math.abs(p.carSpeed) > 35 && this.carBattery > 0) {
+          const prevBat = this.carBattery;
+          this.carBattery = Math.max(0, this.carBattery - 1.35 * dt);
+          if (prevBat > 18 && this.carBattery <= 18) {
+            this.showToast('⚡ Araba şarjı azaldı! Market yanındaki EV Şarj İstasyonuna uğra.');
+          } else if (prevBat > 0 && this.carBattery === 0) {
+            this.showToast('🪫 Batarya bitti! Yavaş mod — EV Şarj İstasyonunda (₺20) veya evde şarj et.');
+          }
         }
         if (Math.abs(p.carSpeed) > 20) {
           p.angle += steerInput * 3.1 * Math.sign(p.carSpeed) * dt;
@@ -1892,6 +2145,19 @@ window.YasamDunya = window.YasamDunya || {};
       this.hunger = Math.max(0, this.hunger - 0.32 * dt);
       if (this.hunger <= 5) this.health = Math.max(5, this.health - 1.2 * dt);
 
+      // Rain / Storm chill realism (100% protected if holding Umbrella or inside Car!)
+      const weatherId = YD.WEATHERS[this.weatherIdx].id;
+      if ((weatherId === 'rain' || weatherId === 'storm') && !p.inCar && !this.inventory.has('umbrella')) {
+        this.rainChillTimer += dt;
+        if (this.rainChillTimer >= 13) {
+          this.rainChillTimer = 0;
+          this.energy = Math.max(5, this.energy - 3.5);
+          this.popup(p.x, p.y - 36, '🌧️ Yağmurda ıslandın! (Market: ☂️ Şemsiye)', '#38bdf8');
+        }
+      } else {
+        this.rainChillTimer = 0;
+      }
+
       if (this.energy <= 0) {
         if (this.inventory.has('phoenix')) {
           this.energy = 65;
@@ -1928,7 +2194,14 @@ window.YasamDunya = window.YasamDunya || {};
         } else npc.angle += Math.PI;
       }
 
-      this.world.update(dt, p, (car) => this.handleCarHitPlayer(car), YD.WEATHERS[this.weatherIdx].id);
+      const playerCalm = !p.inCar && !p.inBoat && !(this.keys['ShiftLeft'] || this.keys['ShiftRight']);
+      this.world.update(
+        dt, p,
+        (car) => this.handleCarHitPlayer(car),
+        weatherId,
+        (car, reason, dist) => this.handleCarHonk(car, reason, dist),
+        playerCalm
+      );
 
       for (let i = this.skidMarks.length - 1; i >= 0; i--) {
         this.skidMarks[i].alpha -= dt * 0.08;
