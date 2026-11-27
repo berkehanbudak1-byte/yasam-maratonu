@@ -1,7 +1,7 @@
 {
-  "name": "Yaşam Maratonu: Büyük Dünya",
-  "short_name": "Yaşam Maratonu",
-  "description": "60 FPS Açık Dünya Yaşam Simülatörü — Karlı Zirve, Orman, Şehir, Yeşil Park, Altın Sahil & Deniz!",
+  "name": "Life Marathon: Open World · Yaşam Maratonu",
+  "short_name": "Life Marathon",
+  "description": "60 FPS Open-World Cozy Life Simulator (EN / TR) — City, Forest, Snowy Peak, Beach & Treasure Island, Autonomous Swarm AI, Procedural Web Audio Radio & Living Street Animals!",
   "start_url": "./dunya.html",
   "display": "fullscreen",
   "orientation": "landscape",

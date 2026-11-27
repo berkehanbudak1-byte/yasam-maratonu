@@ -13,6 +13,15 @@ window.YasamDunya = window.YasamDunya || {};
     constructor(canvas, miniCanvas) {
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
+      if (this.ctx) {
+        const rawFill = this.ctx.fillText.bind(this.ctx);
+        const rawMeasure = this.ctx.measureText.bind(this.ctx);
+        this.ctx.fillText = (text, x, y, maxW) => {
+          const out = (YD.tr && typeof text === 'string') ? YD.tr(text) : text;
+          return maxW !== undefined ? rawFill(out, x, y, maxW) : rawFill(out, x, y);
+        };
+        this.ctx.measureText = (text) => rawMeasure((YD.tr && typeof text === 'string') ? YD.tr(text) : text);
+      }
       this.miniCanvas = miniCanvas;
       this.miniCtx = miniCanvas.getContext('2d');
 
