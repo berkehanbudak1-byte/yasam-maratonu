@@ -27,4 +27,4 @@ jobs:
           node -e "JSON.parse(require('node:fs').readFileSync('manifest.json', 'utf8'))"
 
       - name: Run unit and smoke tests
-        run: node --test tests/security.test.js tests/smoke.test.mjs
+        run: node --test tests/security.test.js tests/smoke.test.mjs tests/csp-and-syntax.test.mjs
