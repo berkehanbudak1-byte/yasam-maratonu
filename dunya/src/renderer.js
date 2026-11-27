@@ -417,13 +417,13 @@ window.YasamDunya = window.YasamDunya || {};
         ctx.beginPath(); ctx.moveTo(world.pier.x + 18, py); ctx.lineTo(world.pier.x + world.pier.w - 18, py); ctx.stroke();
       }
 
-      // Beachfront Wooden Boardwalk
+      // Beachfront Wooden Boardwalk (runs seamlessly edge-to-edge across the entire coast!)
       ctx.fillStyle = '#b45309';
-      ctx.fillRect(100, YD.BEACH_Y - 28, YD.WORLD_W - 200, 36);
+      ctx.fillRect(0, YD.BEACH_Y - 28, YD.WORLD_W, 36);
       ctx.fillStyle = '#d97706';
-      ctx.fillRect(100, YD.BEACH_Y - 24, YD.WORLD_W - 200, 28);
+      ctx.fillRect(0, YD.BEACH_Y - 24, YD.WORLD_W, 28);
       ctx.strokeStyle = '#451a03'; ctx.lineWidth = 2;
-      ctx.strokeRect(100, YD.BEACH_Y - 28, YD.WORLD_W - 200, 36);
+      ctx.strokeRect(0, YD.BEACH_Y - 28, YD.WORLD_W, 36);
 
       // Park Stone Jogging Loop
       ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 44;
@@ -1018,8 +1018,9 @@ window.YasamDunya = window.YasamDunya || {};
         return;
       }
       const snowing = weatherId === 'snow' || season.id === 'winter' || inMountain;
+      if (!snowing && (nightAlpha > 0.2 || !season.particle)) return;
       for (const wp of game.weatherParticles) {
-        ctx.fillStyle = snowing ? '#ffffff' : (nightAlpha > 0.2 ? '#fef08a' : (season.particle || 'rgba(255,255,255,0.4)'));
+        ctx.fillStyle = snowing ? '#ffffff' : season.particle;
         ctx.beginPath(); ctx.arc(wp.x, wp.y, snowing ? wp.r * 1.15 : wp.r, 0, Math.PI * 2); ctx.fill();
       }
     }

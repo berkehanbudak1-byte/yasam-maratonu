@@ -533,8 +533,9 @@ window.YasamDunya = window.YasamDunya || {};
     closeAllModals() {
       this.clearAllKeys();
       this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = false;
-      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal'].forEach((id) => {
-        document.getElementById(id).classList.add('hidden');
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'interactPrompt'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
       });
     }
 
@@ -684,6 +685,7 @@ window.YasamDunya = window.YasamDunya || {};
         return;
       }
       this.clearAllKeys();
+      document.getElementById('interactPrompt').classList.add('hidden');
       this.barista = { active: true, timeLeft: 25, score: 0, combo: 1, served: 0, order: null, patience: 4.5, maxPatience: 4.5 };
       const btns = document.getElementById('baristaBtns');
       if (btns) {
@@ -1118,6 +1120,7 @@ window.YasamDunya = window.YasamDunya || {};
     startFishing() {
       if (this.energy < 10) { this.say(this.player, 'Olta sallayacak enerjin kalmadı!', 2.0); return; }
       this.clearAllKeys();
+      document.getElementById('interactPrompt').classList.add('hidden');
       this.fishing.active = true;
       this.fishing.pos = 0.05; this.fishing.dir = 1;
       this.fishing.speed = this.inventory.has('rod') ? 1.25 : 1.65;
@@ -1543,7 +1546,7 @@ window.YasamDunya = window.YasamDunya || {};
         npc.timer -= dt;
         if (npc.timer <= 0) { npc.timer = 2.5 + Math.random() * 3.5; npc.angle = Math.random() * Math.PI * 2; }
         const nx = npc.x + Math.cos(npc.angle) * 24 * dt, ny = npc.y + Math.sin(npc.angle) * 24 * dt;
-        if (Math.hypot(nx - npc.homeX, ny - npc.homeY) < 90 && !this.world.isInsideBuilding(nx, ny, 24) && !this.world.isOnRoad(nx, ny, 10)) {
+        if (Math.hypot(nx - npc.homeX, ny - npc.homeY) < 90 && !this.world.isInsideBuilding(nx, ny, 24) && !this.world.isOnRoad(nx, ny, 10) && !this.world.isInWater(nx, ny)) {
           npc.x = nx; npc.y = ny; npc.walkCycle += dt * 5;
         } else npc.angle += Math.PI;
       }
@@ -1610,7 +1613,7 @@ window.YasamDunya = window.YasamDunya || {};
 
       const prompt = this.scene === 'home' ? this.findNearestHomeInteraction() : this.findNearestInteraction();
       const promptEl = document.getElementById('interactPrompt');
-      if (prompt && !this.fishing.active && !this.barista.active) {
+      if (prompt && !this.fishing.active && !this.barista.active && !this.hasOpenModal()) {
         promptEl.textContent = prompt.text;
         promptEl.classList.remove('hidden');
       } else {

@@ -148,12 +148,12 @@ window.YasamDunya = window.YasamDunya || {};
         this.trees.push({ x: tx, y: ty, r: 24 + rand() * 14, kind: rand() < 0.65 ? 'pine' : 'oak' });
       }
 
-      // Park Trees (keep East Ring Road x=3200 clear!)
+      // Park Trees (keep East Ring Road & Pond Jogging Loop completely clear!)
       for (let i = 0; i < 66; i++) {
         const tx = 3340 + rand() * 1140;
         const ty = 780 + rand() * 1620;
-        if (this.isInPond(tx, ty, 68)) continue;
-        if (Math.hypot(tx - 3640, ty - 1860) < 115) continue;
+        if (this.isInPond(tx, ty, 124)) continue;
+        if (Math.hypot(tx - 3640, ty - 1860) < 120) continue;
         if (Math.hypot(tx - 3880, ty - 1605) < 85) continue;
         this.trees.push({ x: tx, y: ty, r: 22 + rand() * 12, kind: rand() < 0.45 ? 'blossom' : 'oak' });
       }
