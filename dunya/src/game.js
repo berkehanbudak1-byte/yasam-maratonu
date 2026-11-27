@@ -37,8 +37,16 @@ window.YasamDunya = window.YasamDunya || {};
       this.cafeOpen = false;
       this.officeOpen = false;
       this.busOpen = false;
+      this.musicOpen = false;
       this.activePlotId = null;
       this.minimapVisible = true;
+      this.audio.onTrackChange = (track) => {
+        if (this.musicOpen) this.renderMusicModal();
+        const toastEl = document.getElementById('eventToast');
+        if (this.started && !this.musicOpen && this.audio.musicOn && !this.audio.muted && toastEl && toastEl.classList.contains('hidden')) {
+          this.showToast(`🎵 ${track.icon} ${track.name}`);
+        }
+      };
 
       this.fishing = { active: false, pos: 0.5, dir: 1, speed: 1.55 };
       this.barista = { active: false, timeLeft: 25, score: 0, combo: 1, served: 0, order: null, patience: 4.5, maxPatience: 4.5 };
@@ -165,6 +173,7 @@ window.YasamDunya = window.YasamDunya || {};
       this.renderHomeModal();
       this.renderQuests();
       this.renderBag();
+      this.syncMusicButton();
       const ev = YD.DAILY_EVENTS[this.dailyEventIdx];
       this.showToast(`${ev.icon} ${ev.name} — ${ev.desc}`);
       this.say(this.player, `Merhaba ${this.playerName}! Büyük Dünya seni bekliyor! ✨`, 3.4);
@@ -196,13 +205,14 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     hasOpenModal() {
-      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen;
+      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.musicOpen;
     }
 
     bindEvents() {
       window.addEventListener('resize', () => this.resize());
       window.addEventListener('blur', () => this.clearAllKeys());
       document.addEventListener('visibilitychange', () => { if (document.hidden) this.clearAllKeys(); });
+      window.addEventListener('pointerdown', () => this.audio.unlock(), { once: true });
       window.addEventListener('wheel', (e) => {
         if (!this.started || this.scene !== 'world') return;
         this.cam.zoom = Math.max(0.62, Math.min(1.45, this.cam.zoom - Math.sign(e.deltaY) * 0.08));
@@ -246,7 +256,11 @@ window.YasamDunya = window.YasamDunya || {};
         }
         if (e.code === 'KeyK') { this.toggleHelp(!this.helpOpen); return; }
         if (e.code === 'KeyM') { this.toggleMap(); return; }
-        if (e.code === 'KeyN') { this.toggleMusic(); return; }
+        if (e.code === 'KeyN') {
+          if (e.shiftKey) this.toggleMusic();
+          else this.toggleMusicModal(!this.musicOpen);
+          return;
+        }
 
         if (this.hasOpenModal()) return;
 
@@ -294,6 +308,7 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnCloseCafe').addEventListener('click', () => this.toggleCafe(false));
       document.getElementById('btnCloseOffice').addEventListener('click', () => this.toggleOffice(false));
       document.getElementById('btnCloseBus').addEventListener('click', () => this.toggleBus(false));
+      document.getElementById('btnCloseMusic').addEventListener('click', () => this.toggleMusicModal(false));
       document.getElementById('btnCancelDelivery').addEventListener('click', () => this.cancelDelivery('Teslimat iptal edildi.'));
       document.getElementById('btnStopBarista').addEventListener('click', () => this.finishBaristaShift(true));
       document.getElementById('btnHomeSleep').addEventListener('click', () => { this.toggleHome(false); this.startNextDay(false); });
@@ -306,7 +321,29 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnPetAction').addEventListener('click', () => { this.audio.unlock(); this.petCompanion(); });
       document.getElementById('btnWeather').addEventListener('click', () => { this.audio.unlock(); this.cycleWeather(); });
       document.getElementById('btnSeason').addEventListener('click', () => { this.audio.unlock(); this.useHourglass(); });
-      document.getElementById('btnMusic').addEventListener('click', () => { this.audio.unlock(); this.toggleMusic(); });
+      document.getElementById('btnMusic').addEventListener('click', () => { this.audio.unlock(); this.toggleMusicModal(!this.musicOpen); });
+      document.getElementById('btnToggleMusicPlay').addEventListener('click', () => { this.audio.unlock(); this.toggleMusic(); });
+      document.getElementById('btnToggleMuteAll').addEventListener('click', () => {
+        this.audio.unlock();
+        this.audio.setMuted(!this.audio.muted);
+        this.syncMusicButton();
+        this.renderMusicModal();
+      });
+      document.getElementById('sliderMusicVol').addEventListener('input', (e) => {
+        this.audio.unlock();
+        this.audio.setMusicVolume(Number(e.target.value) / 100);
+        document.getElementById('valMusicVol').textContent = `${e.target.value}%`;
+      });
+      document.getElementById('sliderAmbVol').addEventListener('input', (e) => {
+        this.audio.unlock();
+        this.audio.setAmbienceVolume(Number(e.target.value) / 100);
+        document.getElementById('valAmbVol').textContent = `${e.target.value}%`;
+      });
+      document.getElementById('sliderSfxVol').addEventListener('input', (e) => {
+        this.audio.unlock();
+        this.audio.setSfxVolume(Number(e.target.value) / 100);
+        document.getElementById('valSfxVol').textContent = `${e.target.value}%`;
+      });
       document.getElementById('btnFishCatch').addEventListener('click', () => { this.audio.unlock(); this.resolveFishingAttempt(); });
       document.getElementById('btnResetSave').addEventListener('click', () => {
         if (confirm('Kayıt sıfırlansın mı?')) { localStorage.removeItem(SAVE_KEY); location.reload(); }
@@ -486,9 +523,17 @@ window.YasamDunya = window.YasamDunya || {};
       this.renderQuests();
     }
 
+    syncMusicButton() {
+      const btn = document.getElementById('btnMusic');
+      if (!btn) return;
+      const active = this.audio.musicOn && !this.audio.muted;
+      btn.innerHTML = active ? '🎵<span>N</span>' : '🔇<span>N</span>';
+    }
+
     toggleMusic() {
-      this.audio.musicOn = !this.audio.musicOn;
-      document.getElementById('btnMusic').innerHTML = this.audio.musicOn ? '🎵<span>N</span>' : '🔇<span>N</span>';
+      this.audio.setMusicOn(!this.audio.musicOn);
+      this.syncMusicButton();
+      if (this.musicOpen) this.renderMusicModal();
     }
 
     toggleMap() {
@@ -575,8 +620,8 @@ window.YasamDunya = window.YasamDunya || {};
 
     closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = false;
-      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'interactPrompt'].forEach((id) => {
+      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = this.musicOpen = false;
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'musicModal', 'interactPrompt'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
@@ -611,6 +656,90 @@ window.YasamDunya = window.YasamDunya || {};
       this.busOpen = open;
       document.getElementById('busModal').classList.toggle('hidden', !open);
       if (open) this.renderBusModal();
+    }
+    toggleMusicModal(open) {
+      this.closeAllModals();
+      this.musicOpen = open;
+      document.getElementById('musicModal').classList.toggle('hidden', !open);
+      if (open) this.renderMusicModal();
+    }
+
+    renderMusicModal() {
+      const a = this.audio;
+      const track = a.getCurrentTrack();
+      const playing = a.musicOn && !a.muted;
+
+      const eq = document.getElementById('musicEq');
+      if (eq) eq.classList.toggle('paused', !playing);
+
+      const titleEl = document.getElementById('musicNowTitle');
+      if (titleEl) titleEl.textContent = `${track.icon} ${track.name} (${track.bpm} BPM)`;
+
+      const descEl = document.getElementById('musicNowDesc');
+      if (descEl) {
+        const modeTxt = a.station === 'auto' ? '🧭 Otomatik (Biyom / Gece / Görev)' : '📻 Sabit Radyo Kanalı';
+        descEl.textContent = `${modeTxt} · ${track.desc}`;
+      }
+
+      const playBtn = document.getElementById('btnToggleMusicPlay');
+      if (playBtn) playBtn.textContent = a.musicOn ? '⏸ Duraklat' : '▶ Çal';
+
+      const muteBtn = document.getElementById('btnToggleMuteAll');
+      if (muteBtn) muteBtn.textContent = a.muted ? '🔇' : '🔊';
+
+      const mv = Math.round(a.musicVol * 100);
+      const av = Math.round(a.ambienceVol * 100);
+      const sv = Math.round(a.sfxVol * 100);
+      const sm = document.getElementById('sliderMusicVol');
+      const sa = document.getElementById('sliderAmbVol');
+      const ss = document.getElementById('sliderSfxVol');
+      if (sm) sm.value = mv;
+      if (sa) sa.value = av;
+      if (ss) ss.value = sv;
+      const vm = document.getElementById('valMusicVol');
+      const va = document.getElementById('valAmbVol');
+      const vs = document.getElementById('valSfxVol');
+      if (vm) vm.textContent = `${mv}%`;
+      if (va) va.textContent = `${av}%`;
+      if (vs) vs.textContent = `${sv}%`;
+
+      const grid = document.getElementById('musicStationGrid');
+      if (!grid) return;
+      const tracks = a.getTracks();
+      const order = a.getTrackOrder();
+      let html = `
+        <button class="station-btn full-span ${a.station === 'auto' ? 'active' : ''}" data-station="auto">
+          <span class="station-ico">🧭</span>
+          <div style="min-width:0;">
+            <div class="station-name">Otomatik Dinamik Müzik (Önerilen)</div>
+            <div class="station-desc">Şehir, Orman, Sahil, Dağ, Ev İçi, Gece ve Barista/Kurye'ye göre otomatik geçiş yapar</div>
+          </div>
+        </button>`;
+      for (const id of order) {
+        const t = tracks[id];
+        if (!t) continue;
+        const isActive = a.station === id;
+        html += `
+          <button class="station-btn ${isActive ? 'active' : ''}" data-station="${t.id}">
+            <span class="station-ico">${t.icon}</span>
+            <div style="min-width:0;">
+              <div class="station-name">${t.name}</div>
+              <div class="station-desc">${t.bpm} BPM · ${t.desc}</div>
+            </div>
+          </button>`;
+      }
+      grid.innerHTML = html;
+      grid.querySelectorAll('.station-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.audio.unlock();
+          if (!this.audio.musicOn) this.audio.setMusicOn(true);
+          if (this.audio.muted) this.audio.setMuted(false);
+          this.audio.setStation(btn.dataset.station);
+          this.audio.uiClick();
+          this.syncMusicButton();
+          this.renderMusicModal();
+        });
+      });
     }
 
     renderOfficeModal() {
@@ -1580,9 +1709,20 @@ window.YasamDunya = window.YasamDunya || {};
       this.saveGame();
     }
 
+    tickAudio(dt) {
+      const biome = this.started ? this.world.getBiome(this.player.x, this.player.y) : 'city';
+      const weatherId = YD.WEATHERS[this.weatherIdx] ? YD.WEATHERS[this.weatherIdx].id : 'clear';
+      this.audio.updateAmbient(dt, biome, weatherId, {
+        indoor: this.scene === 'home',
+        hour: (this.timeMinutes % 1440) / 60,
+        action: !!(this.barista.active || this.delivery.active),
+      });
+    }
+
     update(dt) {
       this.damageFlash = Math.max(0, this.damageFlash - dt * 2.2);
       this.carHitInvuln = Math.max(0, this.carHitInvuln - dt);
+      this.tickAudio(dt);
 
       // Live scenic world pan behind Title Screen!
       if (!this.started) {
@@ -1822,7 +1962,6 @@ window.YasamDunya = window.YasamDunya || {};
       this.cam.y = Math.max(halfVH, Math.min(YD.WORLD_H - halfVH, this.cam.y));
 
       const biome = this.world.getBiome(p.x, p.y);
-      this.audio.updateAmbient(dt, biome, YD.WEATHERS[this.weatherIdx].id);
 
       this.saveTimer += dt;
       if (this.saveTimer >= 10) { this.saveTimer = 0; this.saveGame(); }

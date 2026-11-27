@@ -355,4 +355,66 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
   white-space: nowrap;
 }
 
+/* v7 ADDITIONS: MUSIC & RADIO STUDIO MODAL */
+.music-now-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; border-radius: 12px; margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.95));
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+}
+.music-eq {
+  display: flex; align-items: flex-end; gap: 3px; height: 22px; padding: 0 2px;
+}
+.music-eq span {
+  display: block; width: 3.5px; border-radius: 3px;
+  background: linear-gradient(180deg, #fde047, #38bdf8);
+  animation: eqPulse 0.95s ease-in-out infinite;
+}
+.music-eq span:nth-child(1) { height: 9px;  animation-delay: 0.00s; }
+.music-eq span:nth-child(2) { height: 18px; animation-delay: 0.18s; }
+.music-eq span:nth-child(3) { height: 13px; animation-delay: 0.36s; }
+.music-eq span:nth-child(4) { height: 21px; animation-delay: 0.12s; }
+.music-eq span:nth-child(5) { height: 11px; animation-delay: 0.28s; }
+.music-eq.paused span { animation: none; height: 4px !important; opacity: 0.4; }
+@keyframes eqPulse {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1.0); }
+}
+
+.music-sliders {
+  display: grid; gap: 8px; margin-bottom: 12px;
+  background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 10px 12px;
+}
+.music-slider-row {
+  display: grid; grid-template-columns: 128px 1fr 38px; align-items: center; gap: 10px;
+  font-size: 12px; font-weight: 800; color: #e2e8f0;
+}
+.music-slider-row input[type="range"] {
+  width: 100%; accent-color: #38bdf8; cursor: pointer; height: 5px;
+}
+.music-slider-val {
+  text-align: right; color: #fde047; font-size: 11px; font-weight: 900;
+}
+
+.station-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+}
+.station-btn {
+  display: flex; align-items: center; gap: 9px; text-align: left;
+  padding: 9px 11px; border-radius: 10px; cursor: pointer;
+  background: rgba(30, 41, 59, 0.78); border: 1.5px solid rgba(255,255,255,0.12);
+  color: #f8fafc; transition: transform 0.08s, border-color 0.14s, background 0.14s;
+}
+.station-btn:hover { border-color: rgba(56, 189, 248, 0.7); transform: translateY(-1px); }
+.station-btn.active {
+  border-color: #fde047; background: rgba(250, 204, 21, 0.14);
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.18);
+}
+.station-btn.full-span { grid-column: 1 / -1; }
+.station-ico { font-size: 20px; flex-shrink: 0; }
+.station-name { font-size: 12px; font-weight: 900; color: #f8fafc; line-height: 1.2; }
+.station-desc { font-size: 10px; color: #94a3b8; margin-top: 2px; line-height: 1.25; }
+
+
 

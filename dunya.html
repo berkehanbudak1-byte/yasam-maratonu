@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="index.icon.png" />
   <title>Yaşam Maratonu: Büyük Dünya — 60 FPS Açık Dünya Yaşam Simülatörü</title>
-  <link rel="stylesheet" href="dunya/styles.css?v=6.0" />
+  <link rel="stylesheet" href="dunya/styles.css?v=7.0" />
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
@@ -126,7 +126,7 @@
         <button id="btnPetAction" class="dock-btn" title="Evcil Hayvanı Sev [P]">🐾<span>P</span></button>
         <button id="btnWeather" class="dock-btn" title="Hava Durumu [Y]">⛈️<span>Y</span></button>
         <button id="btnSeason" class="dock-btn" title="4D Mevsim [T]">⏳<span>T</span></button>
-        <button id="btnMusic" class="dock-btn" title="Müzik Aç/Kapa [N]">🎵<span>N</span></button>
+        <button id="btnMusic" class="dock-btn" title="Müzik &amp; Radyo Stüdyosu [N]">🎵<span>N</span></button>
       </div>
 
       <div id="minimapBox" class="glass-panel minimap-box">
@@ -241,6 +241,52 @@
     </div>
   </div>
 
+  <!-- MUSIC & RADIO STUDIO MODAL ([N]) -->
+  <div id="musicModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal" style="max-width:540px;">
+      <div class="shop-header">
+        <h2 style="margin:0; color:#fde047; font-size:19px;">🎵 MÜZİK &amp; RADYO STÜDYOSU</h2>
+        <button id="btnCloseMusic" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+
+      <div class="music-now-card">
+        <div id="musicEq" class="music-eq">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:10px; font-weight:900; color:#38bdf8; letter-spacing:0.6px;">ŞİMDİ ÇALIYOR</div>
+          <div id="musicNowTitle" style="font-size:15px; font-weight:900; color:#f8fafc;">🏙️ Güneşli Şehir</div>
+          <div id="musicNowDesc" style="font-size:11px; color:#94a3b8;">Otomatik Biyom &amp; Gece Modu</div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button id="btnToggleMusicPlay" class="hud-btn gold" style="font-size:11px; padding:6px 10px;">⏸ Duraklat</button>
+          <button id="btnToggleMuteAll" class="hud-btn" style="font-size:11px; padding:6px 9px;" title="Tüm Sesleri Sustur">🔊</button>
+        </div>
+      </div>
+
+      <div class="music-sliders">
+        <label class="music-slider-row">
+          <span>🎵 Müzik Sesi</span>
+          <input id="sliderMusicVol" type="range" min="0" max="100" value="78" />
+          <span id="valMusicVol" class="music-slider-val">78%</span>
+        </label>
+        <label class="music-slider-row">
+          <span>🌿 Doğa &amp; Ortam</span>
+          <input id="sliderAmbVol" type="range" min="0" max="100" value="65" />
+          <span id="valAmbVol" class="music-slider-val">65%</span>
+        </label>
+        <label class="music-slider-row">
+          <span>✨ Efektler (SFX)</span>
+          <input id="sliderSfxVol" type="range" min="0" max="100" value="85" />
+          <span id="valSfxVol" class="music-slider-val">85%</span>
+        </label>
+      </div>
+
+      <div style="font-size:11px; font-weight:900; color:#cbd5e1; margin-bottom:7px;">📻 RADYO &amp; MÜZİK KANALLARI</div>
+      <div id="musicStationGrid" class="station-grid"></div>
+    </div>
+  </div>
+
   <!-- CONTROLS & SYSTEM MODAL ([K]) -->
   <div id="helpModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
@@ -260,7 +306,7 @@
         <div><b>M</b><span>Haritayı Göster / Gizle</span></div>
         <div><b>V / B / U</b><span>Araba / Bisiklet / Sürat Teknesi</span></div>
         <div><b>H / Space</b><span>Araba Kornası</span></div>
-        <div><b>Y / T / N</b><span>Hava / 4D Mevsim / Müzik</span></div>
+        <div><b>Y / T / N</b><span>Hava / 4D Mevsim / Müzik Stüdyosu</span></div>
       </div>
       <div class="btn-row" style="margin-top:14px; justify-content:space-between;">
         <button id="btnResetSave" class="hud-btn" style="border-color:#ef4444; color:#fca5a5;">↺ Kaydı Sıfırla</button>
@@ -281,10 +327,10 @@
     </div>
   </div>
 
-  <script defer src="dunya/src/config.js?v=6.0"></script>
-  <script defer src="dunya/src/audio.js?v=6.0"></script>
-  <script defer src="dunya/src/world.js?v=6.0"></script>
-  <script defer src="dunya/src/renderer.js?v=6.0"></script>
-  <script defer src="dunya/src/game.js?v=6.0"></script>
+  <script defer src="dunya/src/config.js?v=7.0"></script>
+  <script defer src="dunya/src/audio.js?v=7.0"></script>
+  <script defer src="dunya/src/world.js?v=7.0"></script>
+  <script defer src="dunya/src/renderer.js?v=7.0"></script>
+  <script defer src="dunya/src/game.js?v=7.0"></script>
 </body>
 </html>
