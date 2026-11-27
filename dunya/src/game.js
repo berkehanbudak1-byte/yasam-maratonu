@@ -427,7 +427,11 @@ window.YasamDunya = window.YasamDunya || {};
         this.npcHearts = d.npcHearts || {};
         this.questProgress = d.questProgress || {};
         this.questDone = new Set(d.questDone || []);
-        if (d.px && d.py) { this.player.x = d.px; this.player.y = d.py; }
+        if (d.px && d.py) {
+          this.player.x = d.px; this.player.y = d.py;
+          this.world.resolveCollisions(this.player, false);
+        }
+        this.homePlayer.color = this.player.color;
       } catch (_) {}
     }
 
@@ -511,6 +515,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.parkedCar = { x: this.player.x, y: this.player.y, angle: this.player.angle };
         this.player.x += Math.cos(this.player.angle + Math.PI / 2) * 32;
         this.player.y += Math.sin(this.player.angle + Math.PI / 2) * 32;
+        this.world.resolveCollisions(this.player, false);
         this.popup(this.player.x, this.player.y - 28, '🚶 ARABADAN İNDİN', '#cbd5e1');
       }
     }
@@ -1488,7 +1493,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.energy = Math.max(0, this.energy - (sprinting ? 2.2 : (p.swimming ? 1.4 : 0.4)) * dt);
       }
 
-      // Loyal Pet Companion Follow Logic!
+      // Loyal Pet Companion Follow Logic (walks around buildings cleanly!)
       if (this.pet) {
         this.pet.petCd = Math.max(0, this.pet.petCd - dt);
         const dx = p.x - this.pet.x, dy = p.y - this.pet.y;
@@ -1499,6 +1504,8 @@ window.YasamDunya = window.YasamDunya || {};
           const pSpd = Math.min(540, Math.max(210, d * 3.8));
           this.pet.x += Math.cos(ang) * pSpd * dt;
           this.pet.y += Math.sin(ang) * pSpd * dt;
+          this.pet.r = 10;
+          this.world.resolveCollisions(this.pet, false);
         }
       }
 
@@ -1536,7 +1543,7 @@ window.YasamDunya = window.YasamDunya || {};
         npc.timer -= dt;
         if (npc.timer <= 0) { npc.timer = 2.5 + Math.random() * 3.5; npc.angle = Math.random() * Math.PI * 2; }
         const nx = npc.x + Math.cos(npc.angle) * 24 * dt, ny = npc.y + Math.sin(npc.angle) * 24 * dt;
-        if (Math.hypot(nx - npc.homeX, ny - npc.homeY) < 95 && !this.world.isInsideBuilding(nx, ny, 24)) {
+        if (Math.hypot(nx - npc.homeX, ny - npc.homeY) < 90 && !this.world.isInsideBuilding(nx, ny, 24) && !this.world.isOnRoad(nx, ny, 10)) {
           npc.x = nx; npc.y = ny; npc.walkCycle += dt * 5;
         } else npc.angle += Math.PI;
       }
@@ -1568,6 +1575,12 @@ window.YasamDunya = window.YasamDunya || {};
       this.cam.x += (p.x + p.vx * 0.16 - this.cam.x) * Math.min(1, dt * 7.5);
       this.cam.y += (p.y + p.vy * 0.16 - this.cam.y) * Math.min(1, dt * 7.5);
 
+      // Clamp camera cleanly inside world boundaries (ZERO black void at map edges!)
+      const halfVW = Math.min(YD.WORLD_W / 2, (this.viewW / 2) / this.cam.zoom);
+      const halfVH = Math.min(YD.WORLD_H / 2, (this.viewH / 2) / this.cam.zoom);
+      this.cam.x = Math.max(halfVW, Math.min(YD.WORLD_W - halfVW, this.cam.x));
+      this.cam.y = Math.max(halfVH, Math.min(YD.WORLD_H - halfVH, this.cam.y));
+
       const biome = this.world.getBiome(p.x, p.y);
       this.audio.updateAmbient(dt, biome, YD.WEATHERS[this.weatherIdx].id);
 
@@ -1591,6 +1604,9 @@ window.YasamDunya = window.YasamDunya || {};
       const s = YD.SEASONS[this.seasonIdx], w = YD.WEATHERS[this.weatherIdx];
       document.getElementById('clockBadge').textContent = `${s.icon} GÜN ${this.day} • YAŞ ${this.age} • ${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')} • ${w.icon}`;
       document.getElementById('biomeBadge').textContent = biome === 'home' ? '🏠 EVİNİN İÇİ' : this.world.getBiomeLabel(biome);
+
+      const bottomBar = document.querySelector('.hud-bottom');
+      if (bottomBar) bottomBar.classList.toggle('hidden', this.scene === 'home');
 
       const prompt = this.scene === 'home' ? this.findNearestHomeInteraction() : this.findNearestInteraction();
       const promptEl = document.getElementById('interactPrompt');

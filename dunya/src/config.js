@@ -12,7 +12,7 @@ window.YasamDunya = window.YasamDunya || {};
   YD.MOUNTAIN_Y = 740;
   YD.BEACH_Y    = 2560;
   YD.SEA_Y      = 2920;
-  YD.CITY_X1    = 1760;
+  YD.CITY_X1    = 1740;
   YD.CITY_X2    = 3260;
 
   YD.SEASONS = [
@@ -142,7 +142,7 @@ window.YasamDunya = window.YasamDunya || {};
   ];
 
   YD.NPC_TEMPLATES = [
-    { name: 'Barista Ela',     zone: 'city',     x: 2290, y: 2040, color: '#f472b6', lines: ['Taze espresso kokusu şehri uyandırır! Bir gün kafeyi devralmak ister misin?', 'Evini dekore edip içine girerek yaşayabilirsin!', 'Seninle sohbet etmek harika, al benden ufak bir hediye!'] },
+    { name: 'Barista Ela',     zone: 'city',     x: 2205, y: 2035, color: '#f472b6', lines: ['Taze espresso kokusu şehri uyandırır! Bir gün kafeyi devralmak ister misin?', 'Evini dekore edip içine girerek yaşayabilirsin!', 'Seninle sohbet etmek harika, al benden ufak bir hediye!'] },
     { name: 'Balıkçı Hasan',   zone: 'beach',    x: 2290, y: 2860, color: '#0284c7', lines: ['İskelede oltayı at, ibre ALTIN bölgeye gelince [E] bas!', 'Tuttuğun balıkları [C] çantandan kamp ateşinde pişirebilirsin!', 'Sen artık usta bir denizcisin dostum!'] },
     { name: 'Ormancı Kerim',   zone: 'forest',   x: 1020, y: 1280, color: '#15803d', lines: ['Kuzeyde Karlı Zirve ve Sıcak Kaplıca seni bekliyor!', 'Evinin yanındaki bahçeye tohum ekip sulamayı denedin mi?', 'Ormanın gerçek dostu sensin!'] },
     { name: 'Dağcı Alp',       zone: 'mountain', x: 2260, y: 420,  color: '#06b6d4', lines: ['Karlı Zirveye hoş geldin! Kaplıca tüm yorgunluğunu alır!', 'Zirve kristallerini [C] çantandan satarak zengin olabilirsin!', 'Zirvenin efsanesi oldun!'] },

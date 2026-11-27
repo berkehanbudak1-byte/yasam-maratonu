@@ -94,11 +94,11 @@ window.YasamDunya = window.YasamDunya || {};
       );
 
       const lampSpots = [
-        [1880, 1190], [2280, 1190], [2780, 1190], [3120, 1190],
-        [1880, 1660], [2280, 1660], [2780, 1660], [3120, 1660],
-        [1880, 2160], [2280, 2160], [2780, 2160], [3120, 2160],
-        [1600, 2540], [2120, 2540], [2640, 2540], [3220, 2540],
-        [3560, 1420], [4180, 1420], [2330, 620]
+        [1880, 1198], [2266, 1198], [2780, 1198], [3120, 1198],
+        [1880, 1658], [2266, 1658], [2780, 1658], [3120, 1658],
+        [1880, 2158], [2266, 2158], [2780, 2158], [3120, 2158],
+        [1600, 2520], [2120, 2520], [2640, 2520], [3220, 2520],
+        [3560, 1420], [4180, 1420], [2266, 620],  [2394, 620]
       ];
       for (const [lx, ly] of lampSpots) this.streetlamps.push({ x: lx, y: ly });
 
@@ -106,8 +106,8 @@ window.YasamDunya = window.YasamDunya || {};
         { x: 3880, y: 1595, angle: 0 },
         { x: 3650, y: 1420, angle: Math.PI / 2 },
         { x: 4110, y: 1420, angle: Math.PI / 2 },
-        { x: 2120, y: 2555, angle: 0 },
-        { x: 2720, y: 2555, angle: 0 }
+        { x: 2120, y: 2586, angle: 0 },
+        { x: 2720, y: 2586, angle: 0 }
       ];
 
       const umbColors = ['#ef4444', '#38bdf8', '#facc15', '#ec4899', '#22c55e', '#f97316'];
@@ -177,13 +177,13 @@ window.YasamDunya = window.YasamDunya || {};
       }
       for (let i = 0; i < 5; i++) {
         this.boats.push({
-          x: 280 + i * 920, y: 3140 + (i % 2) * 195,
+          x: 280 + i * 920, y: 3305 + (i % 2) * 145,
           dir: i % 2 === 0 ? 1 : -1, speed: 36 + i * 9,
           sailColor: ['#ffffff', '#fde047', '#fb7185', '#38bdf8', '#a7f3d0'][i]
         });
       }
 
-      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP CITY TRAFFIC (12 CARS, NEVER DISAPPEAR OR BUNCH!) ---
+      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP CITY TRAFFIC (DISJOINT LANES + SMART YIELD!) ---
       const R = this.ring;
       const cx = 2330; // Center Main Highway centerline (asphalt 2280..2380)
 
@@ -213,48 +213,56 @@ window.YasamDunya = window.YasamDunya || {};
       };
       this.sampleTrack = sampleTrack;
 
-      // 1) Outer Clockwise Ring Loop
+      // 1) Outer Clockwise Ring Loop (4 evenly spaced cars)
       const cwOuter = makeTrack([
         { x: R.left + 22,  y: R.top + 22 },
         { x: R.right - 22, y: R.top + 22 },
         { x: R.right - 22, y: R.bottom - 22 },
         { x: R.left + 22,  y: R.bottom - 22 }
       ]);
-      // 2) Outer Counter-Clockwise Ring Loop (opposite lane)
+      // 2) Outer Counter-Clockwise Ring Loop (4 evenly spaced cars, opposite lane — 100% disjoint from cwOuter!)
       const ccwOuter = makeTrack([
         { x: R.left - 22,  y: R.bottom + 22 },
         { x: R.right + 22, y: R.bottom + 22 },
         { x: R.right + 22, y: R.top - 22 },
         { x: R.left - 22,  y: R.top - 22 }
       ]);
-      // 3) Upper-West City Loop (Home, Hospital, Center Hwy & Mid Blvd!)
-      const nwLoop = makeTrack([
-        { x: R.left + 22, y: R.top + 22 },
-        { x: cx - 22,     y: R.top + 22 },
-        { x: cx - 22,     y: R.mid - 22 },
-        { x: R.left + 22, y: R.mid - 22 }
+      // 3) Center Highway Scenic Loop (Mountain Lookout Roundabout y=460 <-> Beachfront Roundabout y=2460!)
+      const hwyLoop = makeTrack([
+        { x: cx - 22, y: 470 },
+        { x: cx - 22, y: 2455 },
+        { x: cx,      y: 2478 },
+        { x: cx + 22, y: 2455 },
+        { x: cx + 22, y: 470 },
+        { x: cx,      y: 448 }
       ]);
-      // 4) Lower-East City Loop (Mid Blvd, Office, University & Center Hwy!)
-      const seLoop = makeTrack([
-        { x: cx + 22,      y: R.mid + 22 },
-        { x: R.right - 22, y: R.mid + 22 },
-        { x: R.right - 22, y: R.bottom - 22 },
-        { x: cx + 22,      y: R.bottom - 22 }
+      // 4) Mid Boulevard Two-Way Shuttle Loop (x=1890 <-> x=3110 on y=1720 ± 20!)
+      const midShuttle = makeTrack([
+        { x: 1895, y: R.mid + 20 },
+        { x: 3105, y: R.mid + 20 },
+        { x: 3128, y: R.mid },
+        { x: 3105, y: R.mid - 20 },
+        { x: 1895, y: R.mid - 20 },
+        { x: 1872, y: R.mid }
       ]);
 
       const loopSpecs = [
-        { track: cwOuter,  speed: 165, cars: [['#ef4444', false], ['#facc15', true],  ['#3b82f6', false]] },
-        { track: ccwOuter, speed: 165, cars: [['#22c55e', false], ['#f97316', false], ['#ec4899', false]] },
-        { track: nwLoop,   speed: 150, cars: [['#facc15', true],  ['#06b6d4', false], ['#a855f7', false]] },
-        { track: seLoop,   speed: 150, cars: [['#ef4444', false], ['#facc15', true],  ['#10b981', false]] }
+        { id: 'cw',  priority: 1, track: cwOuter,    speed: 160, cars: [['#ef4444', false], ['#facc15', true], ['#3b82f6', false], ['#a855f7', false]] },
+        { id: 'ccw', priority: 1, track: ccwOuter,   speed: 160, cars: [['#22c55e', false], ['#f97316', false], ['#ec4899', false], ['#06b6d4', false]] },
+        { id: 'hwy', priority: 2, track: hwyLoop,    speed: 155, cars: [['#facc15', true],  ['#10b981', false], ['#ef4444', false]] },
+        { id: 'mid', priority: 3, track: midShuttle, speed: 145, cars: [['#facc15', true],  ['#38bdf8', false]] }
       ];
 
       this.cars = [];
+      let carId = 0;
       for (const spec of loopSpecs) {
         spec.cars.forEach(([color, isTaxi], i) => {
           const loopDist = (i / spec.cars.length) * spec.track.total;
           const pos = sampleTrack(spec.track, loopDist);
           this.cars.push({
+            id: carId++,
+            loopId: spec.id,
+            priority: spec.priority,
             track: spec.track,
             loopDist,
             x: pos.x,
@@ -336,26 +344,47 @@ window.YasamDunya = window.YasamDunya || {};
       return null;
     }
 
+    isOnRoad(x, y, pad = 0) {
+      const R = this.ring, hrw = 50 + pad;
+      // Center Highway (x: 2280..2380, y: 420..2560)
+      if (x >= 2280 - pad && x <= 2380 + pad && y >= 420 - pad && y <= YD.BEACH_Y + pad) return true;
+      // Horizontal Ring Boulevards
+      if (x >= R.left - hrw && x <= R.right + hrw) {
+        if (Math.abs(y - R.top) <= hrw || Math.abs(y - R.mid) <= hrw || Math.abs(y - R.bottom) <= hrw) return true;
+      }
+      // Vertical Ring Avenues
+      if (y >= R.top - hrw && y <= R.bottom + hrw) {
+        if (Math.abs(x - R.left) <= hrw || Math.abs(x - R.right) <= hrw) return true;
+      }
+      return false;
+    }
+
     resolveCollisions(ent, isCar = false) {
       ent.x = Math.max(40, Math.min(YD.WORLD_W - 40, ent.x));
       ent.y = Math.max(40, Math.min(isCar ? YD.SEA_Y - 34 : YD.WORLD_H - 60, ent.y));
 
-      for (const b of this.buildings) {
-        const cx = Math.max(b.x, Math.min(ent.x, b.x + b.w));
-        const cy = Math.max(b.y, Math.min(ent.y, b.y + b.h));
+      const pushBox = (bx, by, bw, bh, extraR = 0) => {
+        const rad = (ent.r || 16) + extraR;
+        const cx = Math.max(bx, Math.min(ent.x, bx + bw));
+        const cy = Math.max(by, Math.min(ent.y, by + bh));
         const dx = ent.x - cx, dy = ent.y - cy;
         const d2 = dx * dx + dy * dy;
-        if (d2 < ent.r * ent.r) {
+        if (d2 < rad * rad) {
           const d = Math.sqrt(d2) || 0.01;
-          ent.x += (dx / d) * (ent.r - d);
-          ent.y += (dy / d) * (ent.r - d);
+          ent.x += (dx / d) * (rad - d);
+          ent.y += (dy / d) * (rad - d);
         }
+      };
+
+      for (const b of this.buildings) pushBox(b.x, b.y, b.w, b.h);
+      if (isCar && this.gardenBounds) {
+        pushBox(this.gardenBounds.x, this.gardenBounds.y, this.gardenBounds.w, this.gardenBounds.h, 8);
       }
 
       for (const tr of this.trees) {
         const trunkR = 10;
         const dx = ent.x - tr.x, dy = ent.y - tr.y;
-        const minR = ent.r + trunkR;
+        const minR = (ent.r || 16) + trunkR;
         const d2 = dx * dx + dy * dy;
         if (d2 < minR * minR) {
           const d = Math.sqrt(d2) || 0.01;
@@ -370,7 +399,7 @@ window.YasamDunya = window.YasamDunya || {};
 
       for (const solid of [this.lighthouse, this.summitRock]) {
         const dx = ent.x - solid.x, dy = ent.y - solid.y;
-        const minR = ent.r + solid.r;
+        const minR = (ent.r || 16) + solid.r;
         const d2 = dx * dx + dy * dy;
         if (d2 < minR * minR) {
           const d = Math.sqrt(d2) || 0.01;
@@ -404,16 +433,21 @@ window.YasamDunya = window.YasamDunya || {};
       for (const w of this.wildlife) {
         w.timer -= dt;
         const dPlayer = Math.hypot(player.x - w.x, player.y - w.y);
+        let nx = w.x, ny = w.y;
         if (dPlayer < 130) {
           w.angle = Math.atan2(w.y - player.y, w.x - player.x);
-          w.x += Math.cos(w.angle) * (w.speed * 1.9) * dt;
-          w.y += Math.sin(w.angle) * (w.speed * 1.9) * dt;
+          nx += Math.cos(w.angle) * (w.speed * 1.9) * dt;
+          ny += Math.sin(w.angle) * (w.speed * 1.9) * dt;
         } else {
           if (w.timer <= 0) { w.timer = 2 + Math.random() * 3.5; w.angle += (Math.random() - 0.5) * 2.2; }
-          w.x += Math.cos(w.angle) * w.speed * dt; w.y += Math.sin(w.angle) * w.speed * dt;
+          nx += Math.cos(w.angle) * w.speed * dt; ny += Math.sin(w.angle) * w.speed * dt;
         }
-        w.x = Math.max(90, Math.min(YD.CITY_X1 - 80, w.x));
-        w.y = Math.max(YD.MOUNTAIN_Y + 60, Math.min(YD.BEACH_Y - 110, w.y));
+        if (this.isInsideBuilding(nx, ny, 22) || Math.hypot(nx - this.campfire.x, ny - this.campfire.y) < 55) {
+          w.angle += Math.PI * 0.75;
+        } else {
+          w.x = Math.max(90, Math.min(YD.CITY_X1 - 80, nx));
+          w.y = Math.max(YD.MOUNTAIN_Y + 60, Math.min(YD.BEACH_Y - 110, ny));
+        }
       }
       for (const dk of this.ducks) dk.angle += dk.speed * dt;
       for (const bt of this.boats) {
@@ -422,13 +456,43 @@ window.YasamDunya = window.YasamDunya || {};
         if (bt.x < -140) bt.x = YD.WORLD_W + 140;
       }
 
-      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP TRAFFIC + PLAYER COLLISION DAMAGE! ---
+      // --- CONTINUOUS PARAMETRIC CLOSED-LOOP TRAFFIC + SMART CROSSWALK YIELD + PLAYER DAMAGE! ---
       for (const c of this.cars) {
         c.brakeTimer = Math.max(0, c.brakeTimer - dt);
         c.hitCd = Math.max(0, c.hitCd - dt);
 
-        const wantSpeed = c.brakeTimer > 0 ? 0 : c.speed;
-        c.curSpeed += (wantSpeed - c.curSpeed) * Math.min(1, dt * 8);
+        let yielding = false;
+        const fx = Math.cos(c.angle), fy = Math.sin(c.angle);
+        for (const other of this.cars) {
+          if (other === c) continue;
+          const dx = other.x - c.x, dy = other.y - c.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 140) continue;
+
+          // Project other car onto our forward & lateral axes
+          const fwd = dx * fx + dy * fy;
+          const lat = Math.abs(-dx * fy + dy * fx);
+          const sameDir = (fx * Math.cos(other.angle) + fy * Math.sin(other.angle)) > 0.5;
+
+          if (other.loopId === c.loopId) {
+            // Same loop: only keep safe following distance behind a car moving in the SAME direction
+            if (sameDir && fwd > 12 && fwd < 84 && lat < 24) { yielding = true; break; }
+          } else {
+            // Different loop (perpendicular crossing!): stop cleanly BEFORE the intersection box!
+            if (c.priority > other.priority && fwd > 12 && fwd < 122 && lat < 86) {
+              yielding = true; break;
+            }
+            // Even higher-priority cars brake ONLY if a crossing car is actively moving directly across their bumper (zero deadlock!)
+            if (c.priority < other.priority && other.curSpeed > 20 && fwd > 18 && fwd < 72 && lat < 34) {
+              yielding = true; break;
+            }
+          }
+        }
+        c.yielding = yielding;
+
+        const wantSpeed = (c.brakeTimer > 0 || yielding) ? 0 : c.speed;
+        c.curSpeed += (wantSpeed - c.curSpeed) * Math.min(1, dt * (yielding ? 22 : 10));
+        if (yielding && c.curSpeed < 12) c.curSpeed = 0;
 
         c.loopDist = (c.loopDist + c.curSpeed * dt) % c.track.total;
         const pos = this.sampleTrack(c.track, c.loopDist);
@@ -439,7 +503,7 @@ window.YasamDunya = window.YasamDunya || {};
         let diff = pos.angle - c.angle;
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
-        c.angle += diff * Math.min(1, dt * 14);
+        c.angle += diff * Math.min(1, dt * 16);
 
         // Player Collision Check (Car hits player if player steps into moving traffic!)
         const hitDist = player.inCar ? 48 : 36;

@@ -229,8 +229,11 @@ window.YasamDunya = window.YasamDunya || {};
       for (let y = sy1; y <= sy2; y += 64) {
         ctx.beginPath(); ctx.moveTo(YD.CITY_X1, y); ctx.lineTo(YD.CITY_X2, y); ctx.stroke();
       }
+      // Clean foothill green parkway buffer above Hospital & Shop (y=740..835) with crisp stone curb
       ctx.fillStyle = season.grass;
-      ctx.fillRect(YD.CITY_X1, YD.MOUNTAIN_Y, YD.CITY_X2 - YD.CITY_X1, 240);
+      ctx.fillRect(YD.CITY_X1, YD.MOUNTAIN_Y, YD.CITY_X2 - YD.CITY_X1, 95);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(YD.CITY_X1, YD.MOUNTAIN_Y + 95, YD.CITY_X2 - YD.CITY_X1, 6);
 
       // Green Park (Lush Meadow!)
       const parkGrad = ctx.createLinearGradient(YD.CITY_X2, YD.MOUNTAIN_Y, YD.WORLD_W, YD.BEACH_Y);
@@ -337,15 +340,19 @@ window.YasamDunya = window.YasamDunya || {};
       const R = world.ring;
       const rw = 100, hrw = rw / 2;
 
-      // North Mountain Highway Pass (connects City Center directly up to Mountain & down to Beach)
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(2280, 440, 100, YD.BEACH_Y - 440);
-
-      // Forest Warm Dirt Trail
+      // Forest Warm Dirt Trail (stops cleanly at West Ring Road curb x=1750 — never paints over asphalt!)
       ctx.strokeStyle = '#78350f'; ctx.lineWidth = 54; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(520, 920); ctx.lineTo(890, 1240); ctx.lineTo(1190, 1270); ctx.lineTo(R.left, R.mid); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(520, 920); ctx.lineTo(890, 1240); ctx.lineTo(1190, 1270); ctx.lineTo(R.left - hrw, R.mid); ctx.stroke();
       ctx.strokeStyle = '#b45309'; ctx.lineWidth = 44;
       ctx.stroke();
+
+      // North–South Center Highway + Circular Mountain Lookout & Beachfront Roundabouts (NO dead-end chop-off!)
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(2280, 460, 100, 2005);
+      // Mountain Lookout Roundabout (north end y=460)
+      ctx.beginPath(); ctx.arc(2330, 460, 62, 0, Math.PI * 2); ctx.fill();
+      // Beachfront Promenade Roundabout (south end y=2465)
+      ctx.beginPath(); ctx.arc(2330, 2465, 62, 0, Math.PI * 2); ctx.fill();
 
       // COMPLETE 4-SIDED CLOSED CITY RING ROAD (Top, Mid, Bottom + Left & Right Avenues!)
       ctx.fillStyle = '#334155';
@@ -361,7 +368,7 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 5;
       ctx.strokeRect(R.left - hrw, R.top - hrw, (R.right - R.left) + rw, (R.bottom - R.top) + rw);
 
-      // Dashed Yellow Center Lane Markings around the entire closed ring!
+      // Dashed Yellow Center Lane Markings around the entire closed ring & highway!
       ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3; ctx.setLineDash([22, 16]);
       ctx.beginPath();
       ctx.moveTo(R.left, R.top);    ctx.lineTo(R.right, R.top);
@@ -369,14 +376,28 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.moveTo(R.left, R.bottom); ctx.lineTo(R.right, R.bottom);
       ctx.moveTo(R.left, R.top);    ctx.lineTo(R.left, R.bottom);
       ctx.moveTo(R.right, R.top);   ctx.lineTo(R.right, R.bottom);
-      ctx.moveTo(2330, 460);        ctx.lineTo(2330, YD.BEACH_Y);
+      ctx.moveTo(2330, 490);        ctx.lineTo(2330, 2435);
       ctx.stroke(); ctx.setLineDash([]);
+
+      // Roundabout Decorative Central Islands
+      for (const [rx, ry, col] of [[2330, 460, '#e0f2fe'], [2330, 2465, '#86efac']]) {
+        ctx.fillStyle = col; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(rx, ry, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
 
       // Zebra Crosswalks at key intersections!
       ctx.fillStyle = '#f8fafc';
       for (let s = R.mid - 42; s < R.mid + 42; s += 16) {
         ctx.fillRect(2262, s, 14, 9);
         ctx.fillRect(2384, s, 14, 9);
+      }
+
+      // Seamless Wooden Beach Walkway connecting Boardwalk straight down to the Fishing Pier!
+      ctx.fillStyle = '#b45309';
+      ctx.fillRect(world.pier.x + 18, YD.BEACH_Y, world.pier.w - 36, world.pier.y - YD.BEACH_Y + 6);
+      ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2;
+      for (let py = YD.BEACH_Y + 12; py < world.pier.y; py += 16) {
+        ctx.beginPath(); ctx.moveTo(world.pier.x + 18, py); ctx.lineTo(world.pier.x + world.pier.w - 18, py); ctx.stroke();
       }
 
       // Beachfront Wooden Boardwalk
@@ -671,10 +692,10 @@ window.YasamDunya = window.YasamDunya || {};
           ctx.fillStyle = '#fef08a'; ctx.fillRect(-2, -3, 4, 6);
         }
 
-        // Headlights & glowing brake/hazard lights when braking!
+        // Headlights & glowing brake lights when braking or yielding at intersections!
         ctx.fillStyle = '#fef08a';
         ctx.fillRect(25, -12, 4, 6); ctx.fillRect(25, 6, 4, 6);
-        ctx.fillStyle = c.brakeTimer > 0 ? '#ff0000' : '#991b1b';
+        ctx.fillStyle = (c.brakeTimer > 0 || c.yielding) ? '#ff1e1e' : '#991b1b';
         ctx.fillRect(-29, -12, 4, 6); ctx.fillRect(-29, 6, 4, 6);
 
         ctx.restore();
