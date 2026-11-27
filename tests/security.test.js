@@ -75,7 +75,12 @@ function runOynaLauncher(search, hash, storageSeed = {}) {
     createTextNode: (text) => ({ type: 'text', textContent: text })
   };
   const win = {
-    location: { search, hash, replace: (u) => { replacedUrl = u; } },
+    location: {
+      href: 'https://example.github.io/yasam-maratonu/oyna.html' + search + hash,
+      search,
+      hash,
+      replace: (u) => { replacedUrl = u; }
+    },
     matchMedia: () => ({ matches: false }),
     WebGL2RenderingContext: function () {},
     AudioContext: function () {},
@@ -88,6 +93,7 @@ function runOynaLauncher(search, hash, storageSeed = {}) {
     document: doc,
     navigator: { hardwareConcurrency: 8 },
     localStorage: localStorageMock,
+    URL,
     URLSearchParams,
     setInterval: (fn) => { timers.push(fn); return timers.length; },
     clearInterval: () => {}
@@ -297,10 +303,10 @@ test('oyna.html launcher allowlists URL query/hash and resumes countdown without
     '#javascript:alert(1)'
   );
   const href = res.elements.get('playNow').getAttribute('href');
-  assert.equal(href, './?stay=1&lang=tr&profile=touch&touch=1');
+  assert.equal(href, './index.html?stay=1&lang=tr&profile=touch&touch=1');
 
   const safeHashRes = runOynaLauncher('?profile=desktop', '#section-1');
-  assert.equal(safeHashRes.elements.get('playNow').getAttribute('href'), './?profile=desktop&touch=0#section-1');
+  assert.equal(safeHashRes.elements.get('playNow').getAttribute('href'), './index.html?profile=desktop&touch=0#section-1');
 
   const toggleBtn = res.elements.get('toggleTimer');
   toggleBtn.listeners.click();
