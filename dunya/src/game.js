@@ -461,6 +461,12 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnMapToggle').addEventListener('click', () => { this.audio.unlock(); this.toggleMap(); });
       document.getElementById('btnHelp').addEventListener('click', () => { this.audio.unlock(); this.toggleHelp(!this.helpOpen); });
       document.getElementById('btnCloseHelp').addEventListener('click', () => this.toggleHelp(false));
+      document.getElementById('btnLangHud')?.addEventListener('click', () => {
+        this.audio.unlock();
+        const nextLang = (YD.I18N && YD.I18N.getLang() === 'en') ? 'tr' : 'en';
+        this.switchLanguage(nextLang);
+        this.showToast(nextLang === 'en' ? '🌐 Language switched to English!' : '🌐 Oyun dili Türkçe oldu!');
+      });
       document.getElementById('btnBike').addEventListener('click', () => { this.audio.unlock(); this.toggleBike(); });
       document.getElementById('btnCar').addEventListener('click', () => { this.audio.unlock(); this.toggleCar(); });
       document.getElementById('btnBoat').addEventListener('click', () => { this.audio.unlock(); this.toggleBoat(); });

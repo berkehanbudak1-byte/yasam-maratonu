@@ -86,10 +86,13 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
   font-weight: 900; font-size: 14px;
 }
 
-/* STARTER DISCOVERY GUIDE (TOP-LEFT COMPACT OBJECTIVE CARD) */
+/* STARTER DISCOVERY GUIDE (IN-FLOW BELOW HUD-TOP — NEVER OVERLAPS!) */
+.hud-top-stack {
+  display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+  pointer-events: none;
+}
 .guide-card {
-  position: fixed;
-  top: 56px; left: 10px;
+  align-self: flex-start;
   width: 266px;
   max-width: calc(100vw - 24px);
   padding: 9px 11px;
@@ -155,8 +158,8 @@ canvas#gameCanvas { display: block; width: 100vw; height: 100vh; }
 }
 .guide-skip-btn:hover { color: #fde047; }
 .guide-mini-pill {
-  position: fixed;
-  top: 56px; left: 10px;
+  align-self: flex-start;
+  pointer-events: auto;
   z-index: 14;
   border-color: rgba(56, 189, 248, 0.55);
 }

@@ -336,6 +336,7 @@ window.YasamDunya = window.YasamDunya || {};
     '🤖 Oto-Pilot kapatıldı — Manuel kontrol sende.': '🤖 Auto-Pilot paused — Manual control restored.',
     // Starter Discovery Guide (v10.2)
     '🧭 KEŞİF REHBERİ': '🧭 DISCOVERY GUIDE',
+    'Dil Değiştir (TR / EN)': 'Switch Language (EN / TR)',
     'Yön Okunu Aç/Kapat': 'Toggle Waypoint Arrow',
     'Rehberi Küçült': 'Collapse Guide',
     'Rehberi Göster': 'Show Discovery Guide',
@@ -565,6 +566,9 @@ window.YasamDunya = window.YasamDunya || {};
       btn.classList.toggle('gold', active);
       btn.style.opacity = active ? '1' : '0.68';
     });
+
+    const hudCode = document.getElementById('langHudCode');
+    if (hudCode) hudCode.textContent = en ? 'EN' : 'TR';
 
     const nameInput = document.getElementById('inputPlayerName');
     if (nameInput && (nameInput.value === 'Gezgin' || nameInput.value === 'Traveler')) {
