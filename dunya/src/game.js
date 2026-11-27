@@ -109,8 +109,21 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
+    clearAllKeys() {
+      for (const k in this.keys) this.keys[k] = false;
+      if (this.player) {
+        this.player.vx = 0;
+        this.player.vy = 0;
+        this.player.carSpeed = 0;
+      }
+    }
+
     bindEvents() {
       window.addEventListener('resize', () => this.resize());
+      window.addEventListener('blur', () => this.clearAllKeys());
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) this.clearAllKeys();
+      });
       window.addEventListener('wheel', (e) => {
         this.cam.zoom = Math.max(0.62, Math.min(1.45, this.cam.zoom - Math.sign(e.deltaY) * 0.08));
       }, { passive: true });
@@ -153,7 +166,9 @@ window.YasamDunya = window.YasamDunya || {};
         if (e.code === 'Minus' || e.code === 'NumpadSubtract') this.cam.zoom = Math.max(0.62, this.cam.zoom - 0.1);
       });
 
-      window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+      window.addEventListener('keyup', (e) => {
+        this.keys[e.code] = false;
+      });
 
       document.getElementById('btnShop').addEventListener('click', () => { this.audio.unlock(); this.toggleShop(!this.shopOpen); });
       document.getElementById('btnCloseShop').addEventListener('click', () => this.toggleShop(false));
@@ -182,8 +197,10 @@ window.YasamDunya = window.YasamDunya || {};
         const up = (ev) => { ev.preventDefault(); this.keys[code] = false; };
         btn.addEventListener('touchstart', down, { passive: false });
         btn.addEventListener('touchend', up, { passive: false });
+        btn.addEventListener('touchcancel', up, { passive: false });
         btn.addEventListener('mousedown', down);
         btn.addEventListener('mouseup', up);
+        btn.addEventListener('mouseleave', up);
       });
     }
 
@@ -314,6 +331,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     toggleShop(open) {
+      this.clearAllKeys();
       this.shopOpen = open;
       if (open) this.homeOpen = false;
       document.getElementById('homeModal').classList.add('hidden');
@@ -322,6 +340,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     toggleHome(open) {
+      this.clearAllKeys();
       this.homeOpen = open;
       if (open) this.shopOpen = false;
       document.getElementById('shopModal').classList.add('hidden');
@@ -708,19 +727,20 @@ window.YasamDunya = window.YasamDunya || {};
       p.speechTimer = Math.max(0, p.speechTimer - dt);
 
       if (p.inCar) {
-        // ULTRA-SMOOTH DRIVABLE CAR PHYSICS (Steering + Acceleration + Drift Marks!)
+        // CRISP DRIVABLE CAR PHYSICS (Instant braking when gas released!)
         const accelInput = (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0) - (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0);
         const steerInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
-        const maxCarSpd = 560;
+        const maxCarSpd = 540;
         if (accelInput !== 0) {
-          p.carSpeed += accelInput * 620 * dt;
+          p.carSpeed += accelInput * 760 * dt;
           p.carSpeed = Math.max(-220, Math.min(maxCarSpd, p.carSpeed));
         } else {
-          p.carSpeed *= Math.pow(0.06, dt);
+          // Strong engine braking so releasing W stops quickly without coasting forever
+          p.carSpeed *= Math.pow(0.0004, dt);
+          if (Math.abs(p.carSpeed) < 18) p.carSpeed = 0;
         }
         if (Math.abs(p.carSpeed) > 20) {
           p.angle += steerInput * 3.1 * Math.sign(p.carSpeed) * dt;
-          // Drift tire marks when turning fast!
           if (Math.abs(steerInput) > 0 && Math.abs(p.carSpeed) > 320 && Math.random() < dt * 22) {
             this.skidMarks.push({ x: p.x - Math.cos(p.angle) * 20, y: p.y - Math.sin(p.angle) * 20, alpha: 0.45 });
             if (this.skidMarks.length > 90) this.skidMarks.shift();
@@ -731,7 +751,7 @@ window.YasamDunya = window.YasamDunya || {};
         p.x += p.vx * dt; p.y += p.vy * dt;
         this.world.resolveCollisions(p, true);
       } else {
-        // Smooth Foot / Bike / Swimming Movement!
+        // Ultra-Responsive Foot / Bike / Swimming Movement (Instant stop on key release!)
         let ix = 0, iy = 0;
         if (this.keys['KeyW'] || this.keys['ArrowUp']) iy -= 1;
         if (this.keys['KeyS'] || this.keys['ArrowDown']) iy += 1;
@@ -749,14 +769,17 @@ window.YasamDunya = window.YasamDunya || {};
         }
 
         const sprinting = !!(this.keys['ShiftLeft'] || this.keys['ShiftRight']) && !p.swimming && this.energy > 8;
-        const maxSpd = p.swimming ? 175 : (p.onBike ? 430 : (sprinting ? 330 : 245));
-        const accel = p.onBike ? 9 : 14;
-        p.vx += (ix * maxSpd - p.vx) * Math.min(1, dt * accel);
-        p.vy += (iy * maxSpd - p.vy) * Math.min(1, dt * accel);
+        const maxSpd = p.swimming ? 185 : (p.onBike ? 430 : (sprinting ? 335 : 255));
+        if (len === 0) {
+          p.vx = 0;
+          p.vy = 0;
+        } else {
+          p.vx = ix * maxSpd;
+          p.vy = iy * maxSpd;
+          p.angle = Math.atan2(iy, ix);
+          p.walkCycle += dt * (maxSpd * 0.055);
+        }
         p.x += p.vx * dt; p.y += p.vy * dt;
-
-        const curSpeed = Math.hypot(p.vx, p.vy);
-        if (curSpeed > 18) { p.angle = Math.atan2(p.vy, p.vx); p.walkCycle += dt * (curSpeed * 0.055); }
         this.world.resolveCollisions(p, false);
 
         if (p.swimming) {
