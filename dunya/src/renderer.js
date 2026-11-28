@@ -90,6 +90,19 @@ window.YasamDunya = window.YasamDunya || {};
       }
     }
 
+    // Viewport culling helpers (v11): skip drawing entities outside the camera view
+    inView(x, y, m) {
+      const v = this.viewBox;
+      if (!v) return true;
+      return x + m >= v.x1 && x - m <= v.x2 && y + m >= v.y1 && y - m <= v.y2;
+    }
+
+    inViewRect(x, y, w, h) {
+      const v = this.viewBox;
+      if (!v) return true;
+      return x + w >= v.x1 && x <= v.x2 && y + h >= v.y1 && y <= v.y2;
+    }
+
     render(game) {
       if (game.scene === 'home') {
         this.renderHomeInterior(game);
@@ -112,6 +125,7 @@ window.YasamDunya = window.YasamDunya || {};
         x1: game.cam.x - halfW, x2: game.cam.x + halfW,
         y1: game.cam.y - halfH, y2: game.cam.y + halfH
       };
+      this.viewBox = viewBox;
 
       ctx.save();
       ctx.translate(vw / 2, vh / 2);
@@ -643,6 +657,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     drawBenchesAndUmbrellas(ctx, world) {
       for (const b of world.benches) {
+        if (!this.inView(b.x, b.y, 60)) continue;
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.angle);
         ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-24, -4, 52, 16);
         ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.2;
@@ -651,6 +666,7 @@ window.YasamDunya = window.YasamDunya || {};
         ctx.restore();
       }
       for (const u of world.umbrellas) {
+        if (!this.inView(u.x, u.y, 80)) continue;
         // Beach towel next to umbrella!
         ctx.fillStyle = '#fef3c7'; ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1.5;
         ctx.fillRect(u.x + 18, u.y - 12, 20, 36); ctx.strokeRect(u.x + 18, u.y - 12, 20, 36);
@@ -667,7 +683,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     drawForageables(ctx, world, now) {
       for (const fg of world.forageables) {
-        if (fg.collected) continue;
+        if (fg.collected || !this.inView(fg.x, fg.y, 30)) continue;
         const bg = fg.kind === 'crystal' ? '#38bdf8' : (fg.kind === 'berry' ? '#16a34a' : '#fef3c7');
         const icon = fg.kind === 'crystal' ? '💎' : (fg.kind === 'berry' ? '🍓' : '🍄');
         const pulse = fg.kind === 'crystal' ? (1 + Math.sin(now * 6) * 0.14) : 1;
@@ -828,6 +844,7 @@ window.YasamDunya = window.YasamDunya || {};
     drawWildlife(ctx, world, now) {
       // 1) Forest Deer & Rabbits (detailed top-down art!)
       for (const w of world.wildlife) {
+        if (!this.inView(w.x, w.y, 60)) continue;
         ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.angle);
         ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(2, 4, w.kind === 'deer' ? 15 : 8, 6, 0, 0, Math.PI * 2); ctx.fill();
         if (w.kind === 'deer') {
@@ -864,6 +881,7 @@ window.YasamDunya = window.YasamDunya || {};
       // 2) Friendly Interactive Street Cats & Dogs!
       if (world.strays) {
         for (const st of world.strays) {
+          if (!this.inView(st.x, st.y, 60)) continue;
           const wag = Math.sin(now * (st.heartTimer > 0 ? 18 : 9) + st.x) * (st.kind === 'dog' ? 0.55 : 0.25);
           ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(st.angle);
           ctx.fillStyle = 'rgba(0,0,0,0.2)';
@@ -917,6 +935,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     drawBoats(ctx, world, now) {
       for (const bt of world.boats) {
+        if (!this.inView(bt.x, bt.y, 90)) continue;
         const bob = Math.sin(now * 2.5 + bt.x * 0.01) * 4;
         ctx.save(); ctx.translate(bt.x, bt.y + bob); ctx.scale(bt.dir, 1);
         // Water wake behind sailboat!
@@ -933,6 +952,7 @@ window.YasamDunya = window.YasamDunya || {};
     drawCars(ctx, world, headlights) {
       const now = performance.now() * 0.001;
       for (const c of world.cars) {
+        if (!this.inView(c.x, c.y, 170)) continue; // margin covers headlight beams
         ctx.save();
         ctx.translate(c.x, c.y);
         ctx.rotate(c.angle || 0);
@@ -1068,6 +1088,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     drawBuildings3D(ctx, world, cam, now, nightAlpha, game) {
       for (const b of world.buildings) {
+        if (!this.inViewRect(b.x - 40, b.y - 90, b.w + 80, b.h + 130)) continue;
         const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
         const ox = Math.max(-22, Math.min(22, (cx - cam.x) * 0.045));
         const oy = Math.max(-22, Math.min(22, (cy - cam.y) * 0.045));

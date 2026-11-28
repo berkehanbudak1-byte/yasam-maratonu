@@ -314,6 +314,25 @@ window.YasamDunya = window.YasamDunya || {};
       return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.bankOpen || this.cookOpen || this.uniOpen || this.musicOpen;
     }
 
+    // Central input/state mode (v11). Single source of truth for "who owns input right now".
+    // Priority: title > mini-game (fishing/barista) > open modal > home interior > open world.
+    get mode() {
+      if (!this.started) return 'title';
+      if (this.fishing && this.fishing.active) return 'fishing';
+      if (this.barista && this.barista.active) return 'barista';
+      if (this.hasOpenModal()) return 'modal';
+      if (this.scene === 'home') return 'home';
+      return 'world';
+    }
+
+    isMiniGame() { const m = this.mode; return m === 'fishing' || m === 'barista'; }
+
+    // Can the player trigger a free-roam action? scope 'world' = open world only, 'any' = world or home.
+    canAct(scope = 'world') {
+      const m = this.mode;
+      return scope === 'any' ? (m === 'world' || m === 'home') : m === 'world';
+    }
+
     bindEvents() {
       window.addEventListener('resize', () => this.resize());
       window.addEventListener('blur', () => this.clearAllKeys());
@@ -444,7 +463,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.audio.unlock();
         this.skipActiveStarterTask();
       });
-      const miniBusy = () => this.fishing.active || this.barista.active;
+      const miniBusy = () => this.isMiniGame();
       document.getElementById('btnBag').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleBag(!this.bagOpen); });
       document.getElementById('btnCloseBag').addEventListener('click', () => this.toggleBag(false));
       document.getElementById('btnOpenCookFromBag').addEventListener('click', () => { this.audio.unlock(); this.toggleCook(true); });
@@ -473,11 +492,11 @@ window.YasamDunya = window.YasamDunya || {};
         this.switchLanguage(nextLang);
         this.showToast(nextLang === 'en' ? '🌐 Language switched to English!' : '🌐 Oyun dili Türkçe oldu!');
       });
-      const worldOnly = () => miniBusy() || this.hasOpenModal() || this.scene !== 'world';
+      const worldOnly = () => !this.canAct('world');
       document.getElementById('btnBike').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.toggleBike(); });
       document.getElementById('btnCar').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.toggleCar(); });
       document.getElementById('btnBoat').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.toggleBoat(); });
-      document.getElementById('btnPetAction').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.petCompanion(); });
+      document.getElementById('btnPetAction').addEventListener('click', () => { if (!this.canAct('any')) return; this.audio.unlock(); this.petCompanion(); });
       document.getElementById('btnCamera').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.snapPhoto(); });
       document.getElementById('btnWeather').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.cycleWeather(); });
       document.getElementById('btnSeason').addEventListener('click', () => { if (worldOnly()) return; this.audio.unlock(); this.useHourglass(); });
@@ -521,11 +540,11 @@ window.YasamDunya = window.YasamDunya || {};
           ev.preventDefault(); this.audio.unlock(); this.keys[code] = true;
           if (code === 'KeyE') {
             if (this.fishing.active) this.resolveFishingAttempt();
-            else if (this.barista.active || this.hasOpenModal()) { /* mini-game / modal owns input */ }
+            else if (!this.canAct('any')) { /* mini-game / modal owns input */ }
             else if (this.scene === 'home') this.handleHomeInteract();
             else this.handleInteract();
           }
-          if (code === 'KeyV' && this.scene === 'world' && !miniBusy() && !this.hasOpenModal()) this.toggleCar();
+          if (code === 'KeyV' && this.canAct('world')) this.toggleCar();
         };
         const up = (ev) => { ev.preventDefault(); this.keys[code] = false; };
         btn.addEventListener('touchstart', down, { passive: false });
@@ -784,7 +803,7 @@ window.YasamDunya = window.YasamDunya || {};
       const mini = document.getElementById('guideMiniBtn');
       if (!card || !mini) return;
       const cur = this.getActiveStarterTask();
-      const busy = !this.started || !cur || this.hasOpenModal() || this.fishing.active || this.barista.active;
+      const busy = !cur || !this.canAct('any');
       if (busy) {
         card.classList.add('hidden');
         mini.classList.add('hidden');
@@ -3629,10 +3648,42 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     loop(ts) {
-      const dt = Math.min(0.05, (ts - this.lastTime) / 1000);
+      // Fixed-timestep simulation (v11): game logic always advances in constant
+      // FIXED_DT steps so movement, timers and physics feel identical on 60/144/240 Hz
+      // screens. Rendering interpolates player & camera between the last two steps.
+      const FIXED_DT = 1 / 60;
+      const MAX_STEPS = 6; // ~0.1s of catch-up max; prevents spiral of death
+      let frame = (ts - this.lastTime) / 1000;
       this.lastTime = ts;
-      this.update(dt);
+      if (!(frame > 0)) frame = 0;
+      if (frame > 0.25) frame = FIXED_DT; // returning from background tab: resume, don't fast-forward
+      this.simAcc = (this.simAcc || 0) + frame;
+
+      const p = this.player;
+      const snap = () => ({ px: p.x, py: p.y, cx: this.cam.x, cy: this.cam.y });
+      let steps = 0;
+      while (this.simAcc >= FIXED_DT && steps < MAX_STEPS) {
+        this.interpPrev = snap();
+        this.update(FIXED_DT);
+        this.simAcc -= FIXED_DT;
+        steps++;
+      }
+      if (steps === MAX_STEPS) this.simAcc = 0;
+
+      // Interpolate between previous and current sim state (skip big jumps: bus travel, scene change)
+      const cur = snap();
+      const prev = this.interpPrev || cur;
+      const alpha = Math.max(0, Math.min(1, this.simAcc / FIXED_DT));
+      const near = Math.abs(cur.px - prev.px) + Math.abs(cur.py - prev.py) < 60
+        && Math.abs(cur.cx - prev.cx) + Math.abs(cur.cy - prev.cy) < 60;
+      if (near) {
+        p.x = prev.px + (cur.px - prev.px) * alpha;
+        p.y = prev.py + (cur.py - prev.py) * alpha;
+        this.cam.x = prev.cx + (cur.cx - prev.cx) * alpha;
+        this.cam.y = prev.cy + (cur.cy - prev.cy) * alpha;
+      }
       this.renderer.render(this);
+      p.x = cur.px; p.y = cur.py; this.cam.x = cur.cx; this.cam.y = cur.cy;
       requestAnimationFrame((nextTs) => this.loop(nextTs));
     }
   }
