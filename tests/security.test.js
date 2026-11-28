@@ -136,7 +136,7 @@ test('index.html has Referrer-Policy and Godot-WASM/AudioWorklet-compatible CSP 
   assert.match(csp, /base-uri\s+'self'/);
   assert.match(html, /const GODOT_CONFIG = \{/);
   assert.match(html, /"index\.wasm":35376909/);
-  assert.match(html, /"index\.pck":223824/);
+  assert.match(html, /"index\.pck":343648/);
 });
 
 test('dunya.html has Referrer-Policy, strict script-src CSP, and loads dunya/src/security.js first', () => {
