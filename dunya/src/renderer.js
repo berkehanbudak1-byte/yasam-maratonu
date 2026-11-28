@@ -230,6 +230,11 @@ window.YasamDunya = window.YasamDunya || {};
       ctx.restore();
 
       this.drawSkyLighting(ctx, vw, vh, game.timeMinutes, weather.id);
+      if (game.chapterTint) {
+        // Life Chapter colour grade (warm İstanbul, grey Berlin, sepia homecoming, heaven/hell glow)
+        ctx.fillStyle = game.chapterTint;
+        ctx.fillRect(0, 0, vw, vh);
+      }
       this.drawWeatherParticles(ctx, game, season, weather.id, nightAlpha);
       if (game.lightningFlash > 0) {
         ctx.fillStyle = `rgba(255, 255, 255, ${game.lightningFlash * 0.72})`;
@@ -1330,17 +1335,31 @@ window.YasamDunya = window.YasamDunya || {};
     drawSpeechBubbles(ctx, game) {
       const speakers = [game.player, ...game.npcs].filter((s) => s.speechTimer > 0 && s.speech);
       ctx.font = 'bold 12px "Trebuchet MS", sans-serif';
+      const MAX_W = 300;
       for (const s of speakers) {
-        const tw = ctx.measureText(s.speech).width;
-        const bw = tw + 18, bh = 24;
-        const bx = s.x - bw / 2, by = s.y - 48;
+        // Word-wrap long dialogue (chapter conversations) into multiple lines
+        const txt = YD.tr ? YD.tr(s.speech) : s.speech;
+        const words = txt.split(' ');
+        const lines = [];
+        let cur = '';
+        for (const w of words) {
+          const test = cur ? `${cur} ${w}` : w;
+          if (cur && ctx.measureText(test).width > MAX_W) { lines.push(cur); cur = w; } else cur = test;
+        }
+        if (cur) lines.push(cur);
+        let tw = 0;
+        for (const ln of lines) tw = Math.max(tw, ctx.measureText(ln).width);
+        const lh = 15;
+        const bw = tw + 18, bh = 9 + lines.length * lh;
+        const bx = s.x - bw / 2, by = s.y - 24 - bh;
         ctx.fillStyle = '#fff'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.2;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 8);
         else ctx.rect(bx, by, bw, bh);
         ctx.fill(); ctx.stroke();
         ctx.fillStyle = '#111'; ctx.textAlign = 'center';
-        ctx.fillText(s.speech, s.x, by + 16); ctx.textAlign = 'left';
+        lines.forEach((ln, i) => ctx.fillText(ln, s.x, by + 16 + i * lh));
+        ctx.textAlign = 'left';
       }
     }
 

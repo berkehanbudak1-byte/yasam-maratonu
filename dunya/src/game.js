@@ -159,6 +159,16 @@ window.YasamDunya = window.YasamDunya || {};
       this.animalFriends = new Set();
       this.npcHearts = {};
 
+      // Life Chapters (v11.1): Tekirdağ → İstanbul → Berlin → New York → Tekirdağ → Cennet/Cehennem
+      this.chapterIdx = 0;
+      this.chapterStats = {};
+      this.vicdan = 0;
+      this.vicdanLog = {};
+      this.reunited = new Set();
+      this.ending = null;
+      this.chapterOpen = false;
+      this.chapterTint = null;
+
       this.questProgress = {};
       this.questDone = new Set();
       this.starterDone = new Set();
@@ -170,10 +180,8 @@ window.YasamDunya = window.YasamDunya || {};
       this.pathSampleTimer = 0;
       this.pastEcho = null;
 
-      this.npcs = YD.NPC_TEMPLATES.map((n) => ({
-        ...n, homeX: n.x, homeY: n.y, angle: 0, walkCycle: 0,
-        timer: 1 + Math.random() * 3, speech: '', speechTimer: 0, lineIdx: 0
-      }));
+      this.chapters = new YD.ChapterSystem(this);
+      this.npcs = this.chapters.buildNpcs();
 
       this.cam = { x: 2300, y: 1650, zoom: 0.94 };
       this.particles = [];
@@ -210,7 +218,9 @@ window.YasamDunya = window.YasamDunya || {};
         this.player.speech = `Merhaba ${this.playerName}! Büyük Dünya seni bekliyor! ✨`;
       }
       this.renderTitleScreen();
+      if (this.chapters) { this.chapters.applyTheme(); this.chapters.updateChip(); }
       if (this.started) {
+        if (this.chapterOpen) this.chapters.renderModal();
         if (this.shopOpen) this.renderShop();
         if (this.bagOpen) this.renderBag();
         if (this.questOpen) this.renderQuests();
@@ -272,6 +282,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.saveGame();
       }
       this.syncPetFromInventory();
+      this.chapters.enter();
       this.started = true;
       document.getElementById('titleModal').classList.add('hidden');
       document.getElementById('hud').classList.remove('hidden');
@@ -283,6 +294,12 @@ window.YasamDunya = window.YasamDunya || {};
       const ev = YD.DAILY_EVENTS[this.dailyEventIdx];
       this.showToast(`${ev.icon} ${ev.name} — ${ev.desc}`);
       this.say(this.player, `Merhaba ${this.playerName}! Büyük Dünya seni bekliyor! ✨`, 3.4);
+      if (!loadExisting) setTimeout(() => { if (this.started && !this.hasOpenModal() && !this.isMiniGame()) this.toggleChapter(true); }, 900);
+    }
+
+    resetSaveAndReload() {
+      SEC.removeStorageKeySafe(SEC.getSafeStorage(), SAVE_KEY);
+      location.reload();
     }
 
     resize() {
@@ -311,7 +328,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     hasOpenModal() {
-      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.bankOpen || this.cookOpen || this.uniOpen || this.musicOpen;
+      return this.shopOpen || this.homeOpen || this.questOpen || this.helpOpen || this.bagOpen || this.gardenOpen || this.cafeOpen || this.officeOpen || this.busOpen || this.bankOpen || this.cookOpen || this.uniOpen || this.musicOpen || this.chapterOpen;
     }
 
     // Central input/state mode (v11). Single source of truth for "who owns input right now".
@@ -406,6 +423,7 @@ window.YasamDunya = window.YasamDunya || {};
           return;
         }
         if (e.code === 'KeyK') { this.toggleHelp(!this.helpOpen); return; }
+        if (e.code === 'KeyL') { this.toggleChapter(!this.chapterOpen); return; }
         if (e.code === 'KeyM') { this.toggleMap(); return; }
         if (e.code === 'KeyN') {
           if (e.shiftKey) this.toggleMusic();
@@ -486,6 +504,14 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('btnMapToggle').addEventListener('click', () => { this.audio.unlock(); this.toggleMap(); });
       document.getElementById('btnHelp').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleHelp(!this.helpOpen); });
       document.getElementById('btnCloseHelp').addEventListener('click', () => this.toggleHelp(false));
+      document.getElementById('btnChapter').addEventListener('click', () => { if (miniBusy()) return; this.audio.unlock(); this.toggleChapter(!this.chapterOpen); });
+      document.getElementById('btnCloseChapter').addEventListener('click', () => this.toggleChapter(false));
+      document.getElementById('btnChapterNext').addEventListener('click', () => {
+        this.audio.unlock();
+        if (this.chapters.ch.final) { this.toggleChapter(false); return; }
+        this.chapters.advance();
+      });
+      document.getElementById('btnNewLife').addEventListener('click', () => this.chapters.newLife());
       document.getElementById('btnLangHud')?.addEventListener('click', () => {
         this.audio.unlock();
         const nextLang = (YD.I18N && YD.I18N.getLang() === 'en') ? 'tr' : 'en';
@@ -637,6 +663,9 @@ window.YasamDunya = window.YasamDunya || {};
         starterDone: [...this.starterDone],
         guideMinimized: this.guideMinimized,
         guideCompass: this.guideCompass,
+        chapterIdx: this.chapterIdx, chapterStats: this.chapterStats,
+        vicdan: this.vicdan, vicdanLog: this.vicdanLog,
+        reunited: [...this.reunited], ending: this.ending,
         px: this.player.x, py: this.player.y
       };
       try { storage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (_) {}
@@ -684,6 +713,12 @@ window.YasamDunya = window.YasamDunya || {};
         this.starterDone = d.starterDone || new Set();
         this.guideMinimized = Boolean(d.guideMinimized);
         this.guideCompass = d.guideCompass !== false;
+        this.chapterIdx = d.chapterIdx || 0;
+        this.chapterStats = { ...(d.chapterStats || {}) };
+        this.vicdan = d.vicdan || 0;
+        this.vicdanLog = { ...(d.vicdanLog || {}) };
+        this.reunited = d.reunited || new Set();
+        this.ending = d.ending || null;
         if (d.px !== null && d.py !== null) {
           this.player.x = d.px; this.player.y = d.py;
           this.world.resolveCollisions(this.player, false);
@@ -718,6 +753,7 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     advanceQuest(id, amt = 1) {
+      if (this.chapters) this.chapters.onEvent(id);
       if (id === 'q_animals') this.completeStarterTask('st_animal');
       else if (id === 'q_work' || id === 'q_delivery') this.completeStarterTask('st_work');
       else if (id === 'q_uni') this.completeStarterTask('st_campus');
@@ -957,8 +993,8 @@ window.YasamDunya = window.YasamDunya || {};
 
     closeAllModals() {
       this.clearAllKeys();
-      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = this.bankOpen = this.cookOpen = this.uniOpen = this.musicOpen = false;
-      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'bankModal', 'cookModal', 'uniModal', 'musicModal', 'interactPrompt'].forEach((id) => {
+      this.shopOpen = this.homeOpen = this.questOpen = this.helpOpen = this.bagOpen = this.gardenOpen = this.cafeOpen = this.officeOpen = this.busOpen = this.bankOpen = this.cookOpen = this.uniOpen = this.musicOpen = this.chapterOpen = false;
+      ['shopModal', 'homeModal', 'questModal', 'helpModal', 'bagModal', 'gardenModal', 'cafeModal', 'officeModal', 'busModal', 'bankModal', 'cookModal', 'uniModal', 'musicModal', 'chapterModal', 'interactPrompt'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
@@ -968,6 +1004,11 @@ window.YasamDunya = window.YasamDunya || {};
     toggleHome(open)   { this.closeAllModals(); this.homeOpen = open;   document.getElementById('homeModal').classList.toggle('hidden', !open);   if (open) this.renderHomeModal(); }
     toggleQuests(open) { this.closeAllModals(); this.questOpen = open;  document.getElementById('questModal').classList.toggle('hidden', !open);  if (open) this.renderQuests(); }
     toggleBag(open)    { this.closeAllModals(); this.bagOpen = open;    document.getElementById('bagModal').classList.toggle('hidden', !open);    if (open) this.renderBag(); }
+    toggleChapter(open) {
+      this.closeAllModals(); this.chapterOpen = open;
+      document.getElementById('chapterModal').classList.toggle('hidden', !open);
+      if (open) this.chapters.renderModal();
+    }
     toggleHelp(open)   { this.closeAllModals(); this.helpOpen = open;   document.getElementById('helpModal').classList.toggle('hidden', !open); }
     toggleGarden(open, plotId = null) {
       this.closeAllModals();
@@ -1654,11 +1695,14 @@ window.YasamDunya = window.YasamDunya || {};
       }
       // Nearby NPCs react to your horn!
       const reactions = ['Hey yavaş sür! 😅', 'Güzel araba! 🚗✨', 'Dikkat et dostum! 👋', 'Selam! 📣'];
+      let annoyed = false;
       for (const npc of this.npcs) {
         if (Math.hypot(npc.x - p.x, npc.y - p.y) < 220 && npc.speechTimer <= 0) {
           this.say(npc, reactions[Math.floor(Math.random() * reactions.length)], 2.2);
+          annoyed = true;
         }
       }
+      if (annoyed && this.chapters) this.chapters.onRudeHonk();
     }
 
     handleCarHonk(car, reason, dist) {
@@ -2436,8 +2480,7 @@ window.YasamDunya = window.YasamDunya || {};
       }
       for (const npc of this.npcs) {
         if (Math.hypot(p.x - npc.x, p.y - npc.y) < 64) {
-          const hearts = this.npcHearts[npc.name] || 0;
-          return { kind: 'npc', ref: npc, text: `[E] 💬 ${npc.name} (${hearts > 0 ? '❤️'.repeat(Math.min(5, hearts)) : 'Tanış'})` };
+          return { kind: 'npc', ref: npc, text: this.chapters.promptText(npc) };
         }
       }
       for (const it of this.world.interactables) {
@@ -2501,18 +2544,7 @@ window.YasamDunya = window.YasamDunya || {};
         this.popup(p.x, p.y - 32, `${YD.BAG_ITEMS[k].icon} ${YD.BAG_ITEMS[k].name} Çantada! [C]`, '#4ade80');
         if (k !== 'crystal') this.advanceQuest('q_forest', 1);
       } else if (target.kind === 'npc') {
-        const npc = target.ref;
-        const curH = this.npcHearts[npc.name] || 0;
-        const nextH = Math.min(5, curH + 1);
-        this.npcHearts[npc.name] = nextH;
-        const line = npc.lines[Math.min(npc.lines.length - 1, nextH - 1)];
-        this.say(npc, line, 3.2);
-        this.happiness = Math.min(100, this.happiness + 8);
-        this.addXp(10); this.audio.pickup();
-        if (nextH === 3 && curH < 3) {
-          this.money += 50;
-          this.popup(npc.x, npc.y - 34, '❤️ Dostluk Hediyesi: +₺50!', '#f472b6');
-        }
+        this.chapters.talk(target.ref);
       } else if (target.kind === 'hospital') {
         if (this.health >= 99) { this.say(p, 'Turp gibiyim, sağlığım tam! ❤️', 2.0); return; }
         if (this.money < 30) { this.say(p, 'Muayene için ₺30 gerekiyor!', 2.0); return; }
@@ -2585,6 +2617,8 @@ window.YasamDunya = window.YasamDunya || {};
           return;
         }
         this.money -= 10;
+        // Wish coins go to charity: +1 conscience, once per day
+        if (this.chapters && !this.fountainWishedToday) this.chapters.addVicdan(1, 'charity');
         this.audio.fountainSplash();
         this.burst(this.world.fountain.x, this.world.fountain.y, '#38bdf8', 18);
         this.happiness = Math.min(100, this.happiness + 22);
@@ -2730,6 +2764,7 @@ window.YasamDunya = window.YasamDunya || {};
 
     startNextDay(fainted = false) {
       this.day++;
+      if (this.chapters) this.chapters.onNewDay(fainted);
       if (this.day % 3 === 1) {
         this.seasonIdx = (this.seasonIdx + 1) % YD.SEASONS.length;
         this.age++;
@@ -3616,6 +3651,13 @@ window.YasamDunya = window.YasamDunya || {};
       document.getElementById('clockBadge').textContent = YD.tr ? YD.tr(clockTxt) : clockTxt;
       const biomeTxt = biome === 'home' ? '🏠 EVİNİN İÇİ' : this.world.getBiomeLabel(biome);
       document.getElementById('biomeBadge').textContent = YD.tr ? YD.tr(biomeTxt) : biomeTxt;
+      if (this.chapters) {
+        this.chapters.updateChip();
+        if (this.chapterOpen && !this.chapters.ch.final) {
+          this.chapterRefreshT = (this.chapterRefreshT || 0) + 1;
+          if (this.chapterRefreshT % 30 === 0) this.chapters.renderModal();
+        }
+      }
 
       const bottomBar = document.querySelector('.hud-bottom');
       if (bottomBar) bottomBar.classList.toggle('hidden', this.scene === 'home');

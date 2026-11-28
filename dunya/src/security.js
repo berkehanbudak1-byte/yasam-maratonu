@@ -170,7 +170,20 @@
     const validAchIds = new Set((cfg.ACHIEVEMENTS || []).map((i) => i.id));
     const validQuestIds = new Set((cfg.QUESTS || []).map((i) => i.id));
     const validStarterIds = new Set((cfg.STARTER_TASKS || []).map((i) => i.id));
-    const validNpcNames = new Set((cfg.NPC_TEMPLATES || []).map((n) => n.name));
+    const validNpcNames = new Set([
+      ...(cfg.NPC_TEMPLATES || []).map((n) => n.name),
+      ...(Array.isArray(cfg.CHAPTER_NPC_NAMES) ? cfg.CHAPTER_NPC_NAMES : [])
+    ]);
+    const maxChapter = Math.max(0, (Array.isArray(cfg.CHAPTERS) ? cfg.CHAPTERS.length : 6) - 1);
+    const validReunionKeys = new Set(Array.isArray(cfg.CHAPTER_REUNION_KEYS) ? cfg.CHAPTER_REUNION_KEYS : []);
+    const sanitizeCounterMap = (raw, keys, lo, hi) => {
+      const out = Object.create(null);
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(raw, k)) out[k] = clampInt(raw[k], 0, lo, hi);
+      }
+      return out;
+    };
     const validCropIds = new Set(Object.keys(cfg.CROPS || {}));
     const validBagKeys = Object.keys(cfg.BAG_ITEMS || {});
 
@@ -259,6 +272,12 @@
       starterDone: filterAllowedIds(parsed.starterDone, validStarterIds),
       guideMinimized: Boolean(parsed.guideMinimized),
       guideCompass: parsed.guideCompass !== false,
+      chapterIdx: clampInt(parsed.chapterIdx, 0, 0, maxChapter),
+      chapterStats: sanitizeCounterMap(parsed.chapterStats, cfg.CHAPTER_STAT_KEYS || [], 0, 9999),
+      vicdan: clampInt(parsed.vicdan, 0, -9999, 9999),
+      vicdanLog: sanitizeCounterMap(parsed.vicdanLog, cfg.VICDAN_KEYS || [], -9999, 9999),
+      reunited: filterAllowedIds(parsed.reunited, validReunionKeys),
+      ending: (parsed.ending === 'heaven' || parsed.ending === 'hell') ? parsed.ending : null,
       px: hasPos ? clampNum(parsed.px, 2062, 40, worldW - 40) : null,
       py: hasPos ? clampNum(parsed.py, 1525, 40, worldH - 40) : null
     };

@@ -181,6 +181,8 @@ window.YasamDunya = window.YasamDunya || {};
     'Anka Tüyü': 'Phoenix Feather', 'Enerji bittiğinde bayılmanı engeller!': 'Prevents fainting when Energy hits 0!',
 
     // Home decor, recipes, diplomas, quiz, photo spots
+    'Hayat Bölümleri [L]': 'Life Chapters [L]',
+    'Hayat Bölümleri, Dostlar & Vicdan': 'Life Chapters, Friends & Conscience',
     'Espresso Makinesi': 'Espresso Machine', 'Her sabah +15 Mutluluk ve dinç uyanış!': '+15 Mood every morning & fresh espresso!',
     'Oyun & İş PC\'si': 'Work & Gaming PC', 'Evden Remote Çalışma (+₺95 & +22 XP) açılır!': 'Unlocks Remote Work from home (+$95 & +22 XP)!',
     'Lüks Koltuk & TV': 'Cozy Sofa & TV', 'Evde film molası (+35 Mutluluk) açılır!': 'Unlocks Movie Night at home (+35 Mood)!',
@@ -544,11 +546,19 @@ window.YasamDunya = window.YasamDunya || {};
       return raw.replace(trimmed, TR_TO_EN[trimmed]);
     }
     let out = raw;
+    // Protect proper place names that contain stray-pet substrings (e.g. "Tekirdağ" ⊃ "Tekir")
+    const PROTECT = [['Tekirdağ', '\u0001'], ['TEKİRDAĞ', '\u0002'], ['Tekirdag', '\u0003'], ['TEKIRDAG', '\u0004']];
+    for (let i = 0; i < PROTECT.length; i++) {
+      if (out.includes(PROTECT[i][0])) out = out.split(PROTECT[i][0]).join(PROTECT[i][1]);
+    }
     for (let i = 0; i < SUB_NAMES.length; i++) {
       if (out.includes(SUB_NAMES[i][0])) out = out.split(SUB_NAMES[i][0]).join(SUB_NAMES[i][1]);
     }
     for (let i = 0; i < PHRASE_REPS.length; i++) {
       if (out.includes(PHRASE_REPS[i][0])) out = out.split(PHRASE_REPS[i][0]).join(PHRASE_REPS[i][1]);
+    }
+    for (let i = 0; i < PROTECT.length; i++) {
+      if (out.includes(PROTECT[i][1])) out = out.split(PROTECT[i][1]).join(PROTECT[i][0]);
     }
     return out;
   }

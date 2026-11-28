@@ -365,6 +365,8 @@ window.YasamDunya = window.YasamDunya || {};
     }
 
     getBiomeLabel(biome) {
+      // Life Chapters re-theme district names (Tekirdağ / İstanbul / Berlin / New York / afterlife)
+      if (this.biomeLabels && this.biomeLabels[biome]) return this.biomeLabels[biome];
       const map = {
         mountain: '🏔️ KARLI ZİRVE & KAPLICA',
         forest:   '🌲 KUZEY ORMANI',

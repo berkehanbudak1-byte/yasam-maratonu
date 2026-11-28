@@ -13,7 +13,7 @@
   <meta property="og:title" content="Life Marathon: Open World — 60 FPS Cozy Browser Life Sim" />
   <meta property="og:description" content="Explore 6 biomes, pet & feed street animals, drive an EV car with honking traffic, sail to Treasure Island, cook gourmet meals, decorate your walkable home & enjoy 8 procedural Web Audio soundtracks!" />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://berkehanbudak1-byte.github.io/yasam-maratonu/dunya/og-cover.jpg?v=11.0" />
+  <meta property="og:image" content="https://berkehanbudak1-byte.github.io/yasam-maratonu/dunya/og-cover.jpg?v=11.1" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -21,12 +21,12 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Life Marathon: Open World — 60 FPS Cozy Browser Life Sim" />
   <meta name="twitter:description" content="Play free in your browser — 6 biomes, honking traffic, street pets, walkable home, procedural Web Audio radio & optional Auto-Pilot AI!" />
-  <meta name="twitter:image" content="https://berkehanbudak1-byte.github.io/yasam-maratonu/dunya/og-cover.jpg?v=11.0" />
+  <meta name="twitter:image" content="https://berkehanbudak1-byte.github.io/yasam-maratonu/dunya/og-cover.jpg?v=11.1" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="dunya/icon.png?v=11.0" />
-  <link rel="apple-touch-icon" href="dunya/icon.png?v=11.0" />
+  <link rel="icon" type="image/png" href="dunya/icon.png?v=11.1" />
+  <link rel="apple-touch-icon" href="dunya/icon.png?v=11.1" />
   <title>Life Marathon: Open World — 60 FPS Browser Life Sim (EN / TR)</title>
-  <link rel="stylesheet" href="dunya/styles.css?v=11.0" />
+  <link rel="stylesheet" href="dunya/styles.css?v=11.1" />
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
@@ -91,6 +91,7 @@
 
         <!-- TOP-RIGHT: CLEAN HOTKEY ICON PILLS -->
         <div class="hotkey-bar">
+          <button id="btnChapter" class="icon-pill chapter-pill" title="Hayat Bölümleri [L]">📍 <b id="chapterChip">TEKİRDAĞ 0/4</b></button>
           <button id="btnAutoPilot" class="icon-pill" title="Otonom Yaşam Swarm / Oto-Pilot [O]">🤖 <b>[O]</b></button>
           <button id="btnBag" class="icon-pill" title="Çanta / Envanter [C]">🎒 <b>[C]</b></button>
           <button id="btnQuests" class="icon-pill" title="Görevler & Başarımlar [G]">📋 <b>[G]</b></button>
@@ -318,6 +319,28 @@
     </div>
   </div>
 
+  <!-- LIFE CHAPTERS MODAL ([L]) — Tekirdağ → İstanbul → Berlin → New York → Tekirdağ → Cennet/Cehennem -->
+  <div id="chapterModal" class="modal-backdrop hidden">
+    <div class="glass-panel shop-modal chapter-modal">
+      <div class="shop-header">
+        <h2 id="chapterTitle" style="margin:0; color:#fde047; font-size:20px;">📍 HAYAT BÖLÜMLERİ</h2>
+        <span id="chapterAgeBadge" class="chapter-age">Yaş 18</span>
+        <button id="btnCloseChapter" class="hud-btn">KAPAT [ESC]</button>
+      </div>
+      <div id="chapterTrack" class="chapter-track"></div>
+      <p id="chapterStory" class="chapter-story"></p>
+      <div id="chapterGoalsHdr" class="chapter-sec">🎯 BÖLÜM HEDEFLERİ</div>
+      <div id="chapterGoals" class="quest-modal-list"></div>
+      <div id="chapterFriendsHdr" class="chapter-sec">🤝 BU BÖLÜMDEKİ İNSANLAR</div>
+      <div id="chapterFriends" class="chapter-friends"></div>
+      <div id="chapterVicdan" class="chapter-vicdan"></div>
+      <div class="chapter-actions">
+        <button id="btnNewLife" class="hud-btn hidden">🔄 YENİ HAYAT</button>
+        <button id="btnChapterNext" class="hud-btn gold">🔒</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SHOP, AUTO GALLERY & PETS MODAL ([I]) -->
   <div id="shopModal" class="modal-backdrop hidden">
     <div class="glass-panel shop-modal">
@@ -413,6 +436,7 @@
         <div><b>1 / 2 / 3 / 4</b><span>Barista Sipariş Servis Tuşları</span></div>
         <div><b>C</b><span>Çanta &amp; Şef Mutfağı (Ye / Pişir / Sat)</span></div>
         <div><b>G</b><span>Görevler, Kariyer &amp; Başarımlar</span></div>
+        <div><b>L</b><span>Hayat Bölümleri, Dostlar &amp; Vicdan</span></div>
         <div><b>I</b><span>Market, Galeri &amp; Evcil Hayvan</span></div>
         <div><b>P / F</b><span>Hayvanı Sev [P] · Manzara Fotoğrafı [F]</span></div>
         <div><b>O</b><span>🤖 Otonom Yaşam Swarm (Tam Oto-Pilot)</span></div>
@@ -440,12 +464,13 @@
     </div>
   </div>
 
-  <script defer src="dunya/src/security.js?v=11.0"></script>
-  <script defer src="dunya/src/config.js?v=11.0"></script>
-  <script defer src="dunya/src/i18n.js?v=11.0"></script>
-  <script defer src="dunya/src/audio.js?v=11.0"></script>
-  <script defer src="dunya/src/world.js?v=11.0"></script>
-  <script defer src="dunya/src/renderer.js?v=11.0"></script>
-  <script defer src="dunya/src/game.js?v=11.0"></script>
+  <script defer src="dunya/src/security.js?v=11.1"></script>
+  <script defer src="dunya/src/config.js?v=11.1"></script>
+  <script defer src="dunya/src/i18n.js?v=11.1"></script>
+  <script defer src="dunya/src/chapters.js?v=11.1"></script>
+  <script defer src="dunya/src/audio.js?v=11.1"></script>
+  <script defer src="dunya/src/world.js?v=11.1"></script>
+  <script defer src="dunya/src/renderer.js?v=11.1"></script>
+  <script defer src="dunya/src/game.js?v=11.1"></script>
 </body>
 </html>
